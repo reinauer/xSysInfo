@@ -146,6 +146,9 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     struct MsgPort *port = NULL;
     struct IOStdReq *io = NULL;
     BOOL supports_scsi = FALSE;
+    struct SCSICmd scsi_cmd;
+    UBYTE cmd[6];
+
     BYTE error;
 
     if (!handler_name || !handler_name[0]) {
@@ -174,10 +177,17 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
         return FALSE;
     }
 
+    memset(&scsi_cmd, 0, sizeof(struct SCSICmd));
+    memset(cmd, 0, sizeof(cmd)); // TEST UNIT READY
+    
+    scsi_cmd.scsi_Command = &cmd;
+    scsi_cmd.scsi_Length = 0;
+    scsi_cmd.scsi_Flags = SCSIF_READ;
+
     /* Try HD_SCSICMD first */
     io->io_Command = HD_SCSICMD;
-    io->io_Data = NULL;
-    io->io_Length = 0;
+    io->io_Data = &scsi_cmd;
+    io->io_Length = sizeof(struct SCSICmd);
 
     error = DoIO((struct IORequest *)io);
 
