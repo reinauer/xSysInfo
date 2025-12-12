@@ -49,25 +49,29 @@ all: identify $(TARGET)
 
 # FlexCat build - only when binary doesn't exist
 $(FLEXCAT_BIN):
-	$(MAKE) -C 3rdparty/flexcat bootstrap
-	$(MAKE) -C 3rdparty/flexcat
+	@$(MAKE) -s -C 3rdparty/flexcat bootstrap
+	@$(MAKE) -s -C 3rdparty/flexcat
 
 # Identify library build (requires FlexCat)
 identify: $(FLEXCAT_BIN)
-	export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
-	$(MAKE) -C 3rdparty/identify reference/proto/identify.h reference/inline/identify.h
+	@export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
+	$(MAKE) -s -C 3rdparty/identify reference/proto/identify.h reference/inline/identify.h
 
 $(TARGET): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
-	$(STRIP) $@
+	@echo "  LINK  $@"
+	@$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+	@echo "  STRIP $@"
+	@$(STRIP) $@
 
 src/%.o: src/%.c src/xsysinfo.h
-	$(CC) $(CFLAGS) -c -o $@ $<
+	@echo "  CC    $@"
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(OBJS) $(TARGET)
-	$(MAKE) -C 3rdparty/flexcat clean
-	$(MAKE) -C 3rdparty/identify clean
+	@echo "  CLEAN"
+	@rm -f $(OBJS) $(TARGET)
+	@$(MAKE) -s -C 3rdparty/flexcat clean
+	@$(MAKE) -s -C 3rdparty/identify clean
 
 # Dependencies
 src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/locale_str.h
