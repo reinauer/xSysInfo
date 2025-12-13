@@ -79,7 +79,7 @@ void export_header(BPTR fh)
  */
 void export_hardware(BPTR fh)
 {
-    char buffer[64];
+    char buffer[74];
 
     WRITE_LINE(fh, "=== INTERNAL HARDWARE MODES ===");
     WRITE_LINE(fh, "");

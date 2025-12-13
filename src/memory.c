@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include <exec/execbase.h>
 #include <exec/memory.h>
@@ -271,7 +272,7 @@ void draw_memory_view(void)
     if (btn) draw_button(btn);
 
     /* Show region counter */
-    snprintf(buffer, sizeof(buffer), "%d / %lu",
+    snprintf(buffer, sizeof(buffer), "%" PRId32 " / %lu",
              app->memory_region_index + 1, (unsigned long)memory_regions.count);
     SetAPen(rp, COLOR_TEXT);
     Move(rp, 340, 180);

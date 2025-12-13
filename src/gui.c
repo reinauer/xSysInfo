@@ -687,7 +687,7 @@ static void update_software_list(void)
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
         /* Version */
-        snprintf(buffer, 10, "V%d.%d", entry->version, entry->revision);
+        snprintf(buffer, sizeof(buffer), "V%d.%d", entry->version, entry->revision);
         Move(rp, SOFTWARE_PANEL_X + 290, y);
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
@@ -855,7 +855,7 @@ static void draw_speed_panel(void)
 static void draw_hardware_panel(void)
 {
     WORD y;
-    char buffer[64];
+    char buffer[74];
 
     draw_panel(HARDWARE_PANEL_X, HARDWARE_PANEL_Y,
                HARDWARE_PANEL_W, HARDWARE_PANEL_H,

@@ -88,7 +88,7 @@ void detect_cpu(void)
 
     /* Get CPU string from identify.library */
     get_hardware_string(IDHW_CPU, id_buffer, sizeof(id_buffer));
-    strncpy(hw_info.cpu_string, id_buffer, sizeof(hw_info.cpu_string) - 1);
+    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "%s", id_buffer);
 
     /* Get numeric CPU type */
     cpu_num = IdHardwareNum(IDHW_CPU, NULL);
@@ -146,7 +146,7 @@ void detect_fpu(void)
 
     /* Get FPU string from identify.library */
     get_hardware_string(IDHW_FPU, id_buffer, sizeof(id_buffer));
-    strncpy(hw_info.fpu_string, id_buffer, sizeof(hw_info.fpu_string) - 1);
+    snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "%s", id_buffer);
 
     /* Get numeric FPU type */
     fpu_num = IdHardwareNum(IDHW_FPU, NULL);
@@ -192,7 +192,7 @@ void detect_mmu(void)
 
     /* Get MMU string from identify.library */
     get_hardware_string(IDHW_MMU, id_buffer, sizeof(id_buffer));
-    strncpy(hw_info.mmu_string, id_buffer, sizeof(hw_info.mmu_string) - 1);
+    snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "%s", id_buffer);
 
     /* Get numeric MMU type */
     mmu_num = IdHardwareNum(IDHW_MMU, NULL);
@@ -244,7 +244,7 @@ void detect_chipset(void)
 
     /* Get Agnus/Alice info */
     get_hardware_string(IDHW_AGNUS, id_buffer, sizeof(id_buffer));
-    strncpy(hw_info.agnus_string, id_buffer, sizeof(hw_info.agnus_string) - 1);
+    snprintf(hw_info.agnus_string, sizeof(hw_info.agnus_string), "%s", id_buffer);
 
     chipset = IdHardwareNum(IDHW_CHIPSET, NULL);
     agnus_mode = IdHardwareNum(IDHW_AGNUSMODE, NULL);
@@ -281,7 +281,7 @@ void detect_chipset(void)
 
     /* Get Denise/Lisa info */
     get_hardware_string(IDHW_DENISE, id_buffer, sizeof(id_buffer));
-    strncpy(hw_info.denise_string, id_buffer, sizeof(hw_info.denise_string) - 1);
+    snprintf(hw_info.denise_string, sizeof(hw_info.denise_string), "%s", id_buffer);
 
     denise_num = IdHardwareNum(IDHW_DENISE, NULL);
 
@@ -320,7 +320,7 @@ void detect_clock(void)
 
     /* Get clock info from identify.library */
     get_hardware_string(IDHW_RTC, id_buffer, sizeof(id_buffer));
-    strncpy(hw_info.clock_string, id_buffer, sizeof(hw_info.clock_string) - 1);
+    snprintf(hw_info.clock_string, sizeof(hw_info.clock_string), "%s", id_buffer);
 
     clock_num = IdHardwareNum(IDHW_RTC, NULL);
 
