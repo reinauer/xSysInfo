@@ -169,29 +169,33 @@ $(OPENPCI_LHA): | $(DOWNLOAD_DIR)
 
 # Download all libraries
 download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA)
-	mkdir -p 3rdparty/identify/build
+	@mkdir -p 3rdparty/identify/build
 	# Extract Identify library (use 68000-compatible version)
-	lha xq $(IDENTIFY_USR_LHA) Identify/libs/identify.library_000
-	mv Identify/libs/identify.library_000 3rdparty/identify/build/identify.library
-	rm -rf Identify
+	@echo "  UNPACK $(IDENTIFY_USR_LHA)"
+	@lha xq $(IDENTIFY_USR_LHA) Identify/libs/identify.library_000
+	@mv Identify/libs/identify.library_000 3rdparty/identify/build/identify.library
+	@rm -rf Identify
 	# Extract PCI database
-	lha xq $(IDENTIFY_PCI_LHA) Identify/s/pci.db
-	mv Identify/s/pci.db 3rdparty/identify/build/
-	rm -rf Identify
+	@echo "  UNPACK $(IDENTIFY_PCI_LHA)"
+	@lha xq $(IDENTIFY_PCI_LHA) Identify/s/pci.db
+	@mv Identify/s/pci.db 3rdparty/identify/build/
+	@rm -rf Identify
 	# Extract OpenPCI library
-	lha xq $(OPENPCI_LHA) Libs/openpci.library
-	mv Libs/openpci.library 3rdparty/identify/build/
-	rm -rf Libs
+	@echo "  UNPACK $(OPENPCI_LHA)"
+	@lha xq $(OPENPCI_LHA) Libs/openpci.library
+	@mv Libs/openpci.library 3rdparty/identify/build/
+	@rm -rf Libs
 
 disk: $(TARGET) download-libs
-	xdftool $(DISK) format "xSysInfo"
-	xdftool $(DISK) write $(TARGET) $(TARGET)
-	xdftool $(DISK) write $(TARGET).info $(TARGET).info
-	xdftool $(DISK) makedir Libs
-	xdftool $(DISK) write 3rdparty/identify/build/identify.library Libs/identify.library
-	xdftool $(DISK) write 3rdparty/identify/build/openpci.library Libs/openpci.library
-	xdftool $(DISK) makedir S
-	xdftool $(DISK) write Startup-Sequence S/Startup-Sequence
-	xdftool $(DISK) write 3rdparty/identify/build/pci.db S/pci.db
-	xdftool $(DISK) boot install
-	xdftool $(DISK) list
+	@echo "  DISK"
+	@xdftool $(DISK) format "xSysInfo"
+	@xdftool $(DISK) write $(TARGET) $(TARGET)
+	@xdftool $(DISK) write $(TARGET).info $(TARGET).info
+	@xdftool $(DISK) makedir Libs
+	@xdftool $(DISK) write 3rdparty/identify/build/identify.library Libs/identify.library
+	@xdftool $(DISK) write 3rdparty/identify/build/openpci.library Libs/openpci.library
+	@xdftool $(DISK) makedir S
+	@xdftool $(DISK) write Startup-Sequence S/Startup-Sequence
+	@xdftool $(DISK) write 3rdparty/identify/build/pci.db S/pci.db
+	@xdftool $(DISK) boot install
+	@xdftool $(DISK) list
