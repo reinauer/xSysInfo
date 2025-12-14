@@ -58,7 +58,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_DHRYSTONES */        "Dhrystones",
     /* MSG_MIPS */              "Mips",
     /* MSG_MFLOPS */            "MFlops",
-    /* MSG_CHIP_SPEED */        "Chip Speed vs A600",
+    /* MSG_MEM_SPEED_UNIT */    "MB/s",
 
     /* Reference system names */
     /* MSG_REF_A600 */          "A600  68000  7MHz",

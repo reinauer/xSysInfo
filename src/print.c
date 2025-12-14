@@ -243,10 +243,36 @@ void export_benchmarks(BPTR fh)
             WRITE_LINE(fh, "MFLOPS:            N/A (no FPU)");
         }
 
+        /* Memory speeds */
         {
-            char scaled_buf[16];
-            format_scaled(scaled_buf, sizeof(scaled_buf), bench_results.chip_speed);
-            write_formatted(fh, "Chip Speed vs A600: %s", scaled_buf);
+            char chip_str[16], fast_str[16], rom_str[16];
+
+            if (bench_results.chip_speed > 0) {
+                ULONG mb = bench_results.chip_speed / 1000000;
+                ULONG frac = (bench_results.chip_speed % 1000000) / 10000;
+                snprintf(chip_str, sizeof(chip_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+            } else {
+                strncpy(chip_str, "N/A", sizeof(chip_str));
+            }
+
+            if (bench_results.fast_speed > 0) {
+                ULONG mb = bench_results.fast_speed / 1000000;
+                ULONG frac = (bench_results.fast_speed % 1000000) / 10000;
+                snprintf(fast_str, sizeof(fast_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+            } else {
+                strncpy(fast_str, "N/A", sizeof(fast_str));
+            }
+
+            if (bench_results.rom_speed > 0) {
+                ULONG mb = bench_results.rom_speed / 1000000;
+                ULONG frac = (bench_results.rom_speed % 1000000) / 10000;
+                snprintf(rom_str, sizeof(rom_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+            } else {
+                strncpy(rom_str, "N/A", sizeof(rom_str));
+            }
+
+            write_formatted(fh, "Memory Speed:      CHIP %s  FAST %s  ROM %s MB/s",
+                           chip_str, fast_str, rom_str);
         }
     } else {
         WRITE_LINE(fh, "Benchmarks not run. Press SPEED button to run benchmarks.");

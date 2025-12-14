@@ -59,7 +59,7 @@ typedef enum {
     MSG_DHRYSTONES,
     MSG_MIPS,
     MSG_MFLOPS,
-    MSG_CHIP_SPEED,
+    MSG_MEM_SPEED_UNIT,
 
     /* Reference system names */
     MSG_REF_A600,

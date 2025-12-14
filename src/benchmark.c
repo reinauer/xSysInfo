@@ -229,12 +229,17 @@ ULONG run_mflops_benchmark(void)
 
     start_time = get_timer_ticks();
 
+    __asm__ volatile (
+        "fmove.l  #2,fp0\n\t"         /* fb = 2 */
+        "fmove.l  #3,fp1\n\t"         /* fc = 3 */
+        "fmove.l  #4,fp2\n\t"         /* fd = 4 */
+        :
+        :
+        : "fp0", "fp1", "fp2", "cc", "memory"
+    );
     for (i = 0; i < iterations; i++) {
         /* Inline 68881+/040/060 FPU sequence; no C-side FP state needed */
         __asm__ volatile (
-            "fmove.l  #2,fp0\n\t"         /* fb = 2 */
-            "fmove.l  #3,fp1\n\t"         /* fc = 3 */
-            "fmove.l  #4,fp2\n\t"         /* fd = 4 */
             "fadd.x   fp1,fp0\n\t"        /* fa = fb + fc */
             "fmul.x   fp2,fp0\n\t"        /* fb = fa * fd */
             "fsub.x   fp1,fp0\n\t"        /* fc = fb - fa */
@@ -268,66 +273,75 @@ ULONG run_mflops_benchmark(void)
 }
 
 /*
- * Run chip memory speed test
- * Returns speed relative to A600 scaled by 100 (100 = A600 speed)
+ * Measure memory read speed for a given address range
+ * Returns speed in bytes per second
  */
-ULONG run_chip_speed_test(void)
+static ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG iterations)
 {
-    APTR chip_buffer;
-    APTR temp_buffer;
-    ULONG buffer_size = 32768;
     ULONG start_time, end_time, elapsed;
-    ULONG iterations = 100;
+    ULONG total_read = 0;
+    ULONG longs_per_read = buffer_size / sizeof(ULONG);
+    volatile ULONG dummy;
     ULONG i, j;
-    volatile ULONG *src, *dst;
 
-    /* A600 baseline: approximately 3.5 MB/s chip memory bandwidth */
-    const ULONG a600_baseline = 3500000UL;
-
-    if (!TimerBase) return 100;
-
-    chip_buffer = AllocMem(buffer_size, MEMF_CHIP | MEMF_CLEAR);
-    if (!chip_buffer) return 100;
-
-    temp_buffer = AllocMem(buffer_size, MEMF_CHIP | MEMF_CLEAR);
-    if (!temp_buffer) {
-        FreeMem(chip_buffer, buffer_size);
-        return 100;
-    }
-
-    src = (ULONG *)chip_buffer;
-    dst = (ULONG *)temp_buffer;
+    if (!TimerBase) return 0;
 
     start_time = get_timer_ticks();
 
-    /* Copy memory repeatedly */
     for (i = 0; i < iterations; i++) {
-        ULONG *s = (ULONG *)src;
-        ULONG *d = (ULONG *)dst;
-        for (j = 0; j < buffer_size / sizeof(ULONG); j++) {
-            *d++ = *s++;
+        for (j = 0; j < longs_per_read; j++) {
+            dummy = src[j];
         }
+        total_read += buffer_size;
     }
+
+    /* Suppress unused variable warning */
+    (void)dummy;
 
     end_time = get_timer_ticks();
     elapsed = end_time - start_time;
 
-    FreeMem(temp_buffer, buffer_size);
-    FreeMem(chip_buffer, buffer_size);
-
-    if (elapsed > 0) {
-        ULONG bytes_copied = iterations * buffer_size;
-        unsigned long long numerator =
-            (unsigned long long)bytes_copied * 1000000ULL * 100ULL;
-        unsigned long long denom = (unsigned long long)elapsed * (unsigned long long)a600_baseline;
-        unsigned long long scaled = numerator / denom; /* *100 of baseline */
-        if (scaled > ULONG_MAX) {
-            return ULONG_MAX;
-        }
-        return (ULONG)scaled;
+    if (elapsed > 0 && total_read > 0) {
+        return (ULONG)(((uint64_t)total_read * 1000000ULL) / elapsed);
     }
 
-    return 100;
+    return 0;
+}
+
+/*
+ * Run memory speed tests for CHIP, FAST, and ROM
+ * Results stored in bench_results
+ */
+void run_memory_speed_tests(void)
+{
+    ULONG buffer_size = 32768;
+    ULONG iterations = 32;
+    APTR chip_buffer;
+    APTR fast_buffer;
+
+    /* Test CHIP RAM speed */
+    chip_buffer = AllocMem(buffer_size, MEMF_CHIP | MEMF_CLEAR);
+    if (chip_buffer) {
+        bench_results.chip_speed = measure_mem_read_speed(
+            (volatile ULONG *)chip_buffer, buffer_size, iterations);
+        FreeMem(chip_buffer, buffer_size);
+    } else {
+        bench_results.chip_speed = 0;
+    }
+
+    /* Test FAST RAM speed (if available) */
+    fast_buffer = AllocMem(buffer_size, MEMF_FAST | MEMF_CLEAR);
+    if (fast_buffer) {
+        bench_results.fast_speed = measure_mem_read_speed(
+            (volatile ULONG *)fast_buffer, buffer_size, iterations);
+        FreeMem(fast_buffer, buffer_size);
+    } else {
+        bench_results.fast_speed = 0;
+    }
+
+    /* Test ROM read speed (Kickstart ROM at $F80000) */
+    bench_results.rom_speed = measure_mem_read_speed(
+        (volatile ULONG *)0xF80000, buffer_size, iterations);
 }
 
 /*
@@ -348,8 +362,8 @@ void run_benchmarks(void)
         bench_results.mflops = run_mflops_benchmark();
     }
 
-    /* Run chip speed test */
-    bench_results.chip_speed = run_chip_speed_test();
+    /* Run memory speed tests (CHIP, FAST, ROM) */
+    run_memory_speed_tests();
 
     bench_results.benchmarks_valid = TRUE;
 }

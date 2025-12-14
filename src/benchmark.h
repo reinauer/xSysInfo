@@ -34,7 +34,9 @@ typedef struct {
     ULONG dhrystones;       /* Dhrystones per second */
     ULONG mips;             /* MIPS rating * 100 */
     ULONG mflops;           /* MFLOPS rating * 100 */
-    ULONG chip_speed;       /* Chip RAM speed relative to A600 * 100 */
+    ULONG chip_speed;       /* Chip RAM speed in bytes/sec */
+    ULONG fast_speed;       /* Fast RAM speed in bytes/sec (0 if no fast RAM) */
+    ULONG rom_speed;        /* ROM read speed in bytes/sec */
     BOOL benchmarks_valid;  /* TRUE if benchmarks have been run */
 } BenchmarkResults;
 
@@ -52,7 +54,7 @@ void run_benchmarks(void);
 /* Individual benchmarks */
 ULONG run_dhrystone(void);
 ULONG run_mflops_benchmark(void);
-ULONG run_chip_speed_test(void);
+void run_memory_speed_tests(void);
 
 /* Helper functions */
 ULONG calculate_mips(ULONG dhrystones);

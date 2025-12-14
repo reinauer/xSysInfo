@@ -200,10 +200,10 @@ void update_button_states(void)
 
             /* Software scroll buttons (arrows on right side) */
             add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
-                       SOFTWARE_PANEL_Y + 17, 12, 10,
+                       SOFTWARE_PANEL_Y + 15, 12, 10,
                        NULL, BTN_SOFTWARE_UP, TRUE);   /* Up arrow */
             add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
-                       SOFTWARE_PANEL_Y + 17 + 10, 12, SOFTWARE_PANEL_H - 17 - 10 - 12,
+                       SOFTWARE_PANEL_Y + 15 + 10, 12, SOFTWARE_PANEL_H - 15 - 10 - 12,
                        NULL, BTN_SOFTWARE_SCROLLBAR, TRUE);  /* Scroll bar */
             add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
                        SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 12, 12, 10,
@@ -637,7 +637,7 @@ static void update_software_list(void)
     SetAPen(rp, COLOR_PANEL_BG);
     RectFill(rp, SOFTWARE_PANEL_X + 2, list_top - 7,
              SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 3,
-             list_top + list_height - 4);
+             list_top + list_height - 5);
 
     /* Update cycle button */
     Button *cycle_btn = find_button(BTN_SOFTWARE_CYCLE);
@@ -846,16 +846,48 @@ static void draw_speed_panel(void)
     }
     TightText(rp, SPEED_PANEL_X + 84, y, (CONST_STRPTR)buffer, -1, 4);
 
-    /* Chip speed */
+    /* Memory speeds header */
+    y += 8;
+    TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)"CHIP  FAST  ROM   SPEED", -1, 4);
+
+    /* Memory speed values */
     y += 8;
     if (bench_results.benchmarks_valid) {
-        char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.chip_speed);
-        snprintf(buffer, sizeof(buffer), "%s %s",
-                 get_string(MSG_CHIP_SPEED), scaled);
+        char chip_str[8], fast_str[8], rom_str[8];
+
+        /* Format CHIP speed as X.XX */
+        if (bench_results.chip_speed > 0) {
+            ULONG mb = bench_results.chip_speed / 1000000;
+            ULONG frac = (bench_results.chip_speed % 1000000) / 10000;
+            snprintf(chip_str, sizeof(chip_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+        } else {
+            strncpy(chip_str, "N/A", sizeof(chip_str));
+        }
+
+        /* Format FAST speed as X.XX or N/A */
+        if (bench_results.fast_speed > 0) {
+            ULONG mb = bench_results.fast_speed / 1000000;
+            ULONG frac = (bench_results.fast_speed % 1000000) / 10000;
+            snprintf(fast_str, sizeof(fast_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+        } else {
+            strncpy(fast_str, "N/A", sizeof(fast_str));
+        }
+
+        /* Format ROM speed as X.XX */
+        if (bench_results.rom_speed > 0) {
+            ULONG mb = bench_results.rom_speed / 1000000;
+            ULONG frac = (bench_results.rom_speed % 1000000) / 10000;
+            snprintf(rom_str, sizeof(rom_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+        } else {
+            strncpy(rom_str, "N/A", sizeof(rom_str));
+        }
+
+        snprintf(buffer, sizeof(buffer), "%-5s %-5s %-5s %s",
+                 chip_str, fast_str, rom_str, get_string(MSG_MEM_SPEED_UNIT));
     } else {
-        snprintf(buffer, sizeof(buffer), "%s %s",
-                 get_string(MSG_CHIP_SPEED), get_string(MSG_NA));
+        snprintf(buffer, sizeof(buffer), "%-5s %-5s %-5s %s",
+                 get_string(MSG_NA), get_string(MSG_NA), get_string(MSG_NA),
+                 get_string(MSG_MEM_SPEED_UNIT));
     }
     TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
 }
@@ -1257,8 +1289,9 @@ void handle_button_press(ButtonID btn_id)
         case BTN_MEM_SPEED:
             if (app->memory_region_index >= 0 &&
                 app->memory_region_index < (LONG)memory_regions.count) {
+                show_status_overlay(get_string(MSG_MEASURING_SPEED));
                 measure_memory_speed(app->memory_region_index);
-                redraw_current_view();
+                hide_status_overlay();
             }
             break;
 
@@ -1308,8 +1341,9 @@ void handle_button_press(ButtonID btn_id)
         case BTN_DRV_SPEED:
             if (app->selected_drive >= 0 &&
                 app->selected_drive < (LONG)drive_list.count) {
+                show_status_overlay(get_string(MSG_MEASURING_SPEED));
                 measure_drive_speed(app->selected_drive);
-                redraw_current_view();
+                hide_status_overlay();
             }
             break;
 
