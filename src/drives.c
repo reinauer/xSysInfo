@@ -430,6 +430,7 @@ BOOL check_disk_present(ULONG index)
 
     /* Clean up */
     CloseDevice((struct IORequest *)io);
+    WaitTOF();
     DeleteIORequest((struct IORequest *)io);
     DeleteMsgPort(port);
 
@@ -532,6 +533,7 @@ ULONG measure_drive_speed(ULONG index)
     if (!buffer) {
         debug("  drives: Failed to allocate buffer\n");
         CloseDevice((struct IORequest *)io);
+	WaitTOF();
         DeleteIORequest((struct IORequest *)io);
         DeleteMsgPort(port);
         return 0;
@@ -569,6 +571,7 @@ ULONG measure_drive_speed(ULONG index)
     /* Clean up */
     FreeMem(buffer, buffer_size);
     CloseDevice((struct IORequest *)io);
+    WaitTOF();
     DeleteIORequest((struct IORequest *)io);
     DeleteMsgPort(port);
 
