@@ -138,22 +138,11 @@ static void bstr_to_cstr(BSTR bstr, char *cstr, ULONG maxlen)
 static BOOL is_floppy_device(ULONG total_blocks);
 
 /*
- * Enumerate all drives
+ * Helper: Scan DosList for devices and populate drive list
  */
-void enumerate_drives(void)
+static void scan_dos_list(void)
 {
     struct DosList *dol;
-    struct InfoData *info;
-
-    debug("  drives: Starting enumeration...\n");
-
-    memset(&drive_list, 0, sizeof(drive_list));
-
-    info = AllocMem(sizeof(struct InfoData), MEMF_PUBLIC | MEMF_CLEAR);
-    if (!info) {
-        Printf((CONST_STRPTR)"Out of memory\n");
-        return;
-    }
 
     debug("  drives: Locking DosList...\n");
     dol = LockDosList(LDF_DEVICES | LDF_READ);
@@ -222,143 +211,181 @@ void enumerate_drives(void)
 
     debug("  drives: Unlocking DosList...\n");
     UnLockDosList(LDF_DEVICES | LDF_READ);
+}
 
-    /* Second pass: match volumes to devices to get volume names.
-     * We store device task pointers, then match against volume tasks.
-     * This avoids Lock() calls that could hang on empty floppy drives. */
-    {
-        struct MsgPort *dev_tasks[MAX_DRIVES];
-        struct DosList *dev_dol;
-        ULONG i;
+/*
+ * Helper: Match volumes to devices
+ */
+static void match_volumes_to_drives(void)
+{
+    struct MsgPort *dev_tasks[MAX_DRIVES];
+    struct DosList *dev_dol;
+    struct DosList *dol;
+    ULONG i;
 
-        /* First, collect task pointers for each device */
-        memset(dev_tasks, 0, sizeof(dev_tasks));
-        dev_dol = LockDosList(LDF_DEVICES | LDF_READ);
-        while ((dev_dol = NextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
-            char dev_name[32];
-            bstr_to_cstr(dev_dol->dol_Name, dev_name, sizeof(dev_name) - 2);
-            strcat(dev_name, ":");
+    /* First, collect task pointers for each device */
+    memset(dev_tasks, 0, sizeof(dev_tasks));
+    dev_dol = LockDosList(LDF_DEVICES | LDF_READ);
+    while ((dev_dol = NextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
+        char dev_name[32];
+        bstr_to_cstr(dev_dol->dol_Name, dev_name, sizeof(dev_name) - 2);
+        strcat(dev_name, ":");
 
-            /* Find matching drive in our list */
-            for (i = 0; i < drive_list.count; i++) {
-                if (strcmp(drive_list.drives[i].device_name, dev_name) == 0) {
-                    dev_tasks[i] = dev_dol->dol_Task;
-                    break;
-                }
-            }
-        }
-        UnLockDosList(LDF_DEVICES | LDF_READ);
-
-        /* Now scan volumes and match by task pointer */
-        debug("  drives: Looking up volume names...\n");
-        dol = LockDosList(LDF_VOLUMES | LDF_READ);
-        while ((dol = NextDosEntry(dol, LDF_VOLUMES)) != NULL) {
-            struct MsgPort *vol_task = dol->dol_Task;
-
-            if (!vol_task) continue;
-
-            /* Find device with matching task */
-            for (i = 0; i < drive_list.count; i++) {
-                if (dev_tasks[i] == vol_task && !drive_list.drives[i].volume_name[0]) {
-                    bstr_to_cstr(dol->dol_Name, drive_list.drives[i].volume_name,
-                                 sizeof(drive_list.drives[i].volume_name));
-                    drive_list.drives[i].disk_state = DISK_OK;
-                    debug("  drives: Matched volume '%s' to device '%s'\n",
-                          (LONG)drive_list.drives[i].volume_name,
-                          (LONG)drive_list.drives[i].device_name);
-                    break;
-                }
-            }
-        }
-        UnLockDosList(LDF_VOLUMES | LDF_READ);
-    }
-
-    /* Third pass: query Info() for mounted drives to populate usage/error stats */
-    {
-        ULONG i;
-
+        /* Find matching drive in our list */
         for (i = 0; i < drive_list.count; i++) {
-            DriveInfo *drive = &drive_list.drives[i];
-            BOOL is_floppy = is_floppy_device(drive->total_blocks);
-            BOOL has_volume = drive->volume_name[0] != '\0';
-            BPTR lock;
-
-            /* Avoid hanging on empty floppies; require a volume to be present */
-            if (!has_volume && is_floppy) continue;
-            /* Skip clearly invalid entries */
-            if (!drive->is_valid && !has_volume) continue;
-
-            debug("  drives: Trying Info() on '%s'\n", (LONG)drive->device_name);
-            lock = Lock((CONST_STRPTR)drive->device_name, ACCESS_READ);
-            if (!lock) {
-                debug("  drives: Lock failed on '%s'\n", (LONG)drive->device_name);
-                if (drive->disk_state == DISK_OK) {
-                    drive->disk_state = DISK_NO_DISK;
-                }
-                continue;
+            if (strcmp(drive_list.drives[i].device_name, dev_name) == 0) {
+                dev_tasks[i] = dev_dol->dol_Task;
+                break;
             }
-
-            if (Info(lock, info)) {
-                drive->total_blocks = info->id_NumBlocks;
-                drive->blocks_used = info->id_NumBlocksUsed;
-                /* Only update block size if not set by DosEnvec (which gives physical size) */
-                if (drive->bytes_per_block == 0) {
-                    drive->bytes_per_block = info->id_BytesPerBlock;
-                }
-                drive->dos_type = info->id_DiskType;
-                drive->fs_type = identify_filesystem(info->id_DiskType);
-                drive->disk_errors = info->id_NumSoftErrors;
-
-                /* Disk state */
-                switch (info->id_DiskState) {
-                    case ID_WRITE_PROTECTED:
-                        drive->disk_state = DISK_WRITE_PROTECTED;
-                        break;
-                    case ID_VALIDATED:
-                    case ID_VALIDATING:
-                        drive->disk_state = DISK_OK;
-                        break;
-                    default:
-                        drive->disk_state = DISK_UNKNOWN;
-                        break;
-                }
-
-                /* Volume name (fallback if we missed it earlier) */
-                if (info->id_VolumeNode && !drive->volume_name[0]) {
-                    struct DosList *vol = BADDR(info->id_VolumeNode);
-                    if (vol) {
-                        bstr_to_cstr(vol->dol_Name, drive->volume_name,
-                                     sizeof(drive->volume_name));
-                    }
-                }
-
-                drive->is_valid = TRUE;
-            } else {
-                debug("  drives: Info() failed on '%s'\n", (LONG)drive->device_name);
-            }
-
-            UnLock(lock);
         }
     }
+    UnLockDosList(LDF_DEVICES | LDF_READ);
 
-    /* Fourth pass: check SCSI direct command support once we're done with the DOS list */
-    {
-        ULONG i;
+    /* Now scan volumes and match by task pointer */
+    debug("  drives: Looking up volume names...\n");
+    dol = LockDosList(LDF_VOLUMES | LDF_READ);
+    while ((dol = NextDosEntry(dol, LDF_VOLUMES)) != NULL) {
+        struct MsgPort *vol_task = dol->dol_Task;
 
+        if (!vol_task) continue;
+
+        /* Find device with matching task */
         for (i = 0; i < drive_list.count; i++) {
-            DriveInfo *drive = &drive_list.drives[i];
-
-            if (!drive->handler_name[0]) continue;
-
-            drive->scsi_supported = check_scsi_direct_support(
-                drive->handler_name, drive->unit_number);
-            debug("  drives: SCSI support for %s: %s\n",
-                  (LONG)drive->handler_name,
-                  (LONG)(drive->scsi_supported ? "YES" : "NO"));
+            if (dev_tasks[i] == vol_task && !drive_list.drives[i].volume_name[0]) {
+                bstr_to_cstr(dol->dol_Name, drive_list.drives[i].volume_name,
+                             sizeof(drive_list.drives[i].volume_name));
+                drive_list.drives[i].disk_state = DISK_OK;
+                debug("  drives: Matched volume '%s' to device '%s'\n",
+                      (LONG)drive_list.drives[i].volume_name,
+                      (LONG)drive_list.drives[i].device_name);
+                break;
+            }
         }
+    }
+    UnLockDosList(LDF_VOLUMES | LDF_READ);
+}
+
+/*
+ * Helper: Query detailed drive info using Info()
+ */
+static void query_drive_details(void)
+{
+    struct InfoData *info;
+    ULONG i;
+
+    info = AllocMem(sizeof(struct InfoData), MEMF_PUBLIC | MEMF_CLEAR);
+    if (!info) {
+        Printf((CONST_STRPTR)"Out of memory\n");
+        return;
+    }
+
+    for (i = 0; i < drive_list.count; i++) {
+        DriveInfo *drive = &drive_list.drives[i];
+        BOOL is_floppy = is_floppy_device(drive->total_blocks);
+        BOOL has_volume = drive->volume_name[0] != '\0';
+        BPTR lock;
+
+        /* Avoid hanging on empty floppies; require a volume to be present */
+        if (!has_volume && is_floppy) continue;
+        /* Skip clearly invalid entries */
+        if (!drive->is_valid && !has_volume) continue;
+
+        debug("  drives: Trying Info() on '%s'\n", (LONG)drive->device_name);
+        lock = Lock((CONST_STRPTR)drive->device_name, ACCESS_READ);
+        if (!lock) {
+            debug("  drives: Lock failed on '%s'\n", (LONG)drive->device_name);
+            if (drive->disk_state == DISK_OK) {
+                drive->disk_state = DISK_NO_DISK;
+            }
+            continue;
+        }
+
+        if (Info(lock, info)) {
+            drive->total_blocks = info->id_NumBlocks;
+            drive->blocks_used = info->id_NumBlocksUsed;
+            /* Only update block size if not set by DosEnvec (which gives physical size) */
+            if (drive->bytes_per_block == 0) {
+                drive->bytes_per_block = info->id_BytesPerBlock;
+            }
+            drive->dos_type = info->id_DiskType;
+            drive->fs_type = identify_filesystem(info->id_DiskType);
+            drive->disk_errors = info->id_NumSoftErrors;
+
+            /* Disk state */
+            switch (info->id_DiskState) {
+                case ID_WRITE_PROTECTED:
+                    drive->disk_state = DISK_WRITE_PROTECTED;
+                    break;
+                case ID_VALIDATED:
+                case ID_VALIDATING:
+                    drive->disk_state = DISK_OK;
+                    break;
+                default:
+                    drive->disk_state = DISK_UNKNOWN;
+                    break;
+            }
+
+            /* Volume name (fallback if we missed it earlier) */
+            if (info->id_VolumeNode && !drive->volume_name[0]) {
+                struct DosList *vol = BADDR(info->id_VolumeNode);
+                if (vol) {
+                    bstr_to_cstr(vol->dol_Name, drive->volume_name,
+                                 sizeof(drive->volume_name));
+                }
+            }
+
+            drive->is_valid = TRUE;
+        } else {
+            debug("  drives: Info() failed on '%s'\n", (LONG)drive->device_name);
+        }
+
+        UnLock(lock);
     }
 
     FreeMem(info, sizeof(struct InfoData));
+}
+
+/*
+ * Helper: Check SCSI direct support for all drives
+ */
+static void check_scsi_support_all(void)
+{
+    ULONG i;
+
+    for (i = 0; i < drive_list.count; i++) {
+        DriveInfo *drive = &drive_list.drives[i];
+
+        if (!drive->handler_name[0]) continue;
+
+        drive->scsi_supported = check_scsi_direct_support(
+            drive->handler_name, drive->unit_number);
+        debug("  drives: SCSI support for %s: %s\n",
+              (LONG)drive->handler_name,
+              (LONG)(drive->scsi_supported ? get_string(MSG_YES) : get_string(MSG_NO)));
+    }
+}
+
+/*
+ * Enumerate all drives
+ */
+void enumerate_drives(void)
+{
+    debug("  drives: Starting enumeration...\n");
+
+    memset(&drive_list, 0, sizeof(drive_list));
+
+    /* First pass: Scan DosList for devices */
+    scan_dos_list();
+
+    /* Second pass: Match volumes to devices */
+    match_volumes_to_drives();
+
+    /* Third pass: Query detailed info */
+    query_drive_details();
+
+    /* Fourth pass: Check SCSI support */
+    check_scsi_support_all();
+
     debug("  drives: Enumeration complete, found %ld drives\n", (LONG)drive_list.count);
 }
 
@@ -469,7 +496,8 @@ ULONG measure_drive_speed(ULONG index)
     struct MsgPort *port = NULL;
     struct IOStdReq *io = NULL;
     APTR buffer = NULL;
-    ULONG buffer_size;
+    BOOL device_opened = FALSE;
+    ULONG buffer_size = 0;
     ULONG block_size;
     ULONG total_read = 0;
     uint64_t start_time, end_time, elapsed;
@@ -519,15 +547,14 @@ ULONG measure_drive_speed(ULONG index)
     port = CreateMsgPort();
     if (!port) {
         debug("  drives: Failed to create message port\n");
-        return 0;
+        goto cleanup;
     }
 
     /* Create I/O request */
     io = (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq));
     if (!io) {
         debug("  drives: Failed to create IO request\n");
-        DeleteMsgPort(port);
-        return 0;
+        goto cleanup;
     }
 
     /* Open the device */
@@ -538,13 +565,9 @@ ULONG measure_drive_speed(ULONG index)
     if (error != 0) {
         debug("  drives: Failed to open device %s unit %ld (error %ld)\n",
               (LONG)drive->handler_name, (LONG)drive->unit_number, (LONG)error);
-        DeleteIORequest((struct IORequest *)io);
-        DeleteMsgPort(port);
-        /* Mark as not measured */
-        drive->speed_measured = FALSE;
-        drive->speed_bytes_sec = 0;
-        return 0;
+        goto cleanup;
     }
+    device_opened = TRUE;
 
     /* Allocate buffer - try fast memory first for hard drives, fall back to any */
     buffer = AllocMem(buffer_size, MEMF_FAST | MEMF_CLEAR);
@@ -554,11 +577,7 @@ ULONG measure_drive_speed(ULONG index)
 
     if (!buffer) {
         debug("  drives: Failed to allocate buffer\n");
-        CloseDevice((struct IORequest *)io);
-	WaitTOF();
-        DeleteIORequest((struct IORequest *)io);
-        DeleteMsgPort(port);
-        return 0;
+        goto cleanup;
     }
 
     /* Calculate read offset - start from low cylinder, clamp to 32-bit */
@@ -620,13 +639,6 @@ ULONG measure_drive_speed(ULONG index)
     /* Get end time */
     end_time = get_timer_ticks();
 
-    /* Clean up */
-    FreeMem(buffer, buffer_size);
-    CloseDevice((struct IORequest *)io);
-    WaitTOF();
-    DeleteIORequest((struct IORequest *)io);
-    DeleteMsgPort(port);
-
     /* Calculate speed */
     elapsed = end_time - start_time;
     if (elapsed > 0 && total_read > 0) {
@@ -641,6 +653,21 @@ ULONG measure_drive_speed(ULONG index)
 
     debug("  drives: Read %ld bytes in %ld us = %ld bytes/sec\n",
           (LONG)total_read, (LONG)elapsed, (LONG)bytes_per_sec);
+
+cleanup:
+    if (buffer) FreeMem(buffer, buffer_size);
+    if (device_opened) {
+        CloseDevice((struct IORequest *)io);
+        WaitTOF();
+    }
+    if (io) DeleteIORequest((struct IORequest *)io);
+    if (port) DeleteMsgPort(port);
+
+    if (!device_opened) {
+        /* If we failed to open or allocate, ensure marked as failed */
+        drive->speed_measured = FALSE;
+        drive->speed_bytes_sec = 0;
+    }
 
     return bytes_per_sec;
 }
