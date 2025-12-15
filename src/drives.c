@@ -23,6 +23,7 @@
 #include "benchmark.h"
 #include "locale_str.h"
 #include "debug.h"
+#include <limits.h>
 
 /* Global drive list */
 DriveList drive_list;
