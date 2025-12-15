@@ -301,7 +301,10 @@ void enumerate_drives(void)
             if (Info(lock, info)) {
                 drive->total_blocks = info->id_NumBlocks;
                 drive->blocks_used = info->id_NumBlocksUsed;
-                drive->bytes_per_block = info->id_BytesPerBlock;
+                /* Only update block size if not set by DosEnvec (which gives physical size) */
+                if (drive->bytes_per_block == 0) {
+                    drive->bytes_per_block = info->id_BytesPerBlock;
+                }
                 drive->dos_type = info->id_DiskType;
                 drive->fs_type = identify_filesystem(info->id_DiskType);
                 drive->disk_errors = info->id_NumSoftErrors;
@@ -587,18 +590,12 @@ ULONG measure_drive_speed(ULONG index)
     if (is_floppy) {
         io->io_Command = CMD_READ;
         io->io_Data = buffer;
-        io->io_Length = buffer_size;
+        io->io_Length = block_size;
         io->io_Offset = read_offset;
 
         error = DoIO((struct IORequest *)io);
         if (error != 0) {
-            debug("  drives: Warm-up read error %ld\n", (LONG)error);
-            FreeMem(buffer, buffer_size);
-            CloseDevice((struct IORequest *)io);
-            WaitTOF();
-            DeleteIORequest((struct IORequest *)io);
-            DeleteMsgPort(port);
-            return 0;
+            debug("  drives: Warm-up read error %ld (ignoring)\n", (LONG)error);
         }
     }
 
