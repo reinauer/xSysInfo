@@ -236,6 +236,8 @@ static BOOL scsi_inquiry(struct IOStdReq *io, int target, int lun,
 
     /* Close and reopen device with correct unit */
     CloseDevice((struct IORequest *)io);
+    /* uaehf.device needs a delay between closing and opening again */
+    WaitTOF();
     error = OpenDevice((CONST_STRPTR)scsi_device_list.device_name, unit,
                        (struct IORequest *)io, 0);
     if (error != 0) {
@@ -299,6 +301,8 @@ static BOOL scsi_read_capacity(struct IOStdReq *io, int target, int lun,
 
     /* Close and reopen device with correct unit */
     CloseDevice((struct IORequest *)io);
+    /* uaehf.device needs a delay between closing and opening again */
+    WaitTOF();
     error = OpenDevice((CONST_STRPTR)scsi_device_list.device_name, unit,
                        (struct IORequest *)io, 0);
     if (error != 0) {
