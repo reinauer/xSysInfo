@@ -111,11 +111,13 @@ DOWNLOAD_DIR = downloads
 IDENTIFY_USR_LHA = $(DOWNLOAD_DIR)/IdentifyUsr.lha
 IDENTIFY_PCI_LHA = $(DOWNLOAD_DIR)/IdentifyPci.lha
 OPENPCI_LHA = $(DOWNLOAD_DIR)/openpci68k.lha
+MMULIB_LHA = $(DOWNLOAD_DIR)/MMULib.lha
 
 # MD5 checksums for verification
 IDENTIFY_USR_MD5 = f8bd9feb9fa595bea979755224d08c5c
 IDENTIFY_PCI_MD5 = 7771426e5c7a5e3dc882a973029099d1
-OPENPCI_MD5 = afeef82072c8556559beb6923dccf91f
+OPENPCI_MD5 = e8f18f6c5111479756294576822eaf98
+MMULIB_MD5 = 5d07a2dc0f495a9c6790fa7d1df43f1d
 
 .PHONY: identify-all disk download-libs
 
@@ -126,9 +128,18 @@ $(DOWNLOAD_DIR):
 # Portable MD5 verification (works on Linux and macOS)
 # Usage: $(call verify_md5,file,expected_md5)
 # Returns 0 (success) if match, 1 (failure) if mismatch
+define md5_cmd
+md5sum "$(1)" 2>/dev/null | cut -d' ' -f1 || md5 -q "$(1)" 2>/dev/null
+endef
 define verify_md5_cmd
-actual=$$(md5sum "$(1)" 2>/dev/null | cut -d' ' -f1 || md5 -q "$(1)" 2>/dev/null); \
+actual=$$( $(call md5_cmd,$(1)) ); \
 [ "$$actual" = "$(2)" ]
+endef
+define md5_fail_msg
+actual=$$( $(call md5_cmd,$(1)) ); \
+echo "$(1): FAILED (MD5 mismatch)"; \
+echo "Expected MD5: $(2)"; \
+echo "Got MD5: $$actual"
 endef
 
 # Download and verify IdentifyUsr.lha
@@ -141,7 +152,7 @@ $(IDENTIFY_USR_LHA): | $(DOWNLOAD_DIR)
 		if $(call verify_md5_cmd,$@,$(IDENTIFY_USR_MD5)); then \
 			echo "$@: OK"; \
 		else \
-			echo "$@: FAILED (MD5 mismatch)"; rm -f $@; exit 1; \
+			$(call md5_fail_msg,$@,$(IDENTIFY_USR_MD5)); rm -f $@; exit 1; \
 		fi \
 	fi
 
@@ -155,7 +166,7 @@ $(IDENTIFY_PCI_LHA): | $(DOWNLOAD_DIR)
 		if $(call verify_md5_cmd,$@,$(IDENTIFY_PCI_MD5)); then \
 			echo "$@: OK"; \
 		else \
-			echo "$@: FAILED (MD5 mismatch)"; rm -f $@; exit 1; \
+			$(call md5_fail_msg,$@,$(IDENTIFY_PCI_MD5)); rm -f $@; exit 1; \
 		fi \
 	fi
 
@@ -169,12 +180,26 @@ $(OPENPCI_LHA): | $(DOWNLOAD_DIR)
 		if $(call verify_md5_cmd,$@,$(OPENPCI_MD5)); then \
 			echo "$@: OK"; \
 		else \
-			echo "$@: FAILED (MD5 mismatch)"; rm -f $@; exit 1; \
+			$(call md5_fail_msg,$@,$(OPENPCI_MD5)); rm -f $@; exit 1; \
+		fi \
+	fi
+
+# Download and verify MMULib.lha
+$(MMULIB_LHA): | $(DOWNLOAD_DIR)
+	@if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(MMULIB_MD5)); then \
+		echo "$@ already downloaded and verified"; \
+	else \
+		echo "Downloading MMULib.lha..."; \
+		curl -sL http://aminet.net/util/libs/MMULib.lha -o $@; \
+		if $(call verify_md5_cmd,$@,$(MMULIB_MD5)); then \
+			echo "$@: OK"; \
+		else \
+			$(call md5_fail_msg,$@,$(MMULIB_MD5)); rm -f $@; exit 1; \
 		fi \
 	fi
 
 # Download all libraries
-download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA)
+download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_LHA)
 	@mkdir -p 3rdparty/identify/build
 	# Extract Identify library (use 68000-compatible version)
 	@echo "  UNPACK $(IDENTIFY_USR_LHA)"
