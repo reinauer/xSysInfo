@@ -1223,6 +1223,24 @@ static void draw_hardware_panel(void)
                      get_string(MSG_ICACHE), NULL, 64);
     y += 8;
 
+    /* Vert Hz */
+    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.vert_freq);
+    draw_label_value(HARDWARE_PANEL_X + 4, y,
+                     get_string(MSG_VERT_HZ), buffer, 90);
+
+    draw_label_value(HARDWARE_PANEL_X + 170, y,
+                     get_string(MSG_DCACHE), NULL, 64);
+    y += 8;
+
+    /* Supply Hz */
+    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.supply_freq);
+    draw_label_value(HARDWARE_PANEL_X + 4, y,
+                     get_string(MSG_SUPPLY_HZ), buffer, 90);
+
+    draw_label_value(HARDWARE_PANEL_X + 170, y,
+                     get_string(MSG_IBURST), NULL, 64);
+    y += 8;
+
     /* Ramsey */
     if (hw_info.ramsey_rev) {
         snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.ramsey_rev);
@@ -1233,7 +1251,7 @@ static void draw_hardware_panel(void)
                      get_string(MSG_RAMSEY_REV), buffer, 90);
 
     draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_DCACHE), NULL, 64);
+                     get_string(MSG_DBURST), NULL, 64);
     y += 8;
 
     /* Gary */
@@ -1246,30 +1264,12 @@ static void draw_hardware_panel(void)
                      get_string(MSG_GARY_REV), buffer, 90);
 
     draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_IBURST), NULL, 64);
+                     get_string(MSG_CBACK), NULL, 64);
     y += 8;
 
     /* Card Slot */
     draw_label_value(HARDWARE_PANEL_X + 4, y,
                      get_string(MSG_CARD_SLOT), hw_info.card_slot_string, 90);
-
-    draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_DBURST), NULL, 64);
-    y += 8;
-
-    /* Vert Hz */
-    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.vert_freq);
-    draw_label_value(HARDWARE_PANEL_X + 4, y,
-                     get_string(MSG_VERT_HZ), buffer, 90);
-
-    draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_CBACK), NULL, 64);
-    y += 8;
-
-    /* Supply Hz */
-    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.supply_freq);
-    draw_label_value(HARDWARE_PANEL_X + 4, y,
-                     get_string(MSG_SUPPLY_HZ), buffer, 90);
 
     /* Draw cache status values */
     draw_cache_status();
