@@ -785,16 +785,16 @@ void format_size(ULONG bytes, char *buffer, ULONG bufsize)
     if (bytes >= 1024 * 1024 * 1024) {
         scaled = (bytes / (1024 * 1024 * 1024)) * 100 +
                  ((bytes % (1024 * 1024 * 1024)) * 100) / (1024 * 1024 * 1024);
-        format_scaled(num_buf, sizeof(num_buf), scaled);
+        format_scaled(num_buf, sizeof(num_buf), scaled, TRUE);
         snprintf(buffer, bufsize, "%sG", num_buf);
     } else if (bytes >= 1024 * 1024) {
         scaled = (bytes / (1024 * 1024)) * 100 +
                  ((bytes % (1024 * 1024)) * 100) / (1024 * 1024);
-        format_scaled(num_buf, sizeof(num_buf), scaled);
+        format_scaled(num_buf, sizeof(num_buf), scaled, TRUE);
         snprintf(buffer, bufsize, "%sM", num_buf);
     } else if (bytes >= 1024) {
         scaled = (bytes / 1024) * 100 + ((bytes % 1024) * 100) / 1024;
-        format_scaled(num_buf, sizeof(num_buf), scaled);
+        format_scaled(num_buf, sizeof(num_buf), scaled, TRUE);
         snprintf(buffer, bufsize, "%sK", num_buf);
     } else {
         snprintf(buffer, bufsize, "%lu", (unsigned long)bytes);

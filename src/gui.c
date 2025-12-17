@@ -56,11 +56,11 @@ static void draw_cache_status(void);
 static void clear_buttons(void);
 static void update_software_list(void);
 
-void format_scaled(char *buffer, size_t size, ULONG value_x100)
+void format_scaled(char *buffer, size_t size, ULONG value_x100, BOOL round)
 {
     ULONG integer_part = value_x100 / 100;
     ULONG frac_part = value_x100 % 100;
-    if (integer_part >= 100) {
+    if (round && integer_part >= 100) {
         /* Round up if fractional part >= 0.5 */
         if (frac_part >= 50) {
             integer_part++;
@@ -1034,7 +1034,7 @@ static void draw_speed_panel(void)
 	    int factor_off = 0;
 	    if (factor_x100 <= 10000) factor_str[factor_off++] = ' ';
 	    if (factor_x100 <= 1000) factor_str[factor_off++] = ' ';
-            format_scaled(factor_str + factor_off, sizeof(factor_str)-factor_off, factor_x100);
+            format_scaled(factor_str + factor_off, sizeof(factor_str)-factor_off, factor_x100, FALSE);
             SetAPen(rp, COLOR_HIGHLIGHT);
             TightText(rp, SPEED_PANEL_X + 132, y, (CONST_STRPTR)factor_str, -1, 7);
         }
@@ -1049,7 +1049,7 @@ static void draw_speed_panel(void)
     //y = SPEED_PANEL_Y + SPEED_PANEL_H - 18;
     if (bench_results.benchmarks_valid) {
         char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.mips);
+        format_scaled(scaled, sizeof(scaled), bench_results.mips, FALSE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  get_string(MSG_MIPS), scaled);
     } else {
@@ -1061,7 +1061,7 @@ static void draw_speed_panel(void)
 
     if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid) {
         char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.mflops);
+        format_scaled(scaled, sizeof(scaled), bench_results.mflops, FALSE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  get_string(MSG_MFLOPS), scaled);
     } else {
@@ -1081,21 +1081,21 @@ static void draw_speed_panel(void)
 
         /* Format CHIP speed in MB/s */
         if (bench_results.chip_speed > 0) {
-            format_scaled(chip_str, sizeof(chip_str), bench_results.chip_speed / 10000);
+            format_scaled(chip_str, sizeof(chip_str), bench_results.chip_speed / 10000, TRUE);
         } else {
             snprintf(chip_str, sizeof(chip_str), "%s", get_string(MSG_NA));
         }
 
         /* Format FAST speed in MB/s or N/A */
         if (bench_results.fast_speed > 0) {
-            format_scaled(fast_str, sizeof(fast_str), bench_results.fast_speed / 10000);
+            format_scaled(fast_str, sizeof(fast_str), bench_results.fast_speed / 10000, TRUE);
         } else {
             snprintf(fast_str, sizeof(fast_str), "%s", get_string(MSG_NA));
         }
 
         /* Format ROM speed in MB/s */
         if (bench_results.rom_speed > 0) {
-            format_scaled(rom_str, sizeof(rom_str), bench_results.rom_speed / 10000);
+            format_scaled(rom_str, sizeof(rom_str), bench_results.rom_speed / 10000, TRUE);
         } else {
             snprintf(rom_str, sizeof(rom_str), "%s", get_string(MSG_NA));
         }
@@ -1152,13 +1152,13 @@ static void draw_hardware_panel(void)
     if (hw_info.cpu_revision[0] != '\0' &&
         strcmp(hw_info.cpu_revision, "N/A") != 0) {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s (%s) %s",
                  hw_info.cpu_string, hw_info.cpu_revision,
                  mhz_buf);
     } else {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  hw_info.cpu_string, mhz_buf);
     }
@@ -1169,7 +1169,7 @@ static void draw_hardware_panel(void)
     /* FPU */
     if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_mhz > 0) {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  hw_info.fpu_string, mhz_buf);
         draw_label_value(HARDWARE_PANEL_X + 4, y,
@@ -1206,7 +1206,7 @@ static void draw_hardware_panel(void)
     {
         unsigned long long horiz_khz =
             ((unsigned long long)hw_info.horiz_freq * 100ULL) / 1000ULL;
-        format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz);
+        format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz, FALSE);
     }
     draw_label_value(HARDWARE_PANEL_X + 4, y,
                      get_string(MSG_HORIZ_KHZ), buffer, 90);

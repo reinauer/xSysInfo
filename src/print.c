@@ -92,12 +92,12 @@ void export_hardware(BPTR fh)
     if (hw_info.cpu_revision[0] != '\0' &&
         strcmp(hw_info.cpu_revision, "N/A") != 0) {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s (%s) %s MHz",
                  hw_info.cpu_string, hw_info.cpu_revision, mhz_buf);
     } else {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s %s MHz",
                  hw_info.cpu_string, mhz_buf);
     }
@@ -105,7 +105,7 @@ void export_hardware(BPTR fh)
 
     if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_mhz > 0) {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s %s MHz",
                  hw_info.fpu_string, mhz_buf);
         write_formatted(fh, "%-16s %s", "FPU:", buffer);
@@ -128,7 +128,7 @@ void export_hardware(BPTR fh)
     {
         unsigned long long horiz_khz =
             ((unsigned long long)hw_info.horiz_freq * 100ULL) / 1000ULL;
-        format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz);
+        format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz, FALSE);
     }
     write_formatted(fh, "%-16s %s KHz", "Horiz Freq:", buffer);
 
@@ -231,13 +231,13 @@ void export_benchmarks(BPTR fh)
         write_formatted(fh, "Dhrystones:        %lu", (unsigned long)bench_results.dhrystones);
         {
             char scaled_buf[16];
-            format_scaled(scaled_buf, sizeof(scaled_buf), bench_results.mips);
+            format_scaled(scaled_buf, sizeof(scaled_buf), bench_results.mips, FALSE);
             write_formatted(fh, "MIPS:              %s", scaled_buf);
         }
 
         if (hw_info.fpu_type != FPU_NONE) {
             char scaled_buf[16];
-            format_scaled(scaled_buf, sizeof(scaled_buf), bench_results.mflops);
+            format_scaled(scaled_buf, sizeof(scaled_buf), bench_results.mflops, FALSE);
             write_formatted(fh, "MFLOPS:            %s", scaled_buf);
         } else {
             WRITE_LINE(fh, "MFLOPS:            N/A (no FPU)");
@@ -248,19 +248,19 @@ void export_benchmarks(BPTR fh)
             char chip_str[16], fast_str[16], rom_str[16];
 
             if (bench_results.chip_speed > 0) {
-                format_scaled(chip_str, sizeof(chip_str), bench_results.chip_speed / 10000);
+                format_scaled(chip_str, sizeof(chip_str), bench_results.chip_speed / 10000, TRUE);
             } else {
                 strncpy(chip_str, "N/A", sizeof(chip_str));
             }
 
             if (bench_results.fast_speed > 0) {
-                format_scaled(fast_str, sizeof(fast_str), bench_results.fast_speed / 10000);
+                format_scaled(fast_str, sizeof(fast_str), bench_results.fast_speed / 10000, TRUE);
             } else {
                 strncpy(fast_str, "N/A", sizeof(fast_str));
             }
 
             if (bench_results.rom_speed > 0) {
-                format_scaled(rom_str, sizeof(rom_str), bench_results.rom_speed / 10000);
+                format_scaled(rom_str, sizeof(rom_str), bench_results.rom_speed / 10000, TRUE);
             } else {
                 strncpy(rom_str, "N/A", sizeof(rom_str));
             }
