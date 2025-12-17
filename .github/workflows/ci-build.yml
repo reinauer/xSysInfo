@@ -10,7 +10,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    container: stefanreinauer/amiga-gcc
+    container: stefanreinauer/amiga-gcc:gcc-v13.3
 
     steps:
     - uses: actions/checkout@v4
@@ -39,4 +39,3 @@ jobs:
       with:
           name: ${{ steps.adf.outputs.filename }}
           path: ${{ github.workspace }}/${{ steps.adf.outputs.filename }}
-
