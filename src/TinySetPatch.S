@@ -83,6 +83,13 @@ DEBUG_PATCHES   EQU 0               ; Set to 1 to prompt before each patch
 ; MAIN ENTRY POINT
 ; =============================================================
 Start:
+    ; Save command line arguments (D0=length, A0=pointer)
+    ; Must be done BEFORE any other operations destroy these registers
+    lea     ArgLength(pc),a1
+    move.l  d0,(a1)
+    lea     ArgPointer(pc),a1
+    move.l  a0,(a1)
+
     movem.l d2-d7/a2-a6,-(sp)
 
     ; --- Setup DOS for output ---
@@ -603,9 +610,12 @@ Install060Vectors:
     move.l  a1,VEC_UNIMP_INT(a0)
     move.l  a1,VEC_UNIMP_INT.w
 
-    ; Clear caches
+    ; Clear caches (CacheClearU requires exec V37+)
     move.l  AbsExecBase.w,a6
+    cmpi.w  #37,LIB_VERSION(a6)
+    blt.s   .SkipCacheClr1
     jsr     _LVOCacheClearU(a6)
+.SkipCacheClr1:
 
     movem.l (sp)+,d0-d2/a0-a2
     rts
@@ -825,8 +835,12 @@ FixVector7Align:
     dc.w    $4E7A,$8801         ; MOVEC VBR,A0
     moveq   #-2,d0
     and.l   d0,28(a0)           ; Clear bit 0 of vector 7
+    ; CacheClearU requires exec V37+
     move.l  AbsExecBase.w,a6
+    cmpi.w  #37,LIB_VERSION(a6)
+    blt.s   .SkipCacheClr2
     jsr     _LVOCacheClearU(a6)
+.SkipCacheClr2:
     movem.l (sp)+,d0/a0/a6
     rts
 
@@ -1047,16 +1061,15 @@ PrintHexLong:
 ; =============================================================
 ; PARSE COMMAND LINE ARGUMENTS
 ; Checks for QUIET keyword (case insensitive)
+; Uses saved D0/A0 from program entry (works on all Kickstart versions)
 ; =============================================================
 ParseArgs:
-    movem.l d0-d2/a0-a2/a6,-(sp)
+    movem.l d0-d2/a0-a2,-(sp)
 
-    ; Get command line using GetArgStr (dos.library V36+)
-    move.l  DOSBase(pc),a6
-    jsr     _LVOGetArgStr(a6)
-    tst.l   d0
-    beq.s   .pa_done
-    move.l  d0,a0                   ; A0 = argument string
+    ; Get saved command line (D0=length, A0=pointer from program entry)
+    move.l  ArgLength(pc),d0
+    beq.s   .pa_done                ; No arguments
+    move.l  ArgPointer(pc),a0       ; A0 = argument string
 
     ; Scan for "QUIET" keyword
     lea     ArgQuiet(pc),a1         ; A1 = "QUIET" to match
@@ -1109,7 +1122,7 @@ ParseArgs:
     move.b  #1,(a0)
 
 .pa_done:
-    movem.l (sp)+,d0-d2/a0-a2/a6
+    movem.l (sp)+,d0-d2/a0-a2
     rts
 
 ; =============================================================
@@ -1120,6 +1133,8 @@ DOSBase:        dc.l    0
 LibBase:        dc.l    0
 DetectedCPU:    dc.l    0
 SavedCACR:      dc.l    0
+ArgLength:      dc.l    0           ; Saved from D0 at entry
+ArgPointer:     dc.l    0           ; Saved from A0 at entry
 QuietMode:      dc.b    0           ; Non-zero = suppress output
     EVEN
 
