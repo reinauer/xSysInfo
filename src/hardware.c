@@ -415,13 +415,32 @@ void detect_system_chips(void)
         return;
     }
 
-    /* Try to detect based on system type */
+    /* Detect Zorro capability based on chipset presence:
+     * - Ramsey (memory controller) indicates A3000/A4000 = Zorro III
+     * - Gary without Ramsey indicates A500/A2000 = Zorro II
+     * This is more reliable than system type detection which can fail
+     * with CPU upgrades (e.g., 68060)
+     */
+    if (hw_info.ramsey_rev != 0) {
+        /* A3000/A4000 have Ramsey - these have Zorro III slots */
+        hw_info.has_zorro_slots = TRUE;
+        snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
+                 "%s", get_string(MSG_ZORRO_III));
+        return;
+    }
+
+    if (hw_info.gary_rev != 0) {
+        /* A500/A2000 have Gary but no Ramsey - these have Zorro II slots */
+        hw_info.has_zorro_slots = TRUE;
+        snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
+                 "%s", get_string(MSG_ZORRO_II));
+        return;
+    }
+
+    /* Fall back to system type detection for edge cases */
     {
         ULONG system_num = IdHardwareNum(IDHW_SYSTEM, NULL);
 
-        /* A500/A2000/A3000/A4000 have Zorro slots */
-        /* A600/A1200 have PCMCIA slots */
-        /* This is a simplification - actual detection would need more work */
         switch (system_num) {
             case IDSYS_AMIGA600:
             case IDSYS_AMIGA1200:
@@ -434,8 +453,7 @@ void detect_system_chips(void)
                 hw_info.has_zorro_slots = TRUE;
                 snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
                          "%s", get_string(MSG_ZORRO_II));
-		break;
-
+                break;
             case IDSYS_AMIGA3000:
             case IDSYS_AMIGA4000:
                 hw_info.has_zorro_slots = TRUE;
