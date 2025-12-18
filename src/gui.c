@@ -793,6 +793,12 @@ static void draw_software_panel(void)
                SOFTWARE_PANEL_W - 2, 14,
 	       get_string(MSG_SYSTEM_SOFTWARE));
 
+    /* Draw cycle button initially */
+    Button *cycle_btn = find_button(BTN_SOFTWARE_CYCLE);
+    if (cycle_btn) {
+        draw_cycle_button(cycle_btn);
+    }
+
     update_software_list();
 }
 
@@ -825,21 +831,24 @@ static void update_software_list(void)
             return;
     }
 
-    /* Clear list area */
+    /* Clear list area (stop before scroll bar at -14) */
     SetAPen(rp, COLOR_PANEL_BG);
     RectFill(rp, SOFTWARE_PANEL_X + 2, list_top - 7,
-             SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 3,
+             SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 16,
              list_top + list_height - 5);
 
-    /* Update cycle button */
+    /* Update cycle button only if label changed */
     Button *cycle_btn = find_button(BTN_SOFTWARE_CYCLE);
     if (cycle_btn) {
-        cycle_btn->label = app->software_type == SOFTWARE_LIBRARIES ?
-                               get_string(MSG_LIBRARIES) :
-                           app->software_type == SOFTWARE_DEVICES ?
-                               get_string(MSG_DEVICES) :
-                               get_string(MSG_RESOURCES);
-        draw_cycle_button(cycle_btn);
+        const char *new_label = app->software_type == SOFTWARE_LIBRARIES ?
+                                    get_string(MSG_LIBRARIES) :
+                                app->software_type == SOFTWARE_DEVICES ?
+                                    get_string(MSG_DEVICES) :
+                                    get_string(MSG_RESOURCES);
+        if (cycle_btn->label != new_label) {
+            cycle_btn->label = new_label;
+            draw_cycle_button(cycle_btn);
+        }
     }
 
     /* Draw scroll arrows with triangles */
@@ -880,18 +889,18 @@ static void update_software_list(void)
 
         /* Location */
         snprintf(buffer, 12, "%-10s", get_location_string(entry->location));
-        Move(rp, SOFTWARE_PANEL_X + 130, y);
+        Move(rp, SOFTWARE_PANEL_X + 126, y);
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
         /* Address */
         snprintf(buffer, 12, "$%08lX", (unsigned long)entry->address);
         SetAPen(rp, COLOR_HIGHLIGHT);
-        Move(rp, SOFTWARE_PANEL_X + 204, y);
+        Move(rp, SOFTWARE_PANEL_X + 200, y);
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
         /* Version */
         snprintf(buffer, sizeof(buffer), "V%d.%d", entry->version, entry->revision);
-        Move(rp, SOFTWARE_PANEL_X + 290, y);
+        Move(rp, SOFTWARE_PANEL_X + 284, y);
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
         y += 8;
