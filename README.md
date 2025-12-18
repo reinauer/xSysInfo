@@ -4,6 +4,8 @@
 
 `xSysInfo` is a comprehensive system information utility designed for AmigaOS. It provides detailed insights into your Amiga system's hardware and software configuration, along with benchmarking capabilities.
 
+**Note:** This program does not contain any code from the original AmigaOS SysInfo tool.
+
 ## Features
 
 *   **Detailed Hardware Information**: Get in-depth reports on your CPU, memory, drives (including SCSI), expansion boards, and cache.
@@ -62,6 +64,7 @@ You can force either behavior with DISPLAY=window or DISPLAY=screen.
 *   **FlexCat**: For catalog and localization file handling. (https://github.com/adtools/flexcat)
 *   **Identify**: For identifying various hardware components, including PCI devices. (https://codeberg.org/shred/identify)
 *   `openpci.library`: For PCI device access.
+*   **fd2pragma**: Tool to create header files with pragma statements. (https://github.com/adtools/fd2pragma)
 
 ## Contributing
 
