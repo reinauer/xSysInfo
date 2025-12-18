@@ -392,7 +392,6 @@ static BOOL open_display(void)
 
     /* Determine if system is PAL or NTSC */
     app->is_pal = (GfxBase->DisplayFlags & PAL) ? TRUE : FALSE;
-    app->screen_height = app->is_pal ? SCREEN_HEIGHT_PAL : SCREEN_HEIGHT_NTSC;
 
     if (use_window) {
         /* Open window on Workbench */
@@ -417,10 +416,22 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
         app->screen = app->window->WScreen;
+        app->screen_height = app->screen->Height;
 
+        /* If default screen font is larger than Topaz8, switch to Topaz8 */
+        if(app->window->IFont->tf_YSize > Topaz8Font.ta_YSize)
+        {
+            app->tf = OpenFont(&Topaz8Font);
+            if(app->tf)
+            {
+                SetFont(app->rp, app->tf);
+            }
+        }
     } else {
         /* Open custom screen */
         app->use_custom_screen = TRUE;
+
+        app->screen_height = app->is_pal ? SCREEN_HEIGHT_PAL : SCREEN_HEIGHT_NTSC;
 
         app->screen = OpenScreenTags(NULL,
             SA_Width, SCREEN_WIDTH,
@@ -481,6 +492,11 @@ static void close_display(void)
     if (app->window) {
         CloseWindow(app->window);
         app->window = NULL;
+    }
+
+    if (app->tf) {
+        CloseFont(app->tf);
+        app->tf = NULL;
     }
 
     if (app->use_custom_screen && app->screen) {
