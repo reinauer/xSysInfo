@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-FileCopyrightText: 2025 Stefan Reinauer
+
 /*
  * xSysInfo - Amiga System Information Utility
  * Main header file with common definitions
@@ -171,6 +174,6 @@ const char *get_location_string(MemoryLocation loc);
 void format_size(ULONG bytes, char *buffer, ULONG bufsize);
 void format_hex(ULONG value, char *buffer, ULONG bufsize);
 
-void format_scaled(char *buffer, size_t size, ULONG value_x100);
+void format_scaled(char *buffer, size_t size, ULONG value_x100, BOOL round);
 
 #endif /* XSYSINFO_H */

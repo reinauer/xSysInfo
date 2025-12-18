@@ -28,7 +28,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
           name: Xsysinfo Program
-          path: ${{ github.workspace }}/xsysinfo
+          path: ${{ github.workspace }}/xSysInfo
 
     - name: Find ADF filename
       id: adf

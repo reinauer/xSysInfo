@@ -1,6 +1,8 @@
 *.o
 attic/
-xsysinfo
+catalogs/build/
+downloads/
+xSysInfo
 xsysinfo.adf
 xsysinfo-*.adf
-downloads/
+TinySetPatch

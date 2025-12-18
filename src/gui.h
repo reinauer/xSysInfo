@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-FileCopyrightText: 2025 Stefan Reinauer
+
 /*
  * xSysInfo - GUI header
  */
@@ -25,13 +28,12 @@ typedef enum {
     BTN_SOFTWARE_SCROLLBAR, /* Software list scroll bar */
     BTN_SCALE_TOGGLE,       /* Expand/Shrink */
 
-    /* Cache control buttons */
+    /* Cache toggle buttons (inline in hardware panel) */
     BTN_ICACHE,
     BTN_DCACHE,
     BTN_IBURST,
     BTN_DBURST,
     BTN_CBACK,
-    BTN_ALL,
 
     /* Memory view buttons */
     BTN_MEM_PREV,

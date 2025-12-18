@@ -33,7 +33,7 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            xsysinfo
+            xSysInfo
             xsysinfo-*.adf
           if-no-files-found: error
 
@@ -59,5 +59,5 @@ jobs:
         with:
           draft: true
           files: |
-            artifacts/xsysinfo
+            artifacts/xSysInfo
             artifacts/xsysinfo-*.adf

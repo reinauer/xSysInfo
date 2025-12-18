@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-FileCopyrightText: 2025 Stefan Reinauer
+
 /*
  * xSysInfo - GUI rendering and event handling
  */
@@ -44,6 +47,10 @@ extern BoardList board_list;
 Button buttons[MAX_BUTTONS];
 int num_buttons = 0;
 
+/* Static buffers for cache button labels (name + ON/OFF/N/A status) */
+static char icache_label[16], dcache_label[16], iburst_label[16];
+static char dburst_label[16], cback_label[16];
+
 /* Forward declarations */
 static void draw_header(void);
 static void draw_software_panel(void);
@@ -52,15 +59,25 @@ static void refresh_speed_bars(void);
 static void draw_hardware_panel(void);
 static void draw_bottom_buttons(void);
 static void draw_cache_buttons(void);
-static void draw_cache_status(void);
 static void clear_buttons(void);
 static void update_software_list(void);
+static void refresh_all_cache_buttons(void);
 
-void format_scaled(char *buffer, size_t size, ULONG value_x100)
+void format_scaled(char *buffer, size_t size, ULONG value_x100, BOOL round)
 {
-    snprintf(buffer, size, "%lu.%02lu",
-             (unsigned long)(value_x100 / 100),
-             (unsigned long)(value_x100 % 100));
+    ULONG integer_part = value_x100 / 100;
+    ULONG frac_part = value_x100 % 100;
+    if (round && integer_part >= 100) {
+        /* Round up if fractional part >= 0.5 */
+        if (frac_part >= 50) {
+            integer_part++;
+        }
+        snprintf(buffer, size, "%lu", (unsigned long)integer_part);
+    } else {
+        snprintf(buffer, size, "%lu.%02lu",
+                 (unsigned long)integer_part,
+                 (unsigned long)frac_part);
+    }
 }
 
 void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap, int spaceWidth)
@@ -214,19 +231,56 @@ void main_view_update_buttons(void)
                    get_string(MSG_SHRINK) : get_string(MSG_EXPAND),
                BTN_SCALE_TOGGLE, TRUE);
 
-    /* Cache buttons */
-    add_button(464, 176, 56, 11,
-               get_string(MSG_ICACHE), BTN_ICACHE, hw_info.has_icache);
-    add_button(464, 187, 56, 11,
-               get_string(MSG_DCACHE), BTN_DCACHE, hw_info.has_dcache);
-    add_button(522, 176, 56, 11,
-               get_string(MSG_IBURST), BTN_IBURST, hw_info.has_iburst);
-    add_button(522, 187, 56, 11,
-               get_string(MSG_DBURST), BTN_DBURST, hw_info.has_dburst);
-    add_button(580, 176, 56, 11,
-               get_string(MSG_CBACK), BTN_CBACK, hw_info.has_copyback);
-    add_button(580, 187, 56, 11,
-               get_string(MSG_BTN_ALL), BTN_ALL, hw_info.has_icache);
+    /* Inline cache toggle buttons in hardware panel (right column) */
+    /* Button shows only "ON"/"OFF"/"N/A", label is drawn separately */
+    /* Cache rows use 11px spacing (8+3) so buttons don't overlap */
+    /* Button positioned after the label at x+56 */
+    #define CACHE_BTN_X (HARDWARE_PANEL_X + 170 + 56)
+    #define CACHE_BTN_W 32
+    #define CACHE_BTN_H 11
+
+    /* Build status-only labels */
+    snprintf(icache_label, sizeof(icache_label), "%s",
+             hw_info.has_icache ?
+                 (hw_info.icache_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 get_string(MSG_NA));
+    snprintf(dcache_label, sizeof(dcache_label), "%s",
+             hw_info.has_dcache ?
+                 (hw_info.dcache_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 get_string(MSG_NA));
+    snprintf(iburst_label, sizeof(iburst_label), "%s",
+             hw_info.has_iburst ?
+                 (hw_info.iburst_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 get_string(MSG_NA));
+    snprintf(dburst_label, sizeof(dburst_label), "%s",
+             hw_info.has_dburst ?
+                 (hw_info.dburst_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 get_string(MSG_NA));
+    snprintf(cback_label, sizeof(cback_label), "%s",
+             hw_info.has_copyback ?
+                 (hw_info.copyback_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 get_string(MSG_NA));
+
+    /* Use explicit Y values to avoid any macro expansion issues */
+    /* Base Y = 116 (cache block shifted up 4px so CBack aligns with Card Slot) */
+    /* Use has_* for enabled state (determines if button is clickable) */
+    add_button(CACHE_BTN_X, 116, CACHE_BTN_W, CACHE_BTN_H,
+               icache_label, BTN_ICACHE, hw_info.has_icache);
+    add_button(CACHE_BTN_X, 127, CACHE_BTN_W, CACHE_BTN_H,
+               dcache_label, BTN_DCACHE, hw_info.has_dcache);
+    add_button(CACHE_BTN_X, 138, CACHE_BTN_W, CACHE_BTN_H,
+               iburst_label, BTN_IBURST, hw_info.has_iburst);
+    add_button(CACHE_BTN_X, 149, CACHE_BTN_W, CACHE_BTN_H,
+               dburst_label, BTN_DBURST, hw_info.has_dburst);
+    add_button(CACHE_BTN_X, 160, CACHE_BTN_W, CACHE_BTN_H,
+               cback_label, BTN_CBACK, hw_info.has_copyback);
+
+    /* Set pressed state based on whether each cache is enabled */
+    set_button_pressed(BTN_ICACHE, hw_info.icache_enabled);
+    set_button_pressed(BTN_DCACHE, hw_info.dcache_enabled);
+    set_button_pressed(BTN_IBURST, hw_info.iburst_enabled);
+    set_button_pressed(BTN_DBURST, hw_info.dburst_enabled);
+    set_button_pressed(BTN_CBACK, hw_info.copyback_enabled);
 }
 
 /*
@@ -284,42 +338,27 @@ void main_view_handle_button(ButtonID id)
 
         case BTN_ICACHE:
             toggle_icache();
-            refresh_cache_status();
-            draw_cache_status();
+            refresh_all_cache_buttons();
             break;
 
         case BTN_DCACHE:
             toggle_dcache();
-            refresh_cache_status();
-            draw_cache_status();
+            refresh_all_cache_buttons();
             break;
 
         case BTN_IBURST:
             toggle_iburst();
-            refresh_cache_status();
-            draw_cache_status();
+            refresh_all_cache_buttons();
             break;
 
         case BTN_DBURST:
             toggle_dburst();
-            refresh_cache_status();
-            draw_cache_status();
+            refresh_all_cache_buttons();
             break;
 
         case BTN_CBACK:
             toggle_copyback();
-            refresh_cache_status();
-            draw_cache_status();
-            break;
-
-        case BTN_ALL:
-            toggle_icache();
-            toggle_dcache();
-            toggle_iburst();
-            toggle_dburst();
-            toggle_copyback();
-            refresh_cache_status();
-            draw_cache_status();
+            refresh_all_cache_buttons();
             break;
 
         case BTN_SOFTWARE_UP:
@@ -754,6 +793,12 @@ static void draw_software_panel(void)
                SOFTWARE_PANEL_W - 2, 14,
 	       get_string(MSG_SYSTEM_SOFTWARE));
 
+    /* Draw cycle button initially */
+    Button *cycle_btn = find_button(BTN_SOFTWARE_CYCLE);
+    if (cycle_btn) {
+        draw_cycle_button(cycle_btn);
+    }
+
     update_software_list();
 }
 
@@ -786,21 +831,24 @@ static void update_software_list(void)
             return;
     }
 
-    /* Clear list area */
+    /* Clear list area (stop before scroll bar at -14) */
     SetAPen(rp, COLOR_PANEL_BG);
     RectFill(rp, SOFTWARE_PANEL_X + 2, list_top - 7,
-             SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 3,
+             SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 16,
              list_top + list_height - 5);
 
-    /* Update cycle button */
+    /* Update cycle button only if label changed */
     Button *cycle_btn = find_button(BTN_SOFTWARE_CYCLE);
     if (cycle_btn) {
-        cycle_btn->label = app->software_type == SOFTWARE_LIBRARIES ?
-                               get_string(MSG_LIBRARIES) :
-                           app->software_type == SOFTWARE_DEVICES ?
-                               get_string(MSG_DEVICES) :
-                               get_string(MSG_RESOURCES);
-        draw_cycle_button(cycle_btn);
+        const char *new_label = app->software_type == SOFTWARE_LIBRARIES ?
+                                    get_string(MSG_LIBRARIES) :
+                                app->software_type == SOFTWARE_DEVICES ?
+                                    get_string(MSG_DEVICES) :
+                                    get_string(MSG_RESOURCES);
+        if (cycle_btn->label != new_label) {
+            cycle_btn->label = new_label;
+            draw_cycle_button(cycle_btn);
+        }
     }
 
     /* Draw scroll arrows with triangles */
@@ -841,18 +889,18 @@ static void update_software_list(void)
 
         /* Location */
         snprintf(buffer, 12, "%-10s", get_location_string(entry->location));
-        Move(rp, SOFTWARE_PANEL_X + 130, y);
+        Move(rp, SOFTWARE_PANEL_X + 126, y);
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
         /* Address */
         snprintf(buffer, 12, "$%08lX", (unsigned long)entry->address);
         SetAPen(rp, COLOR_HIGHLIGHT);
-        Move(rp, SOFTWARE_PANEL_X + 204, y);
+        Move(rp, SOFTWARE_PANEL_X + 200, y);
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
         /* Version */
         snprintf(buffer, sizeof(buffer), "V%d.%d", entry->version, entry->revision);
-        Move(rp, SOFTWARE_PANEL_X + 290, y);
+        Move(rp, SOFTWARE_PANEL_X + 284, y);
         Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
         y += 8;
@@ -1025,7 +1073,7 @@ static void draw_speed_panel(void)
 	    int factor_off = 0;
 	    if (factor_x100 <= 10000) factor_str[factor_off++] = ' ';
 	    if (factor_x100 <= 1000) factor_str[factor_off++] = ' ';
-            format_scaled(factor_str + factor_off, sizeof(factor_str)-factor_off, factor_x100);
+            format_scaled(factor_str + factor_off, sizeof(factor_str)-factor_off, factor_x100, FALSE);
             SetAPen(rp, COLOR_HIGHLIGHT);
             TightText(rp, SPEED_PANEL_X + 132, y, (CONST_STRPTR)factor_str, -1, 7);
         }
@@ -1040,7 +1088,7 @@ static void draw_speed_panel(void)
     //y = SPEED_PANEL_Y + SPEED_PANEL_H - 18;
     if (bench_results.benchmarks_valid) {
         char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.mips);
+        format_scaled(scaled, sizeof(scaled), bench_results.mips, FALSE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  get_string(MSG_MIPS), scaled);
     } else {
@@ -1052,7 +1100,7 @@ static void draw_speed_panel(void)
 
     if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid) {
         char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.mflops);
+        format_scaled(scaled, sizeof(scaled), bench_results.mflops, FALSE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  get_string(MSG_MFLOPS), scaled);
     } else {
@@ -1070,29 +1118,23 @@ static void draw_speed_panel(void)
     if (bench_results.benchmarks_valid) {
         char chip_str[8], fast_str[8], rom_str[8];
 
-        /* Format CHIP speed as X.XX */
+        /* Format CHIP speed in MB/s */
         if (bench_results.chip_speed > 0) {
-            ULONG mb = bench_results.chip_speed / 1000000;
-            ULONG frac = (bench_results.chip_speed % 1000000) / 10000;
-            snprintf(chip_str, sizeof(chip_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+            format_scaled(chip_str, sizeof(chip_str), bench_results.chip_speed / 10000, TRUE);
         } else {
             snprintf(chip_str, sizeof(chip_str), "%s", get_string(MSG_NA));
         }
 
-        /* Format FAST speed as X.XX or N/A */
+        /* Format FAST speed in MB/s or N/A */
         if (bench_results.fast_speed > 0) {
-            ULONG mb = bench_results.fast_speed / 1000000;
-            ULONG frac = (bench_results.fast_speed % 1000000) / 10000;
-            snprintf(fast_str, sizeof(fast_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+            format_scaled(fast_str, sizeof(fast_str), bench_results.fast_speed / 10000, TRUE);
         } else {
             snprintf(fast_str, sizeof(fast_str), "%s", get_string(MSG_NA));
         }
 
-        /* Format ROM speed as X.XX */
+        /* Format ROM speed in MB/s */
         if (bench_results.rom_speed > 0) {
-            ULONG mb = bench_results.rom_speed / 1000000;
-            ULONG frac = (bench_results.rom_speed % 1000000) / 10000;
-            snprintf(rom_str, sizeof(rom_str), "%lu.%02lu", (unsigned long)mb, (unsigned long)frac);
+            format_scaled(rom_str, sizeof(rom_str), bench_results.rom_speed / 10000, TRUE);
         } else {
             snprintf(rom_str, sizeof(rom_str), "%s", get_string(MSG_NA));
         }
@@ -1149,13 +1191,13 @@ static void draw_hardware_panel(void)
     if (hw_info.cpu_revision[0] != '\0' &&
         strcmp(hw_info.cpu_revision, "N/A") != 0) {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s (%s) %s",
                  hw_info.cpu_string, hw_info.cpu_revision,
                  mhz_buf);
     } else {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  hw_info.cpu_string, mhz_buf);
     }
@@ -1166,7 +1208,7 @@ static void draw_hardware_panel(void)
     /* FPU */
     if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_mhz > 0) {
         char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz);
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, TRUE);
         snprintf(buffer, sizeof(buffer), "%s %s",
                  hw_info.fpu_string, mhz_buf);
         draw_label_value(HARDWARE_PANEL_X + 4, y,
@@ -1203,21 +1245,48 @@ static void draw_hardware_panel(void)
     {
         unsigned long long horiz_khz =
             ((unsigned long long)hw_info.horiz_freq * 100ULL) / 1000ULL;
-        format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz);
+        format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz, FALSE);
     }
     draw_label_value(HARDWARE_PANEL_X + 4, y,
                      get_string(MSG_HORIZ_KHZ), buffer, 90);
 
     y += 8;
 
-    /* EClock */
+    /* EClock - also start of cache section (separate y tracker with 11px spacing) */
     snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.eclock_freq);
     draw_label_value(HARDWARE_PANEL_X + 4, y,
                      get_string(MSG_ECLOCK_HZ), buffer, 90);
+    {
+        /* Cache column uses separate y with 11px spacing for buttons */
+        /* Start 4px higher so CBack aligns with Card Slot */
+        WORD cache_y = y - 4;
+        draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
+                         get_string(MSG_ICACHE), NULL, 56);
+        cache_y += 11;
+        draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
+                         get_string(MSG_DCACHE), NULL, 56);
+        cache_y += 11;
+        draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
+                         get_string(MSG_IBURST), NULL, 56);
+        cache_y += 11;
+        draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
+                         get_string(MSG_DBURST), NULL, 56);
+        cache_y += 11;
+        draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
+                         get_string(MSG_CBACK), NULL, 56);
+    }
+    y += 8;
 
-    /* Right column - cache status labels (values drawn by draw_cache_status) */
-    draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_ICACHE), NULL, 64);
+    /* Vert Hz */
+    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.vert_freq);
+    draw_label_value(HARDWARE_PANEL_X + 4, y,
+                     get_string(MSG_VERT_HZ), buffer, 90);
+    y += 8;
+
+    /* Supply Hz */
+    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.supply_freq);
+    draw_label_value(HARDWARE_PANEL_X + 4, y,
+                     get_string(MSG_SUPPLY_HZ), buffer, 90);
     y += 8;
 
     /* Ramsey */
@@ -1228,9 +1297,6 @@ static void draw_hardware_panel(void)
     }
     draw_label_value(HARDWARE_PANEL_X + 4, y,
                      get_string(MSG_RAMSEY_REV), buffer, 90);
-
-    draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_DCACHE), NULL, 64);
     y += 8;
 
     /* Gary */
@@ -1241,35 +1307,13 @@ static void draw_hardware_panel(void)
     }
     draw_label_value(HARDWARE_PANEL_X + 4, y,
                      get_string(MSG_GARY_REV), buffer, 90);
-
-    draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_IBURST), NULL, 64);
     y += 8;
 
     /* Card Slot */
     draw_label_value(HARDWARE_PANEL_X + 4, y,
                      get_string(MSG_CARD_SLOT), hw_info.card_slot_string, 90);
 
-    draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_DBURST), NULL, 64);
-    y += 8;
-
-    /* Vert Hz */
-    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.vert_freq);
-    draw_label_value(HARDWARE_PANEL_X + 4, y,
-                     get_string(MSG_VERT_HZ), buffer, 90);
-
-    draw_label_value(HARDWARE_PANEL_X + 170, y,
-                     get_string(MSG_CBACK), NULL, 64);
-    y += 8;
-
-    /* Supply Hz */
-    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.supply_freq);
-    draw_label_value(HARDWARE_PANEL_X + 4, y,
-                     get_string(MSG_SUPPLY_HZ), buffer, 90);
-
-    /* Draw cache status values */
-    draw_cache_status();
+    /* Cache toggle buttons are drawn by draw_cache_buttons() */
 }
 
 /*
@@ -1286,93 +1330,58 @@ static void draw_bottom_buttons(void)
 }
 
 /*
- * Draw cache control buttons
+ * Draw inline cache toggle buttons (in hardware panel right column)
  */
 static void draw_cache_buttons(void)
 {
     int i;
     for (i = 0; i < num_buttons; i++) {
-        if (buttons[i].id >= BTN_ICACHE && buttons[i].id <= BTN_ALL) {
+        if (buttons[i].id >= BTN_ICACHE && buttons[i].id <= BTN_CBACK) {
             draw_button(&buttons[i]);
         }
     }
 }
 
 /*
- * Draw only cache status values (right column of hardware panel)
- * Used for partial refresh when toggling cache settings
+ * Refresh all cache button labels and states after any cache toggle
+ * Re-reads actual cache state from hardware and updates all buttons
  */
-static void draw_cache_status(void)
+static void refresh_all_cache_buttons(void)
 {
-    struct RastPort *rp = app->rp;
-    char buffer[64];
-    WORD y;
-    WORD value_x = HARDWARE_PANEL_X + 170 + 64;  /* After label */
-    WORD value_w = 32;  /* Width for YES/NO/N/A */
+    /* Refresh all cache states from hardware */
+    refresh_cache_status();
 
-    /* Calculate Y positions (matching draw_hardware_panel) */
-    /* Base Y = HARDWARE_PANEL_Y + 24, then 10 lines down to ICache */
-    y = HARDWARE_PANEL_Y + 24 + (10 * 8);  /* ICache row */
-
-    /* Clear and redraw ICache value */
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, value_x, y - 7, value_x + value_w, y + 1);
-    snprintf(buffer, sizeof(buffer), "%s",
+    /* Update all labels based on current state */
+    snprintf(icache_label, sizeof(icache_label), "%s",
              hw_info.has_icache ?
-                 (hw_info.icache_enabled ? get_string(MSG_YES) : get_string(MSG_NO)) :
+                 (hw_info.icache_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
                  get_string(MSG_NA));
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, value_x, y);
-    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
-    y += 8;
-
-    /* DCache value */
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, value_x, y - 7, value_x + value_w, y + 1);
-    snprintf(buffer, sizeof(buffer), "%s",
+    snprintf(dcache_label, sizeof(dcache_label), "%s",
              hw_info.has_dcache ?
-                 (hw_info.dcache_enabled ? get_string(MSG_YES) : get_string(MSG_NO)) :
+                 (hw_info.dcache_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
                  get_string(MSG_NA));
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    Move(rp, value_x, y);
-    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
-    y += 8;
-
-    /* IBurst value */
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, value_x, y - 7, value_x + value_w, y + 1);
-    snprintf(buffer, sizeof(buffer), "%s",
+    snprintf(iburst_label, sizeof(iburst_label), "%s",
              hw_info.has_iburst ?
-                 (hw_info.iburst_enabled ? get_string(MSG_YES) : get_string(MSG_NO)) :
+                 (hw_info.iburst_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
                  get_string(MSG_NA));
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    Move(rp, value_x, y);
-    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
-    y += 8;
-
-    /* DBurst value */
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, value_x, y - 7, value_x + value_w, y + 1);
-    snprintf(buffer, sizeof(buffer), "%s",
+    snprintf(dburst_label, sizeof(dburst_label), "%s",
              hw_info.has_dburst ?
-                 (hw_info.dburst_enabled ? get_string(MSG_YES) : get_string(MSG_NO)) :
+                 (hw_info.dburst_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
                  get_string(MSG_NA));
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    Move(rp, value_x, y);
-    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
-    y += 8;
-
-    /* CBack value */
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, value_x, y - 7, value_x + value_w, y + 1);
-    snprintf(buffer, sizeof(buffer), "%s",
+    snprintf(cback_label, sizeof(cback_label), "%s",
              hw_info.has_copyback ?
-                 (hw_info.copyback_enabled ? get_string(MSG_YES) : get_string(MSG_NO)) :
+                 (hw_info.copyback_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
                  get_string(MSG_NA));
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    Move(rp, value_x, y);
-    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+
+    /* Update all button pressed states */
+    set_button_pressed(BTN_ICACHE, hw_info.icache_enabled);
+    set_button_pressed(BTN_DCACHE, hw_info.dcache_enabled);
+    set_button_pressed(BTN_IBURST, hw_info.iburst_enabled);
+    set_button_pressed(BTN_DBURST, hw_info.dburst_enabled);
+    set_button_pressed(BTN_CBACK, hw_info.copyback_enabled);
+
+    /* Redraw all cache buttons */
+    draw_cache_buttons();
 }
 
 /*

@@ -1,10 +1,20 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-FileCopyrightText: 2025 Stefan Reinauer
+
 /*
  * xSysInfo - Locale/string handling
- * Default English strings, with support for future locale.library integration
+ * Default English strings with locale.library catalog support
  */
+
+#include <proto/locale.h>
+#include <libraries/locale.h>
 
 #include "xsysinfo.h"
 #include "locale_str.h"
+
+/* Locale library and catalog handles */
+struct LocaleBase *LocaleBase = NULL;
+static struct Catalog *catalog = NULL;
 
 /* Default English strings */
 static const char *default_strings[MSG_COUNT] = {
@@ -135,6 +145,8 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_UNKNOWN */           "UNKNOWN",
     /* MSG_YES */               "YES",
     /* MSG_NO */                "NO",
+    /* MSG_ON */                "ON",
+    /* MSG_OFF */               "OFF",
     /* MSG_IN_USE */            "IN USE",
     /* MSG_CLOCK_FOUND */       "CLOCK FOUND",
     /* MSG_CLOCK_NOT_FOUND */   "NOT FOUND",
@@ -219,24 +231,49 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_COMMENT_DEFAULT */   "What can I say!",
 };
 
-/* Get string by ID (currently just returns default English) */
+/* Get string by ID - uses catalog if available, falls back to English */
 const char *get_string(LocaleStringID id)
 {
     if (id >= 0 && id < MSG_COUNT) {
+        if (catalog) {
+            return (const char *)GetCatalogStr(catalog, id,
+                       (CONST_STRPTR)default_strings[id]);
+        }
         return default_strings[id];
     }
     return "???";
 }
 
-/* Initialize locale - placeholder for future locale.library support */
+/* Initialize locale - opens locale.library and catalog if available */
 BOOL init_locale(void)
 {
-    /* TODO: Open locale.library and load catalog if available */
+    /* Try to open locale.library (available from Workbench 2.1+) */
+    LocaleBase = (struct LocaleBase *)OpenLibrary((CONST_STRPTR)"locale.library", 38);
+    if (LocaleBase) {
+        /* Open catalog - locale.library will find the appropriate translation
+         * based on user's Locale preferences. Catalog is expected in:
+         * LOCALE:Catalogs/<language>/xSysInfo.catalog
+         * or PROGDIR:Catalogs/<language>/xSysInfo.catalog
+         */
+        catalog = OpenCatalog(NULL, (CONST_STRPTR)"xSysInfo.catalog",
+                              OC_BuiltInLanguage, (ULONG)"english",
+                              TAG_DONE);
+        /* catalog may be NULL if no translation available - that's OK,
+         * we'll use the built-in English strings */
+    }
+    /* Always return TRUE - locale support is optional */
     return TRUE;
 }
 
 /* Cleanup locale */
 void cleanup_locale(void)
 {
-    /* TODO: Close catalog and locale.library */
+    if (catalog) {
+        CloseCatalog(catalog);
+        catalog = NULL;
+    }
+    if (LocaleBase) {
+        CloseLibrary((struct Library *)LocaleBase);
+        LocaleBase = NULL;
+    }
 }
