@@ -502,11 +502,9 @@ void refresh_cache_status(void)
 
     /* Determine available cache features based on CPU type */
     hw_info.has_icache = (hw_info.cpu_type >= CPU_68020);
-    hw_info.has_dcache = (hw_info.cpu_type >= CPU_68030 &&
-                          hw_info.cpu_type != CPU_68EC030);
+    hw_info.has_dcache = (hw_info.cpu_type >= CPU_68030);
     hw_info.has_iburst = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030 &&
-                          hw_info.cpu_type != CPU_68EC030);
+    hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030);
     hw_info.has_copyback = (hw_info.cpu_type >= CPU_68040 &&
                             hw_info.cpu_type != CPU_68LC040);
 
