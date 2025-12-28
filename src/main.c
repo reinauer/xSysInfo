@@ -745,7 +745,7 @@ MemoryLocation determine_mem_location(APTR addr)
 
     /* ROM area: $F80000-$FFFFFF (256K) or $E00000-$E7FFFF (512K extended) */
     if ((address >= 0xF80000 && address <= 0xFFFFFF) ||
-		    (address >= 0xE0000 && address < 0xE80000)) {
+		    (address >= 0xE00000 && address < 0xE80000)) {
         return LOC_ROM;
     }
 
