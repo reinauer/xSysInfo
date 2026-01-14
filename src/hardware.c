@@ -13,12 +13,15 @@
 #include <hardware/cia.h>
 #include <hardware/custom.h>
 #include <resources/cia.h>
-#include <libraries/identify.h>
+#include <mmu/mmubase.h>
+#include <mmu/context.h>
+#include <mmu/config.h>
 
 #include <proto/exec.h>
 #include <proto/graphics.h>
 #include <proto/timer.h>
-#include <proto/identify.h>
+#include <proto/dos.h>
+#include <proto/mmu.h>
 
 #include "xsysinfo.h"
 #include "hardware.h"
@@ -31,6 +34,7 @@
 HardwareInfo hw_info;
 
 /* External library bases */
+struct Library *MMUBase;
 extern struct ExecBase *SysBase;
 extern struct GfxBase *GfxBase;
 
@@ -214,7 +218,10 @@ void detect_fpu(void)
                     sizeof(hw_info.fpu_string) - 1);
         hw_info.fpu_type = FPU_NONE;
         if (hw_info.cpu_type == CPU_68040) {
-            hw_info.cpu_type = CPU_68LC040; //low cost cpu
+            hw_info.cpu_type = CPU_68LC040; //fpu-less cpu
+        }
+        if (hw_info.cpu_type == CPU_68060) {
+            hw_info.cpu_type = CPU_68LC060; //fpu-less cpu
         }
         snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), get_string(MSG_NA));
         return;
@@ -259,12 +266,14 @@ void detect_fpu(void)
  */
 void detect_mmu(void)
 {
-    struct Library *mmuLib;
+
     ULONG mmuResult =0;
     ULONG cpuType=0;
 
     //default
     hw_info.mmu_enabled = FALSE;
+    hw_info.mmu_type = MMU_NONE;
+    strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
 
     //GetMMU has to determine if we have a 68020, 030, 040 or 060-MMU (different opcodes)
     switch (hw_info.cpu_type)
@@ -278,6 +287,7 @@ void detect_mmu(void)
         cpuType = ASM_CPU_68030;
         break;
     case CPU_68LC040:
+    case CPU_68EC040:
     case CPU_68040:
         cpuType = ASM_CPU_68040;
         break;
@@ -291,53 +301,102 @@ void detect_mmu(void)
         break;
     }
 
-    if (cpuType>=ASM_CPU_68030) { //no 68851 support!
-        mmuResult = GetMMU(cpuType);
-    }
-
-    if (mmuResult > 0)
+    // first: try mmu.lib
+    if ((DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L)))
     {
-        // we have an mmu!
-        switch (hw_info.cpu_type)
-        {
-        case CPU_68EC020:
-        case CPU_68020:
-            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68851");
-            hw_info.mmu_type = MMU_68851;
-            break;
-        case CPU_68EC030:
-        case CPU_68030:
-            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68030");
-            hw_info.mmu_type = MMU_68030;
-            break;
-        case CPU_68LC040:
-        case CPU_68040:
-            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68040");
-            hw_info.mmu_type = MMU_68040;
-            break;
-        case CPU_68LC060:
-        case CPU_68EC060:
-        case CPU_68060:
-            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060");
-            hw_info.mmu_type = MMU_68060;
-            break;
-        default:
-            strncpy(hw_info.mmu_string, get_string(MSG_UNKNOWN), sizeof(hw_info.mmu_string) - 1);
-            hw_info.mmu_type = MMU_UNKNOWN;
-            break;
-        }
-        mmuLib = (struct Library *)OpenLibrary((CONST_STRPTR) "mmu.library", 0);
-        if (mmuLib)
+        if ((MMUBase = OpenLibrary((CONST_STRPTR)"mmu.library", 40L)))
         { // check for mmu.lib
-
-            CloseLibrary((struct Library *)mmuLib);
-            hw_info.mmu_enabled = TRUE;
+            switch (GetMMUType())
+            {
+            case MUTYPE_68851:
+                hw_info.mmu_type = MMU_68851;
+                strncpy(hw_info.mmu_string, "68851", sizeof(hw_info.mmu_string) - 1);
+                hw_info.mmu_enabled = TRUE;
+                break;
+            case MUTYPE_68030:
+                hw_info.mmu_type = MMU_68030;
+                strncpy(hw_info.mmu_string, "68030", sizeof(hw_info.mmu_string) - 1);
+                hw_info.mmu_enabled = TRUE;
+                break;
+            case MUTYPE_68040:
+                hw_info.mmu_type = MMU_68040;
+                strncpy(hw_info.mmu_string, "68034", sizeof(hw_info.mmu_string) - 1);
+                hw_info.mmu_enabled = TRUE;
+                break;
+            case MUTYPE_68060:
+                hw_info.mmu_type = MMU_68060;
+                strncpy(hw_info.mmu_string, "68060", sizeof(hw_info.mmu_string) - 1);
+                hw_info.mmu_enabled = TRUE;
+                break;
+            case MUTYPE_NONE:
+                switch (hw_info.cpu_type) // correct cpu-type to ec for relevant cpus
+                {
+                case CPU_68030:
+                    hw_info.cpu_type = CPU_68EC030;
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
+                    break;
+                case CPU_68040:
+                    hw_info.cpu_type = CPU_68EC040;
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
+                    break;
+                case CPU_68LC060:
+                case CPU_68060:
+                    hw_info.cpu_type = CPU_68EC060;
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC060");
+                    break;
+                default:
+                    break;
+                }
+                hw_info.mmu_type = MMU_NONE;
+                strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
+                break;
+            default:
+                break;
+            }
+            CloseLibrary((struct Library *)MMUBase);
         }
-    }
-    else
-    {
-        hw_info.mmu_type = MMU_NONE;
-        strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
+        else
+        {
+
+            if (cpuType >= ASM_CPU_68030)
+            { // no 68851 support!
+                mmuResult = GetMMU(cpuType);
+            }
+
+            if (mmuResult > 0)
+            {
+                // we have an mmu!
+                switch (hw_info.cpu_type)
+                {
+                case CPU_68EC020:
+                case CPU_68020:
+                    snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68851");
+                    hw_info.mmu_type = MMU_68851;
+                    break;
+                case CPU_68EC030:
+                case CPU_68030:
+                    snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68030");
+                    hw_info.mmu_type = MMU_68030;
+                    break;
+                case CPU_68LC040:
+                case CPU_68040:
+                    snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68040");
+                    hw_info.mmu_type = MMU_68040;
+                    break;
+                case CPU_68LC060:
+                case CPU_68EC060:
+                case CPU_68060:
+                    snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060");
+                    hw_info.mmu_type = MMU_68060;
+                    break;
+                default:
+                    strncpy(hw_info.mmu_string, get_string(MSG_UNKNOWN), sizeof(hw_info.mmu_string) - 1);
+                    hw_info.mmu_type = MMU_UNKNOWN;
+                    break;
+                }
+            }
+        }
+        CloseLibrary((struct Library *)DOSBase);
     }
 }
 
@@ -401,10 +460,10 @@ void detect_chipset(void)
         hw_info.denise_type = DENISE_LISA;
     }
     else if (hw_info.denise_rev == 0xF0) {
-        hw_info.denise_type = IDDN_MONICA;
+        hw_info.denise_type = DENISE_ISABEL;
     }
     else if (hw_info.denise_rev == 0xF1) {
-        hw_info.denise_type = IDDN_MONICA;
+        hw_info.denise_type = DENISE_MONICA;
     }
     else {
         hw_info.denise_type = DENISE_UNKNOWN;
@@ -902,8 +961,7 @@ void generate_comment(void)
  */
 ULONG measure_cpu_frequency(void)
 {
-    /* Try to get from identify.library first */
-    ULONG speed_mhz = IdHardwareNum(IDHW_CPUCLOCK, NULL);
+    ULONG speed_mhz = 0;
 
     if (speed_mhz > 0 && speed_mhz < 1000) {
         return speed_mhz * 100;
@@ -922,6 +980,7 @@ ULONG measure_cpu_frequency(void)
             return 2500;  /* Common for 030 accelerators */
         case CPU_68040:
         case CPU_68LC040:
+        case CPU_68EC040:
             return 2500;  /* A4000 stock */
         case CPU_68060:
         case CPU_68EC060:

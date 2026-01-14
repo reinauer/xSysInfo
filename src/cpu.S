@@ -22,10 +22,11 @@ ASM_CPU_68030 EQU 5
 ASM_CPU_68EC030 EQU 6
 ASM_CPU_68040 EQU 7
 ASM_CPU_68LC040 EQU 8
-ASM_CPU_68060 EQU 9
-ASM_CPU_68EC060 EQU 10
-ASM_CPU_68LC060 EQU 11
-ASM_CPU_UNKNOWN  EQU 12
+ASM_CPU_68EC040 EQU 9
+ASM_CPU_68060 EQU 10
+ASM_CPU_68EC060 EQU 11
+ASM_CPU_68LC060 EQU 12
+ASM_CPU_UNKNOWN  EQU 13
 ASM_MMU EQU 1
 
 
@@ -135,7 +136,7 @@ _testMMU
 
 	cmp.l	#ASM_CPU_68020,d0		;is it 68020-code?
 	beq.s	m68020_mmu
-	cmp.l	#ASM_CPU_68030,d0		;is it 68030-code?
+	cmp.l	#ASM_CPU_68020,d0		;is it 68030-code? ->do 68020 too!
 	beq.s	m68030_mmu
 	cmp.l	#ASM_CPU_68040,d0		;is it 68040-code?
 	beq.s	m68040_mmu
@@ -143,6 +144,7 @@ _testMMU
 	beq.s	m68060_mmu
 	bra.s	crashvectorMMU			;not supported detection!
 m68020_mmu:
+	MACHINE 68020
 	MACHINE 68851
     pflusha
     pmove.l tc,(sp)            		;try to read translation control
@@ -152,8 +154,9 @@ m68020_mmu:
     MACHINE 68060
     bra.s mmu_test_done
 m68030_mmu:
-    MACHINE 68030
-    pflusha
+	MACHINE 68020
+	MACHINE 68851
+    pflusha							;this might generate an exception for the EC30
     pmove.l tc,(sp)            		;try to read translation control
     movec.l d2,cacr                 ;flush the cache
     pmove.l (sp),tc          ;try to write it

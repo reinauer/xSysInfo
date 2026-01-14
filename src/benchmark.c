@@ -137,6 +137,7 @@ ULONG get_mhz_cpu(CPUType type)
             mhz = 4;
             break;
         case CPU_68040:
+        case CPU_68EC040:
         case CPU_68LC040:
             mhz = 5;
             break;

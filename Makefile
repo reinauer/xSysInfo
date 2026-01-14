@@ -18,12 +18,11 @@ NDK_PATH ?= $(shell realpath $$(dirname $$(which $(CC)))/../m68k-amigaos/ndk-inc
 
 # Include paths: our includes + identify.library reference includes
 IDENTIFY_INC = 3rdparty/identify/reference
-
-# Include paths: our includes + identify.library reference includes
-IDENTIFY_INC = 3rdparty/identify/reference
+MMU_INC = 3rdparty/mmu/reference
 
 CFLAGS = -O2 -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -Wextra \
          -I$(IDENTIFY_INC) \
+         -I$(MMU_INC) \
          -DXSYSINFO_DATE="\"$(ADATE)\"" -DXSYSINFO_VERSION="\"$(FULL_VERSION)\"" \
          -DPROG_VERSION=$(PROG_VERSION) -DPROG_REVISION=$(PROG_REVISION)
 ASMFLAGS = -Fhunk -esc -sc -m68020up -I $(NDK_PATH)
@@ -81,6 +80,17 @@ identify: $(FLEXCAT_BIN)
 	   fi } && \
 	export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
 	$(MAKE) -s -C 3rdparty/identify reference/proto/identify.h reference/inline/identify.h
+
+# MMU library convert (requires FlexCat)
+mmu: $(FLEXCAT_BIN)
+	@{ if [ ! -f $(HOME)/.fd2pragma.types ]; then \
+	     echo '$$(HOME)/.fd2pragma.types not found. Downloading.'; \
+	     curl -sL 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' \
+		  -o $(HOME)/.fd2pragma.types; \
+	   fi } && \
+	export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
+	$(MAKE) -s -C 3rdparty/mmu reference/proto/mmu.h reference/inline/mmu.h
+
 
 # Catalog definitions - maps source directory to AmigaOS language name
 CATALOG_DESC = catalogs/xSysInfo.cd
@@ -141,6 +151,7 @@ clean:
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
 	@$(MAKE) -s -C 3rdparty/identify clean
+	@$(MAKE) -s -C 3rdparty/mmu clean
 
 # Dependencies
 src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/locale_str.h

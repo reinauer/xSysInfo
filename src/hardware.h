@@ -63,6 +63,7 @@ typedef enum {
     CPU_68EC030,
     CPU_68040,
     CPU_68LC040,
+    CPU_68EC040,
     CPU_68060,
     CPU_68EC060,
     CPU_68LC060,

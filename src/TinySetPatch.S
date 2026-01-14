@@ -12,9 +12,9 @@
 ;   - ProcessPatchTable() iterates through patches in 0x0BAD format
 ;   - Each patch returns: 0=skip, 1=success, -1=failure
 ;   - Summary shows count of applied patches
-; 
+;
 ;   Implemented Patches:
-; 
+;
 ;   1. Patch_680x0Support (Patch 0):
 ;     - Detects CPU type (68000-68060)
 ;     - Sets cumulative AttnFlags (060 sets all lower CPU flags)
@@ -30,16 +30,16 @@
 ;         - 68020/030: I-cache and D-cache bits
 ;       - 68040: $80008000 pattern
 ;       - 68060: Full cache/branch/store buffer
-; 
+;
 ;   Exception Handlers:
 ;   - FLineHandler (Vector 11) - chains to old handler or skips F-line instructions
 ;   - UnimpFPHandler (Vector 60) - chains or skips unimplemented FP ops
 ;   - UnimpIntHandler (Vector 61) - chains or skips MOVEP/CAS/CAS2/64-bit MUL/DIV
-; 
+;
 ;   Error Handling:
 ;   - PrintHexLong displays IoErr codes in hex when library loading fails
 ;   - Each patch reports its status independently
-; 
+;
 
     INCDIR  "include:"
     INCLUDE "exec/types.i"
