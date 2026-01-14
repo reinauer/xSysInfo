@@ -132,7 +132,7 @@ void detect_cpu(void)
             if ((newBits & CACRF_IBE) == 0)
             {
                 // no 68030
-                if (hw_info.kickstart_version == *((volatile UWORD *)KICK_VERSION_MIRR))
+                if (*((volatile UWORD *)KICK_VERSION) == *((volatile UWORD *)KICK_VERSION_MIRR))
                 { // do we have 24bit mirroring?
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC020");
                     hw_info.cpu_type = CPU_68EC020;

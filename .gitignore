@@ -9,3 +9,4 @@ xsysinfo-*.lha
 TinySetPatch
 
 /src/*.hunk
+/extern/
