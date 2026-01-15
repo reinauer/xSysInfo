@@ -736,8 +736,8 @@ void detect_sdmac(void)
 void detect_gary(void)
 {
 
-    UWORD testVal1, testVal2, i ;
-    unsigned char val, tmp,tmp2;
+    UWORD testVal1, testVal2, i,j ;
+    unsigned char val, val2, tmp,tmp2;
 
     /*tricky part for manual detection:
         A1000 mirrors the chipregisters.
@@ -801,19 +801,30 @@ void detect_gary(void)
     now we read the GAYLE_ID: Write a zero to the ID-register and read it back 8 times!
     */
 
-    val = 0;
-    //test for mirroring (A500)
-    tmp2 = *((volatile unsigned char *)(CUSTOM_BLTDDAT));
-    *((volatile unsigned char *)(GAYLE_ID)) = 0;
-    for (i=0; i<8; i++) {
-        tmp = *((volatile unsigned char *)(GAYLE_ID));
-        if (i == 0 && tmp == tmp2) { //a500 gary!
-            hw_info.gary_type = GARY_A500;
-            return;
+    for (j=0;j<4;++j) {
+        val = 0;
+        //test for mirroring (A500)
+        tmp2 = *((volatile unsigned char *)(CUSTOM_BLTDDAT));
+        *((volatile unsigned char *)(GAYLE_ID)) = 0;
+        for (i=0; i<8; i++) {
+            tmp = *((volatile unsigned char *)(GAYLE_ID));
+            if (i == 0 && tmp == tmp2) { //a500 gary!
+                hw_info.gary_type = GARY_A500;
+                return;
+            }
+            //mask
+            tmp &= 0x80>>i;
+            val = val|(tmp>>i);
         }
-        //mask
-        tmp &= 0x80>>i;
-        val = val|(tmp>>i);
+        if (j==0) {
+            val2 = val;
+        }
+        else {
+            if (val2 != val) { //inconsistent results -> A500 gary
+                hw_info.gary_type = GARY_A500;
+                return;
+            }
+        }
     }
     if (val!=0xFF && val !=0) {
         hw_info.gary_type = GAYLE;

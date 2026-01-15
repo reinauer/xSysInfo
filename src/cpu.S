@@ -136,8 +136,8 @@ _testMMU
 
 	cmp.l	#ASM_CPU_68020,d0		;is it 68020-code?
 	beq.s	m68020_mmu
-	cmp.l	#ASM_CPU_68020,d0		;is it 68030-code? ->do 68020 too!
-	beq.s	m68030_mmu
+	cmp.l	#ASM_CPU_68030,d0		;is it 68030-code? ->do 68020 too!
+	beq.s	m68020_mmu
 	cmp.l	#ASM_CPU_68040,d0		;is it 68040-code?
 	beq.s	m68040_mmu
 	cmp.l	#ASM_CPU_68040,d0		;is it 68060-code?
@@ -154,8 +154,7 @@ m68020_mmu:
     MACHINE 68060
     bra.s mmu_test_done
 m68030_mmu:
-	MACHINE 68020
-	MACHINE 68851
+	MACHINE 68030
     pflusha							;this might generate an exception for the EC30
     pmove.l tc,(sp)            		;try to read translation control
     movec.l d2,cacr                 ;flush the cache
