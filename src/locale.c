@@ -281,6 +281,7 @@ static const char *default_strings[MSG_COUNT] = {
     /*MSG_AGNUS_OCS_NTSC*/    "Agnus 8361 (OCS)",
     /*MSG_AGNUS_SAGA*/    "Agnus SAGA",
     /*MSG_AGNUS_UNKNOWN*/    "Unknown Agnus",
+    /*MGG_UNCERTAIN*/   "uncertain",
 
 };
 

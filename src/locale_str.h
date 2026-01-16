@@ -277,6 +277,7 @@ typedef enum {
     MSG_AGNUS_OCS_NTSC,
     MSG_AGNUS_SAGA,
     MSG_AGNUS_UNKNOWN,
+    MSG_UNCERTAIN,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 
