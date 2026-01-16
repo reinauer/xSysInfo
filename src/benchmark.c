@@ -18,6 +18,8 @@
 #include "xsysinfo.h"
 #include "benchmark.h"
 #include "hardware.h"
+extern struct ExecBase *SysBase;
+
 
 /* Global benchmark results */
 BenchmarkResults bench_results;
@@ -54,7 +56,6 @@ struct Device *TimerBase = NULL;
 static BOOL timer_open = FALSE;
 
 /* External references */
-extern struct ExecBase *SysBase;
 extern HardwareInfo hw_info;
 
 /* Dhrystone implementation (from original source) */
@@ -120,38 +121,94 @@ void cleanup_timer(void)
 */
 ULONG get_mhz_cpu(CPUType type)
 {
-    ULONG mhz = 0;
+
+    /*
+
+    CPULOOPS    EQU    5000
+FPULOOPS    EQU    500
+    ; CPU PERFORMANCE CONSTANTS
+.cpuconst    dc.b    11        ; 68000: 11.11 1E6/((CPULOOPS*18)+12)
+        dc.b    11        ; 68010: 11.11 1E6/((CPULOOPS*18)+12)
+        dc.b    25        ; 68020: 24.99 1E6/((CPULOOPS* 8)+12)
+        dc.b    25        ; 68030: 24.99 1E6/((CPULOOPS* 8)+12)
+        dc.b    67        ; 68040: 66.66 1E6/((CPULOOPS* 3)+ 4)
+        dc.b    50        ; 68060: 49.99 1E6/((CPULOOPS* 4)+ 5)
+
+    ; FPU PERFORMANCE CONSTANTS
+.fpuconst    dc.b    "6"        ; version number, please increment on changes
+        dc.b     9        ; 68881:  9.26 1E6/(FPULOOPS*216)
+        dc.b     9        ; 68882:  9.71 1E6/(FPULOOPS*206)
+        dc.b     9        ; 68040:  9.71 1E6/(FPULOOPS*206)
+        dc.b    14        ; 68060: 14.71 1E6/(FPULOOPS*136)
+    */
+
+    ULONG count, start, end, tmp;
+
+    if (init_timer() ) {
+
+        count = CPULOOPS;
+        start = get_timer_ticks();
+
+        __asm__ volatile (
+            "1: subq.l #1,%0\n\t"
+            "bne.s 1b"
+            : "+d" (count)
+            :
+            : "cc"
+        );
+
+        end = get_timer_ticks();
+        cleanup_timer();
+        count = end - start;
+        tmp = 100000;
+        /* Fallback: estimate based on CPU type and system */
+        switch (type) {
+            case CPU_68000:
+            case CPU_68010:
+                tmp*=11;   //empirical correction factor
+            case CPU_68020:
+            case CPU_68EC020:
+            case CPU_68030:
+            case CPU_68EC030:
+                tmp*= 25;  //empirical correction factor
+            case CPU_68040:
+            case CPU_68EC040:
+            case CPU_68LC040:
+                tmp*= 67;  //empirical correction factor
+            case CPU_68060:
+            case CPU_68EC060:
+            case CPU_68LC060:
+                tmp*= 50;  //empirical correction factor
+            default:
+                tmp*= 11;  //empirical correction factor
+        }
+
+        return tmp/count;
+
+    }
+
+    /* Fallback: estimate based on CPU type and system */
     switch (type) {
         case CPU_68000:
-            mhz = 1;
-            break;
         case CPU_68010:
-            mhz = 2;
-            break;
-        case CPU_68EC020:
+            return 709;   /* Standard 68000 */
         case CPU_68020:
-            mhz = 3;
-            break;
+        case CPU_68EC020:
+            return 1400;  /* Common for A1200/accelerators */
         case CPU_68030:
         case CPU_68EC030:
-            mhz = 4;
-            break;
+            return 2500;  /* Common for 030 accelerators */
         case CPU_68040:
-        case CPU_68EC040:
         case CPU_68LC040:
-            mhz = 5;
-            break;
+            return 2500;  /* A4000 stock */
+        case CPU_68060:
         case CPU_68EC060:
         case CPU_68LC060:
-        case CPU_68060:
-            mhz = 6;
-            break;
-        case CPU_UNKNOWN:
+            return 5000;  /* Common 060 speed */
         default:
-            mhz = 7;
-            break;
+            return 709;
     }
-    return mhz *100;
+
 }
 
 /*
@@ -159,29 +216,102 @@ ULONG get_mhz_cpu(CPUType type)
 */
 ULONG get_mhz_fpu(FPUType type)
 {
+    if (FPU_NONE == type) {
+        return 0;
+    }
     ULONG mhz = 0;
+
+    /*
+
+    CPULOOPS    EQU    5000
+FPULOOPS    EQU    500
+    ; CPU PERFORMANCE CONSTANTS
+.cpuconst    dc.b    11        ; 68000: 11.11 1E6/((CPULOOPS*18)+12)
+        dc.b    11        ; 68010: 11.11 1E6/((CPULOOPS*18)+12)
+        dc.b    25        ; 68020: 24.99 1E6/((CPULOOPS* 8)+12)
+        dc.b    25        ; 68030: 24.99 1E6/((CPULOOPS* 8)+12)
+        dc.b    67        ; 68040: 66.66 1E6/((CPULOOPS* 3)+ 4)
+        dc.b    50        ; 68060: 49.99 1E6/((CPULOOPS* 4)+ 5)
+
+    ; FPU PERFORMANCE CONSTANTS
+.fpuconst    dc.b    "6"        ; version number, please increment on changes
+        dc.b     9        ; 68881:  9.26 1E6/(FPULOOPS*216)
+        dc.b     9        ; 68882:  9.71 1E6/(FPULOOPS*206)
+        dc.b     9        ; 68040:  9.71 1E6/(FPULOOPS*206)
+        dc.b    14        ; 68060: 14.71 1E6/(FPULOOPS*136)
+    */
+
+    ULONG count, start, end, tmp;
+
+    if (init_timer())
+    {
+
+        count = FPULOOPS;
+        start = get_timer_ticks();
+
+        __asm__ volatile(
+            "fmove.w #1,fp1\n\t"
+            "1:        fsqrt.x fp1\n\t"
+            "subq.l    #1,%0\n\t"
+            "bne.s    1b\n\t"
+            : "+d"(count)
+            :
+            : "cc","fp1");
+
+        end = get_timer_ticks();
+        cleanup_timer();
+        count = end - start;
+        tmp = 100000;
+
+        switch (type)
+        {
+        case FPU_NONE:
+            tmp *= 0;
+            break;
+        case FPU_68881:
+            tmp *= 9;
+            break;
+        case FPU_68882:
+            tmp *= 9;
+            break;
+        case FPU_68040:
+            tmp *= 9;
+            break;
+        case FPU_68060:
+            tmp *= 14;
+            break;
+        case FPU_UNKNOWN:
+        default:
+            tmp *= 9;
+            break;
+        }
+        return tmp/count;
+    }
+
+    /* Fallback: estimate based on FPU type and system */
+
     switch (type) {
         case FPU_NONE:
             mhz = 0;
             break;
         case FPU_68881:
-            mhz = 1;
+            mhz = 14;
             break;
         case FPU_68882:
-            mhz = 2;
+            mhz = 25;
             break;
         case FPU_68040:
-            mhz = 3;
+            mhz = 50;
             break;
         case FPU_68060:
-            mhz = 4;
+            mhz = 50;
             break;
         case FPU_UNKNOWN:
         default:
-            mhz = 5;
+            mhz = 0;
             break;
     }
-    return mhz;
+    return mhz*100;
 }
 /*
  * Get current timer ticks (microseconds)

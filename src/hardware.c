@@ -254,11 +254,7 @@ void detect_fpu(void)
 
     /* Get FPU clock from identify.library */
     fpu_clock = get_mhz_fpu(hw_info.fpu_type);
-    if (fpu_clock > 0 && fpu_clock < 1000) {
         hw_info.fpu_mhz = fpu_clock * 100;
-    } else {
-        hw_info.fpu_mhz = 0;
-    }
 }
 
 /*
@@ -275,32 +271,6 @@ void detect_mmu(void)
     hw_info.mmu_enabled = FALSE;
     hw_info.mmu_type = MMU_NONE;
     strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
-
-    // GetMMU has to determine if we have a 68020, 030, 040 or 060-MMU (different opcodes)
-    switch (hw_info.cpu_type)
-    {
-    case CPU_68EC020:
-    case CPU_68020:
-        cpuType = ASM_CPU_68020;
-        break;
-    case CPU_68EC030:
-    case CPU_68030:
-        cpuType = ASM_CPU_68030;
-        break;
-    case CPU_68LC040:
-    case CPU_68EC040:
-    case CPU_68040:
-        cpuType = ASM_CPU_68040;
-        break;
-    case CPU_68LC060:
-    case CPU_68EC060:
-    case CPU_68060:
-        cpuType = ASM_CPU_68060;
-        break;
-    default:
-        cpuType = 0;
-        break;
-    }
 
     // first: try mmu.lib
     if ((DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L)))
@@ -362,7 +332,34 @@ void detect_mmu(void)
 
     if (fallBack) //mmu.library or dos.library didn't open
     {
-        if (cpuType >= ASM_CPU_68030)
+        // GetMMU has to determine if we have a 68020, 030, 040 or 060-MMU (different opcodes)
+        switch (hw_info.cpu_type)
+        {
+        case CPU_68EC020:
+        case CPU_68020:
+            cpuType = ASM_CPU_68020;
+            break;
+        case CPU_68EC030:
+        case CPU_68030:
+            cpuType = ASM_CPU_68030;
+            break;
+        case CPU_68LC040:
+        case CPU_68EC040:
+        case CPU_68040:
+            cpuType = ASM_CPU_68040;
+            break;
+        case CPU_68LC060:
+        case CPU_68EC060:
+        case CPU_68060:
+            cpuType = ASM_CPU_68060;
+            break;
+        default:
+            cpuType = 0;
+            break;
+        }
+
+
+        if (cpuType >= ASM_CPU_68020)
         { // no 68851 support!
             mmuResult = GetMMU(cpuType);
         }
