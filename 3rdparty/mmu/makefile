@@ -37,7 +37,7 @@ all: $(OBJP) \
 
 clean:
 	rm -rf $(OBJP) $(RELP) $(REFP)/inline/mmu_protos.h $(REFP)/inline/mmu.h \
-		$(REFP)/proto/mmu.h
+		$(REFP)
 
 #-- pragmas
 $(REFP)/inline/mmu_protos.h: $(REFP)/fd/mmu_lib.fd $(REFP)/clib/mmu_protos.h

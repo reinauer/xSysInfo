@@ -64,7 +64,7 @@ else
     FLEXCAT_BIN = 3rdparty/flexcat/src/bin_unix/flexcat
 endif
 
-all: identify $(TARGET) disk lha
+all: download-libs identify mmu $(TARGET) disk lha
 
 # FlexCat build - only when binary doesn't exist
 $(FLEXCAT_BIN):
@@ -89,7 +89,7 @@ mmu: $(FLEXCAT_BIN)
 		  -o $(HOME)/.fd2pragma.types; \
 	   fi } && \
 	export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
-	$(MAKE) -s -C 3rdparty/mmu reference/proto/mmu.h reference/inline/mmu.h
+	$(MAKE) -s -C 3rdparty/mmu reference/proto/mmu.h reference/inline/mmu.h reference/inline/mmu_protos.h
 
 
 # Catalog definitions - maps source directory to AmigaOS language name
@@ -178,12 +178,14 @@ IDENTIFY_USR_LHA = $(DOWNLOAD_DIR)/IdentifyUsr.lha
 IDENTIFY_PCI_LHA = $(DOWNLOAD_DIR)/IdentifyPci.lha
 OPENPCI_LHA = $(DOWNLOAD_DIR)/openpci68k.lha
 MMULIB_LHA = $(DOWNLOAD_DIR)/MMULib.lha
+MU_MANUAL_LHA = $(DOWNLOAD_DIR)/MuManual.lha
 
 # MD5 checksums for verification
 IDENTIFY_USR_MD5 = f8bd9feb9fa595bea979755224d08c5c
 IDENTIFY_PCI_MD5 = 7771426e5c7a5e3dc882a973029099d1
 OPENPCI_MD5 = b0bdadfdcec7d9aa86722124263a5b78
 MMULIB_MD5 = 5d07a2dc0f495a9c6790fa7d1df43f1d
+MU_MANUAL_MD5 = 98ce060266ec1ac2dece921f431253b1
 
 .PHONY: identify-all disk download-libs
 
@@ -264,8 +266,25 @@ $(MMULIB_LHA): | $(DOWNLOAD_DIR)
 		fi \
 	fi
 
+# Download and verify MuManual.lha
+$(MU_MANUAL_LHA): | $(DOWNLOAD_DIR)
+	@if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(MMULIB_MD5)); then \
+		echo "$@ already downloaded and verified"; \
+	else \
+		echo "Downloading MuManual.lha..."; \
+		curl -sL http://aminet.net/docs/misc/MuManual.lha -o $@; \
+		if $(call verify_md5_cmd,$@,$(MU_MANUAL_MD5)); then \
+			echo "$@: OK"; \
+		else \
+			$(call md5_fail_msg,$@,$(MU_MANUAL_MD5)); rm -f $@; exit 1; \
+		fi \
+	fi
+
+
+
+
 # Download all libraries
-download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_LHA)
+download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_LHA) $(MU_MANUAL_LHA)
 	@mkdir -p 3rdparty/identify/build
 	# Extract Identify library (use 68000-compatible version)
 	@echo "  UNPACK $(IDENTIFY_USR_LHA)"
@@ -291,6 +310,39 @@ download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_L
 	@mv MMULib/Libs/mmu.library 3rdparty/identify/build/
 	@mv MMULib/Libs/680*.library 3rdparty/identify/build/
 	@rm -rf MMULib
+	# Extract MuManual
+	@echo "  UNPACK $(MU_MANUAL_LHA)"
+	@lha xq $(MU_MANUAL_LHA) MuManual/fd/mmu_lib.fd \
+		MuManual/fd/mmu_resource.fd \
+		MuManual/Include/clib/mmu_protos.h \
+		MuManual/Include/mmu/alerts.h \
+		MuManual/Include/mmu/config.h \
+		MuManual/Include/mmu/context.h \
+		MuManual/Include/mmu/descriptor.h \
+		MuManual/Include/mmu/exceptions.h \
+		MuManual/Include/mmu/mmubase.h \
+		MuManual/Include/mmu/mmutags.h \
+		MuManual/Include/pragmas/mmu_pragmas.h
+	@mkdir -p 3rdparty/mmu/reference
+	@mkdir -p 3rdparty/mmu/reference/fd
+	@mkdir -p 3rdparty/mmu/reference/clib
+	@mkdir -p 3rdparty/mmu/reference/mmu
+	@mkdir -p 3rdparty/mmu/reference/pragmas
+	@mkdir -p 3rdparty/mmu/reference/proto
+	@mv MuManual/fd/mmu_lib.fd 3rdparty/mmu/reference/fd/
+	@mv MuManual/fd/mmu_resource.fd 3rdparty/mmu/reference/fd/
+	@mv MuManual/Include/clib/mmu_protos.h  3rdparty/mmu/reference/clib/
+	@mv MuManual/Include/mmu/alerts.h 3rdparty/mmu/reference/mmu/
+	@mv MuManual/Include/mmu/config.h 3rdparty/mmu/reference/mmu/
+	@mv MuManual/Include/mmu/context.h 3rdparty/mmu/reference/mmu/
+	@mv MuManual/Include/mmu/descriptor.h 3rdparty/mmu/reference/mmu/
+	@mv MuManual/Include/mmu/exceptions.h 3rdparty/mmu/reference/mmu/
+	@mv MuManual/Include/mmu/mmubase.h 3rdparty/mmu/reference/mmu/
+	@mv MuManual/Include/mmu/mmutags.h 3rdparty/mmu/reference/mmu/
+	@mv MuManual/Include/pragmas/mmu_pragmas.h 3rdparty/mmu/reference/pragmas/
+	@rm -rf MuManual
+
+
 
 TinySetPatch: src/TinySetPatch.S
 	@echo "  VASM $@"
