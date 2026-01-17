@@ -128,7 +128,7 @@ ULONG get_mhz_cpu(CPUType type)
 
         count = CPULOOPS;
         start = get_timer_ticks();
-
+        Forbid();
         __asm__ volatile (
             "1: subq.l #1,%0\n\t"
             "bne.s 1b"
@@ -136,6 +136,7 @@ ULONG get_mhz_cpu(CPUType type)
             :
             : "cc"
         );
+        Permit();
 
         end = get_timer_ticks();
         cleanup_timer();
@@ -144,31 +145,31 @@ ULONG get_mhz_cpu(CPUType type)
         //empirical correction factors
         switch (type) {
             case CPU_68000:
-                tmp*=500;
+                tmp*=215;
                 break;
             case CPU_68010:
-                tmp*=500;
+                tmp*=215;
                 break;
             case CPU_68020:
             case CPU_68EC020:
-                tmp*= 500;
+                tmp*= 92;
                 break;
             case CPU_68030:
             case CPU_68EC030:
-                tmp*= 500;
+                tmp*= 92;
                 break;
             case CPU_68040:
             case CPU_68EC040:
             case CPU_68LC040:
-                tmp*= 500;
+                tmp*= 100;
                 break;
             case CPU_68060:
             case CPU_68EC060:
             case CPU_68LC060:
-                tmp*= 500;
+                tmp*= 100;
                 break;
             default:
-                tmp*= 500;
+                tmp*= 100;
                 break;
         }
 
@@ -217,7 +218,7 @@ ULONG get_mhz_fpu(FPUType type)
 
         count = FPULOOPS;
         start = get_timer_ticks();
-
+        Forbid();
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
             "1:        fdiv.x fp1,fp1\n\t"
@@ -226,6 +227,7 @@ ULONG get_mhz_fpu(FPUType type)
             : "+d"(count)
             :
             : "cc","fp1");
+        Permit();
 
         end = get_timer_ticks();
         cleanup_timer();
@@ -239,20 +241,20 @@ ULONG get_mhz_fpu(FPUType type)
             tmp *= 0;
             break;
         case FPU_68881:
-            tmp *= 900;
+            tmp *= 90;
             break;
         case FPU_68882:
-            tmp *= 900;
+            tmp *= 90;
             break;
         case FPU_68040:
-            tmp *= 900;
+            tmp *= 90;
             break;
         case FPU_68060:
-            tmp *= 1400;
+            tmp *= 140;
             break;
         case FPU_UNKNOWN:
         default:
-            tmp *= 900;
+            tmp *= 90;
             break;
         }
         return tmp/count;

@@ -31,9 +31,9 @@ typedef struct {
 #define REF_A2500   3
 #define REF_A3000   4
 #define REF_A4000   5
-#define CPULOOPS 14680
-#define FPULOOPS 1200
-#define BASE_FACTOR 136000
+#define CPULOOPS 14680*8
+#define FPULOOPS 1200*8
+#define BASE_FACTOR 136000*8
 
 /* Benchmark results */
 typedef struct {

@@ -122,7 +122,33 @@ void enumerate_libraries(void)
     sort_software_list(&libraries_list);
 
     /* Insert artificial "kickstart" entry at the beginning */
-    if (libraries_list.count < MAX_SOFTWARE_ENTRIES) {
+    /* Insert artificial "kickstart (soft)" entry at the beginning */
+    if ((libraries_list.count+1) < MAX_SOFTWARE_ENTRIES) {
+        if ((hw_info.kickstart_version != hw_info.kickstart_patch_version ||
+            hw_info.kickstart_revision != hw_info.kickstart_patch_revision) &&
+            0 != hw_info.kickstart_patch_version &&
+            0 != hw_info.kickstart_patch_revision
+        ) {
+            /* Shift all entries by 1 position */
+            for (i = libraries_list.count; i > 0; i--) {
+                libraries_list.entries[i] = libraries_list.entries[i - 1];
+            }
+
+            /* Insert kickstart entry at position 0 */
+            entry = &libraries_list.entries[0];
+            strncpy(entry->name, "kickstart (sw)", sizeof(entry->name) - 1);
+            entry->name[sizeof(entry->name) - 1] = '\0';
+            entry->location = LOC_KICKSTART;
+            /* ROM base: 0x00f80000 for 512K, 0x00fc0000 for 256K */
+            entry->address = (APTR)(hw_info.kickstart_size >= 512 ? 0x00f80000 : 0x00fc0000);
+            entry->version = hw_info.kickstart_patch_version;
+            entry->revision = hw_info.kickstart_patch_revision;
+
+            libraries_list.count++;
+
+        }
+
+
         /* Shift all entries by 1 position */
         for (i = libraries_list.count; i > 0; i--) {
             libraries_list.entries[i] = libraries_list.entries[i - 1];

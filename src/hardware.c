@@ -91,6 +91,10 @@ BOOL detect_hardware(void)
         hw_info.kickstart_size = 512;
     }
 
+    //save SysBase-Version in case we are softkicking
+    hw_info.kickstart_patch_version = SysBase->LibNode.lib_Version;
+    hw_info.kickstart_patch_revision = SysBase->LibNode.lib_Revision;
+
     debug("  hw: Hardware detection complete.\n");
     return TRUE;
 }
