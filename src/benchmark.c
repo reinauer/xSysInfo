@@ -122,26 +122,6 @@ void cleanup_timer(void)
 ULONG get_mhz_cpu(CPUType type)
 {
 
-    /*
-
-    CPULOOPS    EQU    5000
-FPULOOPS    EQU    500
-    ; CPU PERFORMANCE CONSTANTS
-.cpuconst    dc.b    11        ; 68000: 11.11 1E6/((CPULOOPS*18)+12)
-        dc.b    11        ; 68010: 11.11 1E6/((CPULOOPS*18)+12)
-        dc.b    25        ; 68020: 24.99 1E6/((CPULOOPS* 8)+12)
-        dc.b    25        ; 68030: 24.99 1E6/((CPULOOPS* 8)+12)
-        dc.b    67        ; 68040: 66.66 1E6/((CPULOOPS* 3)+ 4)
-        dc.b    50        ; 68060: 49.99 1E6/((CPULOOPS* 4)+ 5)
-
-    ; FPU PERFORMANCE CONSTANTS
-.fpuconst    dc.b    "6"        ; version number, please increment on changes
-        dc.b     9        ; 68881:  9.26 1E6/(FPULOOPS*216)
-        dc.b     9        ; 68882:  9.71 1E6/(FPULOOPS*206)
-        dc.b     9        ; 68040:  9.71 1E6/(FPULOOPS*206)
-        dc.b    14        ; 68060: 14.71 1E6/(FPULOOPS*136)
-    */
-
     ULONG count, start, end, tmp;
 
     if (init_timer() ) {
@@ -160,27 +140,36 @@ FPULOOPS    EQU    500
         end = get_timer_ticks();
         cleanup_timer();
         count = end - start;
-        tmp = 100000;
-        /* Fallback: estimate based on CPU type and system */
+        tmp = BASE_FACTOR;
+        //empirical correction factors
         switch (type) {
             case CPU_68000:
+                tmp*=500;
+                break;
             case CPU_68010:
-                tmp*=11;   //empirical correction factor
+                tmp*=500;
+                break;
             case CPU_68020:
             case CPU_68EC020:
+                tmp*= 500;
+                break;
             case CPU_68030:
             case CPU_68EC030:
-                tmp*= 25;  //empirical correction factor
+                tmp*= 500;
+                break;
             case CPU_68040:
             case CPU_68EC040:
             case CPU_68LC040:
-                tmp*= 67;  //empirical correction factor
+                tmp*= 500;
+                break;
             case CPU_68060:
             case CPU_68EC060:
             case CPU_68LC060:
-                tmp*= 50;  //empirical correction factor
+                tmp*= 500;
+                break;
             default:
-                tmp*= 11;  //empirical correction factor
+                tmp*= 500;
+                break;
         }
 
         return tmp/count;
@@ -221,26 +210,6 @@ ULONG get_mhz_fpu(FPUType type)
     }
     ULONG mhz = 0;
 
-    /*
-
-    CPULOOPS    EQU    5000
-FPULOOPS    EQU    500
-    ; CPU PERFORMANCE CONSTANTS
-.cpuconst    dc.b    11        ; 68000: 11.11 1E6/((CPULOOPS*18)+12)
-        dc.b    11        ; 68010: 11.11 1E6/((CPULOOPS*18)+12)
-        dc.b    25        ; 68020: 24.99 1E6/((CPULOOPS* 8)+12)
-        dc.b    25        ; 68030: 24.99 1E6/((CPULOOPS* 8)+12)
-        dc.b    67        ; 68040: 66.66 1E6/((CPULOOPS* 3)+ 4)
-        dc.b    50        ; 68060: 49.99 1E6/((CPULOOPS* 4)+ 5)
-
-    ; FPU PERFORMANCE CONSTANTS
-.fpuconst    dc.b    "6"        ; version number, please increment on changes
-        dc.b     9        ; 68881:  9.26 1E6/(FPULOOPS*216)
-        dc.b     9        ; 68882:  9.71 1E6/(FPULOOPS*206)
-        dc.b     9        ; 68040:  9.71 1E6/(FPULOOPS*206)
-        dc.b    14        ; 68060: 14.71 1E6/(FPULOOPS*136)
-    */
-
     ULONG count, start, end, tmp;
 
     if (init_timer())
@@ -251,7 +220,7 @@ FPULOOPS    EQU    500
 
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
-            "1:        fsqrt.x fp1\n\t"
+            "1:        fdiv.x fp1,fp1\n\t"
             "subq.l    #1,%0\n\t"
             "bne.s    1b\n\t"
             : "+d"(count)
@@ -261,28 +230,29 @@ FPULOOPS    EQU    500
         end = get_timer_ticks();
         cleanup_timer();
         count = end - start;
-        tmp = 100000;
+        tmp = BASE_FACTOR;
 
+        //empirical correction factors
         switch (type)
         {
         case FPU_NONE:
             tmp *= 0;
             break;
         case FPU_68881:
-            tmp *= 9;
+            tmp *= 900;
             break;
         case FPU_68882:
-            tmp *= 9;
+            tmp *= 900;
             break;
         case FPU_68040:
-            tmp *= 9;
+            tmp *= 900;
             break;
         case FPU_68060:
-            tmp *= 14;
+            tmp *= 1400;
             break;
         case FPU_UNKNOWN:
         default:
-            tmp *= 9;
+            tmp *= 900;
             break;
         }
         return tmp/count;
