@@ -146,6 +146,7 @@ static BOOL is_floppy_device(ULONG total_blocks);
 static void scan_dos_list(void)
 {
     struct DosList *dol;
+    char buffer[32];
 
     debug("  drives: Locking DosList...\n");
     dol = LockDosList(LDF_DEVICES | LDF_READ);
@@ -153,13 +154,16 @@ static void scan_dos_list(void)
 
     while ((dol = NextDosEntry(dol, LDF_DEVICES)) != NULL) {
         if (drive_list.count >= MAX_DRIVES) break;
-
+        buffer[0] = '\0';
         DriveInfo *drive = &drive_list.drives[drive_list.count];
         drive->is_valid = FALSE;
 
         /* Get device name */
-        bstr_to_cstr(dol->dol_Name, drive->device_name, sizeof(drive->device_name) - 2);
-        strcat(drive->device_name, ":");
+        bstr_to_cstr(dol->dol_Name, buffer, sizeof(buffer) - 2);
+        //strcat crashes on a 68000/010?!?!
+        snprintf(drive->device_name, sizeof(drive->device_name), "%s:",
+                     buffer);
+
 
         debug("  drives: Found device '%s'\n", (LONG)drive->device_name);
 
@@ -230,9 +234,12 @@ static void match_volumes_to_drives(void)
     memset(dev_tasks, 0, sizeof(dev_tasks));
     dev_dol = LockDosList(LDF_DEVICES | LDF_READ);
     while ((dev_dol = NextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
+        char buffer[32];
         char dev_name[34];
-        bstr_to_cstr(dev_dol->dol_Name, dev_name, sizeof(dev_name) - 2);
-        strcat(dev_name, ":");
+        bstr_to_cstr(dev_dol->dol_Name, buffer, sizeof(buffer) - 2);
+        //strcat crashes on a 68000/010?!?!
+        snprintf(dev_name, sizeof(dev_name), "%s:",
+                     buffer);
 
         /* Find matching drive in our list */
         for (i = 0; i < drive_list.count; i++) {
@@ -376,16 +383,20 @@ void enumerate_drives(void)
     debug("  drives: Starting enumeration...\n");
 
     memset(&drive_list, 0, sizeof(drive_list));
+    debug("  drives: Scan DosList...\n");
 
     /* First pass: Scan DosList for devices */
     scan_dos_list();
 
+    debug("  drives: Match volumes...\n");
     /* Second pass: Match volumes to devices */
     match_volumes_to_drives();
 
+    debug("  drives: Query details...\n");
     /* Third pass: Query detailed info */
     query_drive_details();
 
+    debug("  drives: Check SCSI-support...\n");
     /* Fourth pass: Check SCSI support */
     check_scsi_support_all();
 
