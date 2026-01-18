@@ -232,7 +232,7 @@ ULONG get_mhz_fpu()
     }
 
 
-    if (FPU_NONE == hw_info.cpu_type || FPU_UNKNOWN  == hw_info.cpu_type) {
+    if (FPU_NONE == hw_info.fpu_type || FPU_UNKNOWN  == hw_info.fpu_type) {
         return 0;
     }
 
