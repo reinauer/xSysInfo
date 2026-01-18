@@ -65,8 +65,8 @@ ULONG run_dhrystone(void);
 ULONG run_mflops_benchmark(void);
 void run_memory_speed_tests(void);
 ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG iterations);
-ULONG get_mhz_cpu(CPUType type);
-ULONG get_mhz_fpu(FPUType type);
+ULONG get_mhz_cpu();
+ULONG get_mhz_fpu();
 
 /* Helper functions */
 ULONG calculate_mips(ULONG dhrystones);

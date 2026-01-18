@@ -119,7 +119,7 @@ void cleanup_timer(void)
 /*
  * Returns the CPU-frequencies in MHz scaled by 100
 */
-ULONG get_mhz_cpu(CPUType type)
+ULONG get_mhz_cpu()
 {
 
     ULONG count, start, end, tmp;
@@ -143,7 +143,7 @@ ULONG get_mhz_cpu(CPUType type)
         count = end - start;
         tmp = BASE_FACTOR;
         //empirical correction factors
-        switch (type) {
+        switch (hw_info.cpu_type) {
             case CPU_68000:
                 tmp*=215;
                 break;
@@ -178,7 +178,7 @@ ULONG get_mhz_cpu(CPUType type)
     }
 
     /* Fallback: estimate based on CPU type and system */
-    switch (type) {
+    switch (hw_info.cpu_type) {
         case CPU_68000:
         case CPU_68010:
             return 709;   /* Standard 68000 */
@@ -204,12 +204,37 @@ ULONG get_mhz_cpu(CPUType type)
 /*
  * Returns the FPU-frequencies in MHz
 */
-ULONG get_mhz_fpu(FPUType type)
+ULONG get_mhz_fpu()
 {
-    if (FPU_NONE == type) {
+
+    /*make some sanity tests:
+    No FPU -> nothing,
+    Unknown FPU -> nothing
+    68EC/LC040/060 -> No FPU nothing
+    68040 or 68060 CPU: Same as CPU Frequency
+
+    */
+    switch (hw_info.cpu_type) {
+        case CPU_68LC040:
+        case CPU_68EC040:
+        case CPU_68EC060:
+        case CPU_68LC060:
+            return 0;
+        case CPU_68040:
+        case CPU_68060:
+            //cpu-frequency available?
+            if (hw_info.cpu_mhz == 0) {
+               get_mhz_cpu(); //recalc
+            }
+            return hw_info.cpu_mhz;
+        default:
+            break;
+    }
+
+
+    if (FPU_NONE == hw_info.cpu_type || FPU_UNKNOWN  == hw_info.cpu_type) {
         return 0;
     }
-    ULONG mhz = 0;
 
     ULONG count, start, end, tmp;
 
@@ -235,26 +260,15 @@ ULONG get_mhz_fpu(FPUType type)
         tmp = BASE_FACTOR;
 
         //empirical correction factors
-        switch (type)
+        switch (hw_info.fpu_type)
         {
-        case FPU_NONE:
-            tmp *= 0;
-            break;
         case FPU_68881:
             tmp *= 90;
             break;
         case FPU_68882:
             tmp *= 90;
             break;
-        case FPU_68040:
-            tmp *= 90;
-            break;
-        case FPU_68060:
-            tmp *= 140;
-            break;
-        case FPU_UNKNOWN:
         default:
-            tmp *= 90;
             break;
         }
         return tmp/count;
@@ -262,28 +276,22 @@ ULONG get_mhz_fpu(FPUType type)
 
     /* Fallback: estimate based on FPU type and system */
 
-    switch (type) {
+    switch (hw_info.fpu_type) {
         case FPU_NONE:
-            mhz = 0;
-            break;
+            return 0;
         case FPU_68881:
-            mhz = 14;
-            break;
+            return 1400;
         case FPU_68882:
-            mhz = 25;
-            break;
+            return 2500;
         case FPU_68040:
-            mhz = 50;
-            break;
+            return 5000;
         case FPU_68060:
-            mhz = 50;
-            break;
+            return 5000;
         case FPU_UNKNOWN:
         default:
-            mhz = 0;
-            break;
+            return 0;
     }
-    return mhz*100;
+
 }
 /*
  * Get current timer ticks (microseconds)

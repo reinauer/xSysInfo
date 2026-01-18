@@ -180,7 +180,7 @@ void detect_cpu(void)
         }
     }
     /* Get CPU frequency */
-    hw_info.cpu_mhz = get_mhz_cpu(hw_info.cpu_type);
+    hw_info.cpu_mhz = get_mhz_cpu();
 
     /* Get CPU revision from identify.library (returns string) */
     if ( hw_info.cpu_type == CPU_68060 ||
@@ -209,7 +209,6 @@ UWORD detect_cpu_rev(void)
  */
 void detect_fpu(void)
 {
-    ULONG fpu_clock;
     UWORD attnFlags = SysBase->AttnFlags;
 
     //default values
@@ -256,9 +255,8 @@ void detect_fpu(void)
     }
 
 
-    /* Get FPU clock from identify.library */
-    fpu_clock = get_mhz_fpu(hw_info.fpu_type);
-        hw_info.fpu_mhz = fpu_clock ;
+    /* Get FPU clock */
+    hw_info.fpu_mhz = get_mhz_fpu();
 }
 
 /*

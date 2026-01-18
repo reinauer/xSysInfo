@@ -46,6 +46,7 @@ struct IntuitionBase *IntuitionBase = NULL;
 struct GfxBase *GfxBase = NULL;
 struct Library *IdentifyBase = NULL;
 struct Library *IconBase = NULL;
+extern struct DosLibrary *DOSBase;
 
 /* Workbench startup message (if started from WB) */
 static struct WBStartup *wb_startup = NULL;
@@ -293,7 +294,11 @@ static BOOL open_libraries(void)
     }
 
     /* Open identify.library */
-    IdentifyBase = OpenLibrary((CONST_STRPTR)"identify.library", MIN_IDENTIFY_VERSION);
+    if ((DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L))) // kick >2.0?
+    {
+        IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
+        CloseLibrary((struct Library *)DOSBase);
+    }
     /*
     if (!IdentifyBase) {
         Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_IDENTIFY));
