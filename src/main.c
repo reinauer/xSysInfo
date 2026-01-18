@@ -175,6 +175,7 @@ static void parse_tooltypes(void)
 int main(int argc, char **argv)
 {
     int ret = RETURN_OK;
+    debug(XSYSINFO_NAME ": Checking start...\n");
 
     /* Check if started from Workbench */
     if (argc == 0) {

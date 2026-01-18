@@ -18,6 +18,8 @@
 #include "xsysinfo.h"
 #include "benchmark.h"
 #include "hardware.h"
+#include "debug.h"
+
 extern struct ExecBase *SysBase;
 
 
@@ -122,83 +124,127 @@ void cleanup_timer(void)
 ULONG get_mhz_cpu()
 {
 
-    ULONG count, start, end, tmp;
-
-    if (init_timer() ) {
-
-        count = CPULOOPS;
-        start = get_timer_ticks();
-        Forbid();
-        __asm__ volatile (
-            "1: subq.l #1,%0\n\t"
-            "bne.s 1b"
-            : "+d" (count)
-            :
-            : "cc"
-        );
-        Permit();
-
-        end = get_timer_ticks();
-        cleanup_timer();
-        count = end - start;
-        tmp = BASE_FACTOR;
-        //empirical correction factors
-        switch (hw_info.cpu_type) {
-            case CPU_68000:
-                tmp*=215;
-                break;
-            case CPU_68010:
-                tmp*=215;
-                break;
-            case CPU_68020:
-            case CPU_68EC020:
-                tmp*= 92;
-                break;
-            case CPU_68030:
-            case CPU_68EC030:
-                tmp*= 92;
-                break;
-            case CPU_68040:
-            case CPU_68EC040:
-            case CPU_68LC040:
-                tmp*= 100;
-                break;
-            case CPU_68060:
-            case CPU_68EC060:
-            case CPU_68LC060:
-                tmp*= 100;
-                break;
-            default:
-                tmp*= 100;
-                break;
-        }
-
-        return tmp/count;
-
+    ULONG count, tmp, mhz = 0;
+    struct timeval *start, *end;
+    start = (struct timeval *)AllocMem(sizeof(struct timeval),
+                                       MEMF_PUBLIC | MEMF_CLEAR);
+    if (!start)
+    { // no mem
+        return mhz;
     }
 
-    /* Fallback: estimate based on CPU type and system */
-    switch (hw_info.cpu_type) {
-        case CPU_68000:
-        case CPU_68010:
-            return 709;   /* Standard 68000 */
-        case CPU_68020:
-        case CPU_68EC020:
-            return 1400;  /* Common for A1200/accelerators */
-        case CPU_68030:
-        case CPU_68EC030:
-            return 2500;  /* Common for 030 accelerators */
+    end = (struct timeval *)AllocMem(sizeof(struct timeval),
+                                     MEMF_PUBLIC | MEMF_CLEAR);
+    if (!end)
+    { // no mem
+        FreeMem(start, sizeof(struct timeval));
+        return mhz;
+    }
+
+    if (init_timer())
+    {
+
+        count = CPULOOPS;
+
+        // correction factors for fast CPUs!
+        switch (hw_info.cpu_type)
+        {
         case CPU_68040:
+        case CPU_68EC040:
         case CPU_68LC040:
-            return 2500;  /* A4000 stock */
         case CPU_68060:
         case CPU_68EC060:
         case CPU_68LC060:
-            return 5000;  /* Common 060 speed */
+            count *= 100;
+            break;
         default:
-            return 709;
-    }
+            break;
+        }
 
+        get_timer(start);
+        __asm__ volatile(
+            "1: subq.l #1,%0\n\t"
+            "bne.s 1b"
+            : "+d"(count)
+            :
+            : "cc");
+        get_timer(end);
+        SubTime(end, start);
+        cleanup_timer();
+        count = (end->tv_secs * 1000000UL) + end->tv_micro;
+        debug("    cpu_mhz: timer: %ld %ld %ld\n", count, end->tv_secs, end->tv_micro);
+
+        if (count == 0)
+            count = 1; // avoid div/0
+        tmp = BASE_FACTOR;
+        // empirical correction factors
+        switch (hw_info.cpu_type)
+        {
+        case CPU_68000:
+            tmp *= 263;
+            break;
+        case CPU_68010:
+            tmp *= 263;
+            break;
+        case CPU_68020:
+        case CPU_68EC020:
+            tmp *= 129;
+            break;
+        case CPU_68030:
+        case CPU_68EC030:
+            tmp *= 92;
+            break;
+        case CPU_68040:
+        case CPU_68EC040:
+        case CPU_68LC040:
+            tmp *= 3316;
+            break;
+        case CPU_68060:
+        case CPU_68EC060:
+        case CPU_68LC060:
+            tmp *= 1011;
+            break;
+        default:
+            tmp *= 100;
+            break;
+        }
+        debug("    cpu_mhz: results: %ld %ld %ld\n", count, tmp, tmp / count);
+        mhz = tmp / count;
+    }
+    else
+    {
+
+        /* Fallback: estimate based on CPU type and system */
+        switch (hw_info.cpu_type)
+        {
+        case CPU_68000:
+        case CPU_68010:
+            mhz = 709; /* Standard 68000 */
+            break;
+        case CPU_68020:
+        case CPU_68EC020:
+            mhz = 1400; /* Common for A1200/accelerators */
+            break;
+        case CPU_68030:
+        case CPU_68EC030:
+            mhz = 2500; /* Common for 030 accelerators */
+            break;
+        case CPU_68040:
+        case CPU_68LC040:
+            mhz = 2500; /* A4000 stock */
+            break;
+        case CPU_68060:
+        case CPU_68EC060:
+        case CPU_68LC060:
+            mhz = 5000; /* Common 060 speed */
+            break;
+        default:
+            mhz = 709;
+        }
+    }
+    FreeMem(start, sizeof(struct timeval));
+    FreeMem(end, sizeof(struct timeval));
+    return mhz;
 }
 
 /*
@@ -214,36 +260,52 @@ ULONG get_mhz_fpu()
     68040 or 68060 CPU: Same as CPU Frequency
 
     */
-    switch (hw_info.cpu_type) {
-        case CPU_68LC040:
-        case CPU_68EC040:
-        case CPU_68EC060:
-        case CPU_68LC060:
-            return 0;
-        case CPU_68040:
-        case CPU_68060:
-            //cpu-frequency available?
-            if (hw_info.cpu_mhz == 0) {
-               get_mhz_cpu(); //recalc
-            }
-            return hw_info.cpu_mhz;
-        default:
-            break;
+    switch (hw_info.cpu_type)
+    {
+    case CPU_68LC040:
+    case CPU_68EC040:
+    case CPU_68EC060:
+    case CPU_68LC060:
+        return 0;
+    case CPU_68040:
+    case CPU_68060:
+        // cpu-frequency available?
+        if (hw_info.cpu_mhz == 0)
+        {
+            get_mhz_cpu(); // recalc
+        }
+        return hw_info.cpu_mhz;
+    default:
+        break;
     }
 
-
-    if (FPU_NONE == hw_info.fpu_type || FPU_UNKNOWN  == hw_info.fpu_type) {
+    if (FPU_NONE == hw_info.fpu_type || FPU_UNKNOWN == hw_info.fpu_type)
+    {
         return 0;
     }
 
-    ULONG count, start, end, tmp;
+    ULONG count, tmp, mhz = 0;
+    struct timeval *start, *end;
+    start = (struct timeval *)AllocMem(sizeof(struct timeval),
+                                       MEMF_PUBLIC | MEMF_CLEAR);
+    if (!start)
+    { // no mem
+        return mhz;
+    }
+
+    end = (struct timeval *)AllocMem(sizeof(struct timeval),
+                                     MEMF_PUBLIC | MEMF_CLEAR);
+    if (!end)
+    { // no mem
+        FreeMem(start, sizeof(struct timeval));
+        return mhz;
+    }
 
     if (init_timer())
     {
 
         count = FPULOOPS;
-        start = get_timer_ticks();
-        Forbid();
+        get_timer(start);
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
             "1:        fdiv.x fp1,fp1\n\t"
@@ -251,15 +313,15 @@ ULONG get_mhz_fpu()
             "bne.s    1b\n\t"
             : "+d"(count)
             :
-            : "cc","fp1");
-        Permit();
+            : "cc", "fp1");
 
-        end = get_timer_ticks();
+        get_timer(end);
+        SubTime(end, start);
         cleanup_timer();
-        count = end - start;
+        count = (end->tv_secs * 1000000UL) + end->tv_micro;
         tmp = BASE_FACTOR;
 
-        //empirical correction factors
+        // empirical correction factors
         switch (hw_info.fpu_type)
         {
         case FPU_68881:
@@ -271,27 +333,37 @@ ULONG get_mhz_fpu()
         default:
             break;
         }
-        return tmp/count;
+        mhz = tmp / count;
     }
+    else
+    {
+        /* Fallback: estimate based on FPU type and system */
 
-    /* Fallback: estimate based on FPU type and system */
-
-    switch (hw_info.fpu_type) {
+        switch (hw_info.fpu_type)
+        {
         case FPU_NONE:
-            return 0;
+            mhz = 0;
+            break;
         case FPU_68881:
-            return 1400;
+            mhz = 1400;
+            break;
         case FPU_68882:
-            return 2500;
+            mhz = 2500;
+            break;
         case FPU_68040:
-            return 5000;
+            mhz = 5000;
+            break;
         case FPU_68060:
-            return 5000;
+            mhz = 5000;
+            break;
         case FPU_UNKNOWN:
         default:
-            return 0;
+            mhz = 0;
+        }
     }
-
+    FreeMem(start, sizeof(struct timeval));
+    FreeMem(end, sizeof(struct timeval));
+    return mhz;
 }
 /*
  * Get current timer ticks (microseconds)
@@ -307,6 +379,19 @@ uint64_t get_timer_ticks(void)
     /* Return microseconds (may wrap around, but OK for short measurements) */
     return (uint64_t)tv.tv_secs * 1000000ULL + tv.tv_micro;
 }
+
+/*
+ * Get current timer
+ */
+void get_timer(struct timeval *tv)
+{
+
+    if (!TimerBase) return;
+
+    GetSysTime(tv);
+
+}
+
 
 /*
  * Wait for specified number of microseconds
