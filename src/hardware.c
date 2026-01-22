@@ -694,7 +694,7 @@ void detect_ramsey(void)
         return;
     }
 
-    hw_info.ramsey_rev = (ULONG)*((volatile unsigned char *)(RAMSEY_VER));
+    hw_info.ramsey_rev = *((volatile unsigned char *)(RAMSEY_VER));
     if (hw_info.ramsey_rev == 0xFF || hw_info.ramsey_rev == 0x00) { // unlikely!
         hw_info.ramsey_rev = 0;
     }else {
@@ -722,21 +722,25 @@ void detect_sdmac(void)
     int pass;
     hw_info.sdmac_rev = 0;
     hw_info.is_A4000T = FALSE;
-    if (hw_info.ramsey_rev>0 && hw_info.gary_type == FAT_GARY) { //you need fat gary and ramsey to access sdmac!
+    *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
+
+    if (hw_info.gary_type == FAT_GARY)
+    { // you need fat gary to access ncr!
+        // now test for A4000T NCR53C710: upper four bits of CTEST8-register contains the chip-rev.
+        sdmac_rev = *((volatile unsigned char *)(NCR_CTEST8_REG));
+        sdmac_rev = (sdmac_rev & 0xF0) >> 4; // only upper four bits matter
+        if (sdmac_rev != 0 && sdmac_rev != 0xF)
+        {
+            hw_info.sdmac_rev = sdmac_rev;
+            hw_info.is_A4000T = TRUE;
+        }
+    }
+
+    if (hw_info.ramsey_rev>0 && hw_info.gary_type == FAT_GARY && !hw_info.is_A4000T) { //you need fat gary and ramsey to access sdmac!
         //Switch to DSACK-Timeout to avoid bus erros on a A4000!
-        *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
         sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
         if (sdmac_rev != 0 && sdmac_rev <= 0xF0) { //realistic values!
             hw_info.sdmac_rev = sdmac_rev;
-        }
-        if (hw_info.sdmac_rev == 0) {
-            //now test for A4000T NCR53C710: upper four bits of CTEST8-register contains the chip-rev.
-           sdmac_rev = *((volatile unsigned char *)(NCR_CTEST8_REG));
-           sdmac_rev = (sdmac_rev&0xF0)>>4; //only upper four bits matter
-           if (sdmac_rev != 0 && sdmac_rev != 0xF) {
-            hw_info.sdmac_rev = sdmac_rev;
-            hw_info.is_A4000T = TRUE;
-           }
         }
         if (hw_info.sdmac_rev == 0) {
             /* Quick check: ISTR bits - FIFO cannot be both empty and full */
@@ -785,9 +789,9 @@ void detect_sdmac(void)
             }
             hw_info.sdmac_rev = sdmac_version;
         }
-        //switch back berr-timeout
-        *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_BERR;
     }
+    //switch back berr-timeout
+    *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_BERR;
 }
 
 
@@ -894,7 +898,7 @@ void detect_gary(void)
     }
     if (val!=0xFF && val !=0) {
         hw_info.gary_type = GAYLE;
-        hw_info.gary_rev = (ULONG)val;
+        hw_info.gary_rev = val;
         return;
     }
 
@@ -940,8 +944,8 @@ void detect_system_chips(void)
      * This is more reliable than system type detection which can fail
      * with CPU upgrades (e.g., 68060)
      */
-    if (hw_info.ramsey_rev != 0) {
-        /* A3000/A4000 have Ramsey - these have Zorro III slots */
+    if (hw_info.gary_type == FAT_GARY) {
+        /* A3000/A4000 have Fatz Gary - these have Zorro III slots */
         hw_info.has_zorro_slots = TRUE;
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
                  "%s", get_string(MSG_ZORRO_III));

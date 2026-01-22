@@ -1416,7 +1416,7 @@ static void draw_hardware_panel(void)
 
         /* Ramsey */
         if (hw_info.ramsey_rev) {
-            snprintf(buffer, sizeof(buffer), "%02X", (unsigned char)hw_info.ramsey_rev);
+            snprintf(buffer, sizeof(buffer), "%02X", hw_info.ramsey_rev);
         } else {
             strncpy(buffer, get_string(MSG_NA), sizeof(buffer) - 1);
         }
@@ -1433,7 +1433,7 @@ static void draw_hardware_panel(void)
                 strncpy(buffer, get_string(MSG_GARY_A500), sizeof(buffer) - 1);
                 break;
             case GAYLE:
-                snprintf(buffer, sizeof(buffer), "%s %02lX", get_string(MSG_GAYLE), (unsigned long)hw_info.gary_rev);
+                snprintf(buffer, sizeof(buffer), "%s %02X", get_string(MSG_GAYLE), hw_info.gary_rev);
                 break;
             case FAT_GARY:
                 strncpy(buffer, get_string(MSG_FAT_GARY), sizeof(buffer) - 1);
@@ -1560,16 +1560,15 @@ static void draw_hardware_panel(void)
                             buffer, NULL, 120);
                 y += 8;
             }
-
-            if (hw_info.sdmac_rev) {
-                snprintf(buffer, sizeof(buffer), "%s REV %02X", (hw_info.is_A4000T? get_string(MSG_NCR_53C710) : get_string(MSG_SDMAC)), hw_info.sdmac_rev);
-            } else {
-                strncpy(buffer, get_string(MSG_NA), sizeof(buffer) - 1);
-            }
-            draw_label_value(HARDWARE_PANEL_X + 4, y,
-                             get_string(MSG_SDMAC_REV), buffer, 120);
-            y += 8;
         }
+        if (hw_info.sdmac_rev  && hw_info.gary_type == FAT_GARY) { //
+            snprintf(buffer, sizeof(buffer), "%s REV %02X", (hw_info.is_A4000T? get_string(MSG_NCR_53C710) : get_string(MSG_SDMAC)), hw_info.sdmac_rev);
+        } else {
+            strncpy(buffer, get_string(MSG_NA), sizeof(buffer) - 1);
+        }
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_SDMAC_REV), buffer, 120);
+        y += 8;
 
     }
 }

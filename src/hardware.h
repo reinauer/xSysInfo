@@ -196,12 +196,12 @@ typedef struct {
     char clock_string[32];
 
     /* Other chips */
-    ULONG ramsey_rev;       /* 0 = not present */
-    ULONG gary_rev;         /* 0 = not present */
-    GaryType gary_type;
-
+    unsigned char gary_rev;         /* 0 = not present */
+    unsigned char ramsey_rev;       /* 0 = not present */
     unsigned char ramsey_ctl;
     unsigned char sdmac_rev;         /* 0 = not present */
+    GaryType gary_type;
+
     BOOL is_A4000T;
 
     BOOL ramsey_page_enabled;

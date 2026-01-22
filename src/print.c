@@ -211,14 +211,14 @@ void export_hardware(BPTR fh)
     write_formatted(fh, "%-16s %s Hz", "EClock:", buffer);
 
     if (hw_info.ramsey_rev) {
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.ramsey_rev);
+        snprintf(buffer, sizeof(buffer), "%02x", hw_info.ramsey_rev);
     } else {
         strncpy(buffer, "N/A", sizeof(buffer) - 1);
     }
     write_formatted(fh, "%-16s %s", "Ramsey Rev:", buffer);
 
     if (hw_info.gary_rev) {
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.gary_rev);
+        snprintf(buffer, sizeof(buffer), "%02x", hw_info.gary_rev);
     } else {
         strncpy(buffer, "N/A", sizeof(buffer) - 1);
     }
