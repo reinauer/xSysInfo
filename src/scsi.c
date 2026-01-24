@@ -184,6 +184,7 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     memset(cmd, 0, sizeof(cmd)); // TEST UNIT READY
 
     scsi_cmd.scsi_Command = cmd;
+    scsi_cmd.scsi_CmdLength = sizeof(cmd);
     scsi_cmd.scsi_Length = 0;
     scsi_cmd.scsi_Flags = SCSIF_READ;
 
