@@ -202,7 +202,7 @@ ULONG get_mhz_cpu()
         case CPU_68060:
         case CPU_68EC060:
         case CPU_68LC060:
-            tmp *= 1011;
+            tmp *= 1085;
             break;
         default:
             tmp *= 100;
@@ -674,7 +674,7 @@ static ULONG test_ram_speed(ULONG mem_flags, ULONG buffer_size, ULONG iterations
 void run_memory_speed_tests(void)
 {
     ULONG buffer_size = 65536;
-    ULONG iterations = 16;
+    ULONG iterations = 128;
 
     /* Test CHIP RAM speed */
     bench_results.chip_speed = test_ram_speed(MEMF_CHIP, buffer_size, iterations);
