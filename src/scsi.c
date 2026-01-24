@@ -200,8 +200,8 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     } else {
         /* Try NSCMD_TD_SCSI (NewStyle device SCSI command) */
         io->io_Command = NSCMD_TD_SCSI;
-        io->io_Data = NULL;
-        io->io_Length = 0;
+        io->io_Data = &scsi_cmd;
+        io->io_Length = sizeof(struct SCSICmd);
 
         error = DoIO((struct IORequest *)io);
 
