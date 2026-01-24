@@ -27,5 +27,7 @@ ULONG GetCPUReg(void);
 ULONG GetCPU060(void);
 ULONG GetVBR(void);
 ULONG GetMMU( ULONG cpuType __asm("d0"));
+UBYTE GetRamseyRev(void);
+UBYTE GetRamseyCtrl(void);
 
 #endif /* CPU_H */

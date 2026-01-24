@@ -694,11 +694,13 @@ void detect_ramsey(void)
         return;
     }
 
-    hw_info.ramsey_rev = *((volatile unsigned char *)(RAMSEY_VER));
-    if (hw_info.ramsey_rev == 0xFF || hw_info.ramsey_rev == 0x00) { // unlikely!
+    hw_info.ramsey_rev = GetRamseyRev(); //In A4000: must be done in supervisore mode!
+    if ( hw_info.ramsey_rev == 0xFF ||  // unlikely!
+        hw_info.ramsey_rev == 0x00 ) // unlikely!
+    {
         hw_info.ramsey_rev = 0;
     }else {
-        hw_info.ramsey_ctl = *((volatile unsigned char *)(RAMSEY_CTRL));
+        hw_info.ramsey_ctl = GetRamseyCtrl(); //In A4000: must be done in supervisore mode!
 
         hw_info.ramsey_page_enabled = hw_info.ramsey_ctl & RAMSEY_PAGE_MODE;
         hw_info.ramsey_burst_enabled = hw_info.ramsey_ctl & RAMSEY_BURST_MODE;

@@ -28,6 +28,8 @@ ASM_CPU_68EC060 EQU 11
 ASM_CPU_68LC060 EQU 12
 ASM_CPU_UNKNOWN  EQU 13
 ASM_MMU EQU 1
+RAMSEY_VER EQU $DE0043
+RAMSEY_CTRL EQU $DE0003
 
 
     SECTION Code,CODE
@@ -36,18 +38,8 @@ ASM_MMU EQU 1
 	XDEF	_GetCPU060;
 	XDEF	_GetVBR
 	XDEF	_GetMMU
-
-_GetVBR:
-	movem.l	a5/a6,-(sp)
-	lea.l	_readvbr,a5
-	move.l	$4.w,a6
-	jsr	_LVOSupervisor(a6)
-	movem.l	(sp)+,a5/a6
-	rts
-
-_readvbr:
-	movec	VBR,d0
-	rte
+	XDEF	_GetRamseyRev
+	XDEF	_GetRamseyCtrl
 
 _GetCPUReg:
 	movem.l	a5/a6,-(sp)
@@ -110,6 +102,18 @@ vectorrestore:
 	move.l	a0,sp				;restore Stack Pointer
 	move.l	a1,IllegalInstructionVector.w	;restore Illegal Instruction and LineF vectors
 	move.l	a2,Line1111Vector.w
+	rte
+
+_GetVBR:
+	movem.l	a5/a6,-(sp)
+	lea.l	_readvbr,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a5/a6
+	rts
+
+_readvbr:
+	movec	VBR,d0
 	rte
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
@@ -190,7 +194,31 @@ vectorrestoreMMU:
 	move.l	a2,Line1111Vector.w
 	rte
 
+_GetRamseyRev:
+	movem.l	a0/a5/a6,-(sp)
+	lea.l	_read_ramsey_rev,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a0/a5/a6
+	rts
 
+_read_ramsey_rev:
+	lea	RAMSEY_VER,a0
+	move.b	(a0),d0
+	rte
+
+_GetRamseyCtrl:
+	movem.l	a0/a5/a6,-(sp)
+	lea.l	_read_ramsey_ctrl,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a0/a5/a6
+	rts
+
+_read_ramsey_ctrl:
+	lea	RAMSEY_CTRL,a0
+	move.b	(a0),d0
+	rte
 
 
 
