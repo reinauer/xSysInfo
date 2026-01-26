@@ -1,4 +1,5 @@
-;copyright by Matthias Heinrichs, Henryk Richter (68060-detection) and Christian Euler (VBR-detection)
+; SPDX-License-Identifier: BSD-2-Clause
+; SPDX-FileCopyrightText: 2025 copyright by Matthias Heinrichs (CPUReg, RamseyRev/Ctrl, glue-code) , Henryk Richter (68060-detection), Thomas Richter (MMU) and Christian Euler (VBR-detection)
 	INCDIR  "include:"
 	INCLUDE "lvo/exec_lib.i"
 
@@ -117,82 +118,262 @@ _readvbr:
 	rte
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
-	movem.l	d1/d2/d3/a0/a1/a2/a5/a6,-(sp)
+	movem.l	a5/a6,-(sp)
 	lea.l	_testMMU,a5
 	move.l	$4.w,a6
 	jsr	_LVOSupervisor(a6)
-	movem.l	(sp)+,d1/d2/d3/a0/a1/a2/a5/a6
+	movem.l	(sp)+,a5/a6
 	tst.l	d0 ; set condition codes
 	rts
 
 _testMMU
-	move.l	IllegalInstructionVector.w,a1	;save Illegal Instruction and LineF vectors
-	move.l	Line1111Vector.w,a2
-	lea	crashvectorMMU(pc),a0
-	move.l	a0,IllegalInstructionVector.w
-	move.l	a0,Line1111Vector.w
-
-    move.l	d0,-(sp)				;push a variable on stack (to have a save address for later)
-
-    movec.l cacr,d2					;read cache
-    move.l d2,d1					;copy cache-state
-    or.w #$0808,d2                  ;prepare for cache flush
-
 	cmp.l	#ASM_CPU_68020,d0		;is it 68020-code?
-	beq.s	m68020_mmu
+	beq		m68020_mmu
 	cmp.l	#ASM_CPU_68030,d0		;is it 68030-code? ->do 68020 too!
-	beq.s	m68020_mmu
+	beq		m68030_mmu
 	cmp.l	#ASM_CPU_68040,d0		;is it 68040-code?
-	beq.s	m68040_mmu
-	cmp.l	#ASM_CPU_68040,d0		;is it 68060-code?
-	beq.s	m68060_mmu
-	bra.s	crashvectorMMU			;not supported detection!
+	beq		m68040_mmu
+	cmp.l	#ASM_CPU_68060,d0		;is it 68060-code?
+	beq		m68040_mmu
+	moveq #0,d0						;not supported cpu!
+	rte
 m68020_mmu:
 	MACHINE 68020
 	MACHINE 68851
-    pflusha
-    pmove.l tc,(sp)            		;try to read translation control
-    movec.l d2,cacr                 ;flush the cache
-    pmove.l (sp),tc          ;try to write it
-    pflusha                         ;this might generate an exception for the EC30
-    MACHINE 68060
-    bra.s mmu_test_done
+        ori.w #$0700,sr                 ;disable interrupts
+        movem.l	 d2-d5/a2-a3,-(sp)
+        lea -$f0(a7),a7					;reserve room for termporary
+                                        ;exception vectors
+		;structure as follows:
+        ;defvar
+        ; auto.b ec_autovectors,$f0      ;for autovectors (huh!) 0-3B in long
+        ; auto.l ec_tt0					;3C
+        ; auto.l ec_tt1					;3D
+        ; auto.l ec_tc					;3E
+        ; auto.l ec_urp,2				;3F,40
+        ; auto.l ec_zero				;41
+        ; auto.l ec_newurp,2			;42,43
+        ; auto.l ec_newtc				;44
+        ; auto.b ec_newroot,$20         ;45-4C root pointer with early termination
+        ; auto.b ec_round,$10+4			;4D-52
+        ;endvar
+
+        moveq #ASM_MMU,d0               ;default result is: YES
+        movec.l vbr,a0                  ;saveback VBR
+        lea .illegal(pc),a1             ;entry for Illegal/LineF
+        move.l a1,$10(a7)               ;set it
+        move.l a1,$2c(a7)               ;ditto
+        move.l a1,$34(a7)
+        move.l a1,$e0(a7)
+        move.l a1,$e4(a7)
+        move.l a1,$e8(a7)
+        lea $45(a7),a3           		;place here the new root pointer (temporarely)
+        move.l a3,d2
+        addq.l #$8,d2
+        addq.l #$7,d2
+        and.b #$f0,d2                   ;round to $10
+        move.l d2,a3                    ;new root pointer (dummy)
+        lea .nmi(pc),a1
+        move.l a1,$7c(a7)               ;NMI disable
+        movec.l a7,vbr                  ;VBR temporary on stack
+        movec.l cacr,d2
+        or.w #$0808,d2                  ;prepare for cache flush
+        lea .continue(pc),a1            ;jump address in case of fault
+        clr.l $41(a7)               	;dummy for read
+
+
+        pflusha
+        pmove.l tc,$3e(a7)            	;try to read translation control
+        movec.l d2,cacr                 ;flush the cache
+        pmove.l $41(a7),tc         		;try to write it
+        pflusha                         ;this might generate an exception for the EC30
+
+        ;it's a 020 with a 68851, we're done testing!
+        tst.l $3e(a7)                 	;Enabled ?
+        bpl.s .continue                 ;continue if disabled
+        pmove.d $3f(a7),crp          	;restore the urp
+        pmove.l $3e(a7),tc            	;is enabled. If so, must be valid
+        movec.l d2,cacr                 ;flush the cache
+        pflusha
+.continue:
+
+        movec.l a0,vbr                  ;restore VBR
+                                        ;result is in d0
+        lea $f0(a7),a7                  ;release stack
+        movem.l	(sp)+,d2-d5/a2-a3
+.nmi:
+        rte                             ;this restores interrupts anyways
+.illegal:
+        moveq #0,d0
+        move.l a1,2(a7)
+        rte
+
 m68030_mmu:
+	;first tests go with 68851-code which generate some exceptions on a "real" 68EC030
+	MACHINE 68020
+	MACHINE 68851
+        ori.w #$0700,sr                 ;disable interrupts
+        movem.l	 d2-d5/a2-a3,-(sp)
+        lea -$f0(a7),a7					;reserve room for termporary
+                                        ;exception vectors
+		;structure as follows:
+        ;defvar
+        ; auto.b ec_autovectors,$f0      ;for autovectors (huh!) 0-3B in long
+        ; auto.l ec_tt0					;3C
+        ; auto.l ec_tt1					;3D
+        ; auto.l ec_tc					;3E
+        ; auto.l ec_urp,2				;3F,40
+        ; auto.l ec_zero				;41
+        ; auto.l ec_newurp,2			;42,43
+        ; auto.l ec_newtc				;44
+        ; auto.b ec_newroot,$20         ;45-4C root pointer with early termination
+        ; auto.b ec_round,$10+4			;4D-52
+        ;endvar
+
+        moveq #ASM_MMU,d0               ;default result is: YES
+        movec.l vbr,a0                  ;saveback VBR
+        lea .illegal(pc),a1             ;entry for Illegal/LineF
+        move.l a1,$10(a7)               ;set it
+        move.l a1,$2c(a7)               ;ditto
+        move.l a1,$34(a7)
+        move.l a1,$e0(a7)
+        move.l a1,$e4(a7)
+        move.l a1,$e8(a7)
+        lea $45(a7),a3           		;place here the new root pointer (temporarely)
+        move.l a3,d2
+        addq.l #$8,d2
+        addq.l #$7,d2
+        and.b #$f0,d2                   ;round to $10
+        move.l d2,a3                    ;new root pointer (dummy)
+        lea .nmi(pc),a1
+        move.l a1,$7c(a7)               ;NMI disable
+        movec.l a7,vbr                  ;VBR temporary on stack
+        movec.l cacr,d2
+        or.w #$0808,d2                  ;prepare for cache flush
+        lea .continue(pc),a1            ;jump address in case of fault
+        clr.l $41(a7)               	;dummy for read
+
+
+        pflusha
+        pmove.l tc,$3e(a7)            	;try to read translation control
+        movec.l d2,cacr                 ;flush the cache
+        pmove.l $41(a7),tc         		;try to write it
+        pflusha                         ;this might generate an exception for the EC30
+
+        ;ok mmu-codes do not produce an error, try enabling it!
 	MACHINE 68030
-    pflusha							;this might generate an exception for the EC30
-    pmove.l tc,(sp)            		;try to read translation control
-    movec.l d2,cacr                 ;flush the cache
-    pmove.l (sp),tc          ;try to write it
-    pflusha                         ;this might generate an exception for the EC30
-    MACHINE 68060
-    bra.s mmu_test_done
+        pmove.l tt0,$3c(a7)
+        pmove.l tt1,$3d(a7)
+        pmove.d crp,$3f(a7)          ;saveback registers
+
+        pmove.l $41(a7),tt0         ;disable tt0
+        pmove.l $41(a7),tt1         ;disable tt1
+        lea $f80000,a2                          ;ROMStart
+        moveq #(1<<6)!(1<<4)!(1<<3)!1,d5        ;early termination, CI, U, M
+
+
+        move.l 4(a2),d3                 ;read second address, offset $f80000 (ROM BOOT address)
+        move.l a2,d2                    ;displaced page descriptor
+        or.l d5,d2                      ;set type bits: page descriptor for displaced access
+
+        move.l #$80000002,$42(a7) ;write a page descriptor into the urp
+        move.l a3,4+$42(a7)       ;write dummy table
+
+        move.l d5,$14(a3)               ;supervisor data space          (undisplaced)
+        move.l d5,$18(a3)               ;supervisor program space       (undisplaced)
+        move.l d2,$4(a3)                ;user data space                (displaced)
+        move.l d5,$8(a3)                ;user program space             (undisplaced)
+
+        move.l #$81f09800,$44(a7)  ;write new translation control: page size 32K, 9 entries level A, 8 entries level B, FCL!
+        pflusha
+        moveq #1,d2                     ;user data space
+        pmove.d $42(a7),crp       ;load modified urp
+        movec.l d2,sfc
+        pmove.l $44(a7),tc         ;enable the stuff
+        pflusha
+        movec.l cacr,d2
+        sub.l a3,a3                     ;get address
+        or.w #$808,d2
+        movec.l d2,cacr                 ;clear the cache
+
+
+        moves.l 4(a3),d4                ;read either AbsExecBase or ROMBoot (Can't be equal) from user data space
+
+        pflusha
+        pmove.l $41(a7),tc          ;disable the MMU again
+        pflusha
+        movec.l d2,cacr                 ;flush the cache again
+        tst.w 2+$3c(a7)              ;re-enable tt0 ?
+        bpl.s .nott0
+        pmove.l $3c(a7),tt0
+.nott0:
+        tst.w 2+$3d(a7)
+        bpl.s .nott1
+        pmove.l $3d(a7),tt1
+.nott1:
+        movec.l d2,cacr
+
+        cmp.l d4,d3                     ;ROMBoot must have been available at AbsExecBase
+        beq.s .fine
+        moveq #0,d0
+.fine:
+        tst.l $3e(a7)                 	;Enabled ?
+        bpl.s .continue                 ;continue if disabled
+        pmove.d $3f(a7),crp          	;restore the urp
+        pmove.l $3e(a7),tc            	;is enabled. If so, must be valid
+        movec.l d2,cacr                 ;flush the cache
+        pflusha
+.continue:
+
+        movec.l a0,vbr                  ;restore VBR
+                                        ;result is in d0
+        lea $f0(a7),a7                  ;release stack
+        movem.l	(sp)+,d2-d5/a2-a3
+.nmi:
+        rte                             ;this restores interrupts anyways
+.illegal:
+        moveq #0,d0
+        move.l a1,2(a7)
+        rte
+
+
 m68040_mmu:
-    MACHINE 68040
-	pflusha
-    movec.l tc,a0            		;try to read translation control
-    movec.l d2,cacr                 ;flush the cache
-    movec.l a0,tc          			;try to write it
-    pflusha                         ;this might generate an exception for the EC40/EC60
-    MACHINE 68060
-    bra.s mmu_test_done
-m68060_mmu:
-    MACHINE 68060
-	pflusha
-    movec.l tc,a0            		;try to read translation control
-    movec.l d2,cacr                 ;flush the cache
-    movec.l a0,tc          			;try to write it
-    pflusha                         ;this might generate an exception for the EC40/EC60
-mmu_test_done:
-	moveq	#ASM_MMU,d0				;there is an MMU
-	movec.l d1,cacr                 ;restore the cache state
-	bra.s	vectorrestoreMMU		;we have a MMU
-crashvectorMMU:
-	moveq	#0,d0
-vectorrestoreMMU:
-    move.l	(sp)+,d2				;pop stack (let d0 untouched!
-	move.l	a1,IllegalInstructionVector.w	;restore Illegal Instruction and LineF vectors
-	move.l	a2,Line1111Vector.w
-	rte
+;FOLD Check040MMU
+;*************************************************
+;** Check040MMU                                 **
+;** Check, whether a 68040 MMU is on board      **
+;*************************************************
+        MACHINE mc68040
+        ori.w #$0700,sr                 ;disable interrupts
+        lea -$80(a7),a7                 ;reserve room for termporary
+                                        ;exception vectors
+        movec.l vbr,a0                  ;saveback VBR
+        lea .illegal(pc),a1             ;entry for Illegal/LineF
+        move.l a1,$10(a7)               ;set it
+        move.l a1,$2c(a7)               ;ditto
+        lea .nmi(pc),a1
+        move.l a1,$7c(a7)               ;NMI disable
+        movec.l a7,vbr                  ;VBR temporary on stack
+        moveq #ASM_MMU,d0                     ;default result is: YES
+        moveq #0,d1
+        sub.l a1,a1
+        movec.l tc,d1                   ;try to read translation control
+        pflusha                         ;this generates an exception for the EC40
+        movec.l a1,tc                   ;try to clear it
+        tst.w d1                        ;enabled ?
+        bpl.s .continue
+        movec.l d1,tc                   ;if enabled, write back
+.continue:
+        movec.l a0,vbr                  ;restore VBR
+                                        ;result is in d0
+        lea $80(a7),a7                  ;release stack
+.nmi:
+        rte                             ;this restores interrupts anyways
+.illegal:
+        moveq #0,d0
+        addq.l #8,a7                    ;remove exception stack frame
+        bra.s .continue
+;ENDFOLD
 
 _GetRamseyRev:
 	movem.l	a0/a5/a6,-(sp)
