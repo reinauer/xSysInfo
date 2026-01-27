@@ -399,7 +399,7 @@ void detect_mmu(void)
 
 
         if (cpuType >= ASM_CPU_68020)
-        { // no 68851 support!
+        {
             mmuResult = GetMMU(cpuType);
         }
 
