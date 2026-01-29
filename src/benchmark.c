@@ -29,10 +29,10 @@ BenchmarkResults bench_results;
 /* Reference system data (placeholder values - to be calibrated); scaled by 100 */
     /* name,  cpu,     mhz,   dhry, mips, mfls */
 const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
-    /* A600:  68000 @ 7.09 MHz, no FPU */
-    {"A600",  "68000",   7,   1028,   58,    0},
-    /* B2000: 68000 @ 7.09 MHz, no FPU */
-    {"B2000", "68000",   7,   1028,   58,    0},
+    /* A500:  68000 @ 7.09 MHz, no FPU */
+    {"A600",  "68000",   7,   1001,   56,    0},
+    /* B2000: 68000 @ 7.09 MHz, no FPU, FastRam*/
+    {"B2000", "68000",   7,   1408,   81,    0},
     /* A1200: 68EC020 @ 14 MHz, no FPU */
     {"A1200", "EC020",  14,   2550,  145,    0},
     /* A2500: 68020 @ 14 MHz */
@@ -126,6 +126,7 @@ ULONG get_mhz_cpu()
 
     ULONG count, tmp, mhz = 0, multiplier, loop;
     struct timeval start, end;
+    APTR test; //for testing the memtype we are running in
 
     // correction factors for fast CPUs!
 
@@ -168,15 +169,22 @@ ULONG get_mhz_cpu()
         switch (hw_info.cpu_type)
         {
         case CPU_68000:
-            tmp *= 263;
-            break;
         case CPU_68010:
-            tmp *= 263;
+            //see if we run in fastram or chipram (huge difference in speed calc!)
+            test = __builtin_return_address(0); // this gets the return address, which tells me if we are running in fast ram
+            // see if it is fast mem!
+            if ((ULONG)test >= 0x200000 && (ULONG)test < 0xC00000)
+            {
+                // real fastmem!
+                tmp *= 204;
+            }
+            else
+            { // chip or ranger mem
+                tmp *= 282;
+            }
             break;
         case CPU_68020:
         case CPU_68EC020:
-            tmp *= 88;
-            break;
         case CPU_68030:
         case CPU_68EC030:
             tmp *= 88;
@@ -210,7 +218,7 @@ ULONG get_mhz_cpu()
             break;
         case CPU_68020:
         case CPU_68EC020:
-            mhz = 1400; /* Common for A1200/accelerators */
+            mhz = 1418; /* Common for A1200/accelerators */
             break;
         case CPU_68030:
         case CPU_68EC030:
@@ -401,7 +409,7 @@ void wait_ticks(ULONG ticks)
  */
 ULONG run_dhrystone(void)
 {
-    const ULONG default_loops = 20000UL;
+    const ULONG default_loops = 10000UL;
     const ULONG min_runtime_us = 4000000UL; /* Aim for ~4 seconds to reduce timer noise */
     const ULONG max_loops = 5000000UL;      /* Upper bound from the original sources */
     const int max_attempts = 3;
