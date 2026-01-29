@@ -45,6 +45,8 @@ int Dhry_Initialize(void)
   if (Ptr_Glob == Null || Next_Ptr_Glob == Null)
     return 0;
 
+  memset (Ptr_Glob, 0, sizeof (Rec_Type));
+  memset (Next_Ptr_Glob, 0, sizeof (Rec_Type));
   memset (Arr_1_Glob, 0, sizeof (Arr_1_Glob));
   memset (Arr_2_Glob, 0, sizeof (Arr_2_Glob));
 

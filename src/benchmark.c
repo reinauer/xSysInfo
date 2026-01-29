@@ -315,10 +315,10 @@ ULONG get_mhz_fpu()
         switch (hw_info.fpu_type)
         {
         case FPU_68881:
-            tmp *= 92;
+            tmp *= 88;
             break;
         case FPU_68882:
-            tmp *= 92;
+            tmp *= 88;
             break;
         default:
             break;
@@ -417,13 +417,11 @@ ULONG run_dhrystone(void)
             return 0;
         }
 
-        {
-            get_timer(&start);
-            Dhry_Run(loops);
-            get_timer(&end);
-            SubTime(&end, &start);
-            elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
-        }
+        get_timer(&start);
+        Dhry_Run(loops);
+        get_timer(&end);
+        SubTime(&end, &start);
+        elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
 
         if (elapsed >= min_runtime_us || loops >= max_loops) {
             break;
@@ -691,15 +689,7 @@ void run_memory_speed_tests(void)
 void run_benchmarks(void)
 {
     //clear last results
-    bench_results.dhrystones = 0;
-    bench_results.mips = 0;
-    bench_results.mflops = 0;
-    bench_results.chip_speed = 0;
-    bench_results.fast_speed = 0;
-    bench_results.rom_speed = 0;
-    bench_results.benchmarks_valid = FALSE;
-    hw_info.cpu_mhz = 0;
-    hw_info.fpu_mhz = 0;
+    memset(&bench_results, 0, sizeof(bench_results));
 
     /* Run Dhrystone */
     bench_results.dhrystones = run_dhrystone();
