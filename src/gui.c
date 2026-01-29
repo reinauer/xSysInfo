@@ -273,15 +273,15 @@ void main_view_update_buttons(void)
     /* Use explicit Y values to avoid any macro expansion issues */
     /* Base Y = 116 (cache block shifted up 4px so CBack aligns with Card Slot) */
     /* Use has_* for enabled state (determines if button is clickable) */
-    add_button(CACHE_BTN_X, 116, CACHE_BTN_W, CACHE_BTN_H,
+    add_button(CACHE_BTN_X, 124, CACHE_BTN_W, CACHE_BTN_H,
                icache_label, BTN_ICACHE, hw_info.has_icache);
-    add_button(CACHE_BTN_X, 127, CACHE_BTN_W, CACHE_BTN_H,
+    add_button(CACHE_BTN_X, 135, CACHE_BTN_W, CACHE_BTN_H,
                dcache_label, BTN_DCACHE, hw_info.has_dcache);
-    add_button(CACHE_BTN_X, 138, CACHE_BTN_W, CACHE_BTN_H,
+    add_button(CACHE_BTN_X, 146, CACHE_BTN_W, CACHE_BTN_H,
                iburst_label, BTN_IBURST, hw_info.has_iburst);
-    add_button(CACHE_BTN_X, 149, CACHE_BTN_W, CACHE_BTN_H,
+    add_button(CACHE_BTN_X, 157, CACHE_BTN_W, CACHE_BTN_H,
                dburst_label, BTN_DBURST, hw_info.has_dburst);
-    add_button(CACHE_BTN_X, 160, CACHE_BTN_W, CACHE_BTN_H,
+    add_button(CACHE_BTN_X, 168, CACHE_BTN_W, CACHE_BTN_H,
                cback_label, BTN_CBACK, hw_info.has_copyback);
 
     /* Set pressed state based on whether each cache is enabled */
