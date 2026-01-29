@@ -213,8 +213,6 @@ void detect_cpu(void)
             }
         }
     }
-    /* Get CPU frequency */
-    hw_info.cpu_mhz = get_mhz_cpu();
 
     /* Get CPU revision from identify.library (returns string) */
     if ( hw_info.cpu_type == CPU_68060 ||
@@ -258,11 +256,10 @@ void detect_fpu(void)
             hw_info.cpu_type = CPU_68LC040; //fpu-less cpu
             snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC040");
         }
+        //the 68060 is distinguished from the 68LC/EC060 by the cpu-id reg from the cpu-detect-function
         if (hw_info.cpu_type == CPU_68060) {
-            hw_info.cpu_type = CPU_68LC060; //fpu-less cpu
-            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
+            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060 (%s)", get_string(MSG_OFF));
         }
-        snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), get_string(MSG_NA));
         return;
     }
 
@@ -290,8 +287,6 @@ void detect_fpu(void)
         }
     }
 
-    /* Get FPU clock */
-    hw_info.fpu_mhz = get_mhz_fpu();
 }
 
 /*

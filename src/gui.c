@@ -317,6 +317,7 @@ void main_view_handle_button(ButtonID id)
         case BTN_SPEED:
             show_status_overlay(get_string(MSG_MEASURING_SPEED));
             run_benchmarks();
+            update_hardware_text();
             hide_status_overlay();
             break;
 
@@ -1316,13 +1317,19 @@ static void draw_hardware_panel(void)
         if (hw_info.cpu_revision[0] != '\0' &&
             strcmp(hw_info.cpu_revision, "N/A") != 0) {
             char mhz_buf[16];
-            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
+            if (hw_info.cpu_mhz>0)
+                format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
+            else
+                mhz_buf[0] = 0;
             snprintf(buffer, sizeof(buffer), "%s (%s) %s",
                      hw_info.cpu_string, hw_info.cpu_revision,
                      mhz_buf);
         } else {
             char mhz_buf[16];
-            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
+            if (hw_info.cpu_mhz>0)
+                format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
+            else
+                mhz_buf[0] = 0;
             snprintf(buffer, sizeof(buffer), "%s %s",
                      hw_info.cpu_string, mhz_buf);
         }

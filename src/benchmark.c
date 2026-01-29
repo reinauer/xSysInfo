@@ -124,59 +124,46 @@ void cleanup_timer(void)
 ULONG get_mhz_cpu()
 {
 
-    ULONG count, tmp, mhz = 0;
-    struct timeval *start, *end;
-    start = (struct timeval *)AllocMem(sizeof(struct timeval),
-                                       MEMF_PUBLIC | MEMF_CLEAR);
-    if (!start)
-    { // no mem
-        return mhz;
-    }
+    ULONG count, tmp, mhz = 0, multiplier, loop;
+    struct timeval start, end;
 
-    end = (struct timeval *)AllocMem(sizeof(struct timeval),
-                                     MEMF_PUBLIC | MEMF_CLEAR);
-    if (!end)
-    { // no mem
-        FreeMem(start, sizeof(struct timeval));
-        return mhz;
-    }
+    // correction factors for fast CPUs!
 
-    if (init_timer())
+    for (multiplier = 1; multiplier <= MAX_MULTIPLY; multiplier++)
     {
-
-        count = CPULOOPS;
-
-        // correction factors for fast CPUs!
-        switch (hw_info.cpu_type)
-        {
-        case CPU_68040:
-        case CPU_68EC040:
-        case CPU_68LC040:
-        case CPU_68060:
-        case CPU_68EC060:
-        case CPU_68LC060:
-            count *= 100;
-            break;
-        default:
-            break;
-        }
-
-        get_timer(start);
+        loop = CPULOOPS * multiplier;
+        get_timer(&start);
         __asm__ volatile(
             "1: subq.l #1,%0\n\t"
             "bne.s 1b"
-            : "+d"(count)
+            : "+d"(loop)
             :
             : "cc");
-        get_timer(end);
-        SubTime(end, start);
-        cleanup_timer();
-        count = (end->tv_secs * 1000000UL) + end->tv_micro;
-        debug("    cpu_mhz: timer: %ld %ld %ld\n", count, end->tv_secs, end->tv_micro);
 
-        if (count == 0)
-            count = 1; // avoid div/0
-        tmp = BASE_FACTOR;
+        get_timer(&end);
+        SubTime(&end, &start);
+        count = (end.tv_secs * 1000000UL) + end.tv_micro;
+        if (count >= MIN_MHZ_MEASURE)
+        {
+            break;
+        }
+    }
+
+    if (multiplier <= MAX_MULTIPLY)
+    {
+        tmp = BASE_FACTOR * multiplier;
+    }
+    else
+    { // correct increment for last loop
+        tmp = BASE_FACTOR * MAX_MULTIPLY;
+    }
+
+    debug("    cpu_mhz: timer: %ld %ld %ld\n", count, end.tv_secs, end.tv_micro);
+
+    if (count > 0)
+    {
+        // avoid div/0
+
         // empirical correction factors
         switch (hw_info.cpu_type)
         {
@@ -188,11 +175,11 @@ ULONG get_mhz_cpu()
             break;
         case CPU_68020:
         case CPU_68EC020:
-            tmp *= 129;
+            tmp *= 88;
             break;
         case CPU_68030:
         case CPU_68EC030:
-            tmp *= 92;
+            tmp *= 88;
             break;
         case CPU_68040:
         case CPU_68EC040:
@@ -242,8 +229,7 @@ ULONG get_mhz_cpu()
             mhz = 709;
         }
     }
-    FreeMem(start, sizeof(struct timeval));
-    FreeMem(end, sizeof(struct timeval));
+
     return mhz;
 }
 
@@ -258,8 +244,13 @@ ULONG get_mhz_fpu()
     Unknown FPU -> nothing
     68EC/LC040/060 -> No FPU nothing
     68040 or 68060 CPU: Same as CPU Frequency
-
     */
+
+    if (FPU_NONE == hw_info.fpu_type || FPU_UNKNOWN == hw_info.fpu_type)
+    {
+        return 0;
+    }
+
     switch (hw_info.cpu_type)
     {
     case CPU_68LC040:
@@ -279,56 +270,55 @@ ULONG get_mhz_fpu()
         break;
     }
 
-    if (FPU_NONE == hw_info.fpu_type || FPU_UNKNOWN == hw_info.fpu_type)
+    ULONG count, tmp, mhz = 0, loop, multiplier, overhead;
+    struct timeval start, end;
+
+    for (multiplier = 1; multiplier <= MAX_MULTIPLY; multiplier++)
     {
-        return 0;
-    }
-
-    ULONG count, tmp, mhz = 0;
-    struct timeval *start, *end;
-    start = (struct timeval *)AllocMem(sizeof(struct timeval),
-                                       MEMF_PUBLIC | MEMF_CLEAR);
-    if (!start)
-    { // no mem
-        return mhz;
-    }
-
-    end = (struct timeval *)AllocMem(sizeof(struct timeval),
-                                     MEMF_PUBLIC | MEMF_CLEAR);
-    if (!end)
-    { // no mem
-        FreeMem(start, sizeof(struct timeval));
-        return mhz;
-    }
-
-    if (init_timer())
-    {
-
-        count = FPULOOPS;
-        get_timer(start);
+        loop = FPULOOPS * multiplier;
+        get_timer(&start);
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
             "1:        fdiv.x fp1,fp1\n\t"
             "subq.l    #1,%0\n\t"
             "bne.s    1b\n\t"
-            : "+d"(count)
+            : "+d"(loop)
             :
             : "cc", "fp1");
 
-        get_timer(end);
-        SubTime(end, start);
-        cleanup_timer();
-        count = (end->tv_secs * 1000000UL) + end->tv_micro;
-        tmp = BASE_FACTOR;
+        get_timer(&end);
+        SubTime(&end, &start);
+        overhead = measure_loop_overhead(loop);
+        count = (end.tv_secs * 1000000UL) + end.tv_micro;
+        if (count > overhead)
+            count -= overhead;
+
+        if (count >= MIN_MHZ_MEASURE)
+        {
+            break;
+        }
+    }
+    if (multiplier <= MAX_MULTIPLY)
+    {
+        tmp = BASE_FACTOR * multiplier;
+    }
+    else
+    { // correct increment for last loop
+        tmp = BASE_FACTOR * MAX_MULTIPLY;
+    }
+
+    if (count > 0)
+    {
+        // avoid div/0
 
         // empirical correction factors
         switch (hw_info.fpu_type)
         {
         case FPU_68881:
-            tmp *= 90;
+            tmp *= 92;
             break;
         case FPU_68882:
-            tmp *= 90;
+            tmp *= 92;
             break;
         default:
             break;
@@ -361,8 +351,7 @@ ULONG get_mhz_fpu()
             mhz = 0;
         }
     }
-    FreeMem(start, sizeof(struct timeval));
-    FreeMem(end, sizeof(struct timeval));
+
     return mhz;
 }
 /*
@@ -413,10 +402,11 @@ void wait_ticks(ULONG ticks)
 ULONG run_dhrystone(void)
 {
     const ULONG default_loops = 20000UL;
-    const ULONG min_runtime_us = 2000000UL; /* Aim for ~2 seconds to reduce timer noise */
+    const ULONG min_runtime_us = 4000000UL; /* Aim for ~4 seconds to reduce timer noise */
     const ULONG max_loops = 5000000UL;      /* Upper bound from the original sources */
     const int max_attempts = 3;
     ULONG loops = default_loops;
+    struct timeval start,end;
     ULONG elapsed = 0;
     int attempt;
 
@@ -428,9 +418,11 @@ ULONG run_dhrystone(void)
         }
 
         {
-            ULONG start_time = get_timer_ticks();
+            get_timer(&start);
             Dhry_Run(loops);
-            elapsed = get_timer_ticks() - start_time;
+            get_timer(&end);
+            SubTime(&end, &start);
+            elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
         }
 
         if (elapsed >= min_runtime_us || loops >= max_loops) {
@@ -490,7 +482,8 @@ ULONG calculate_mips(ULONG dhrystones)
  */
 ULONG run_mflops_benchmark(void)
 {
-    ULONG start_time, end_time, elapsed;
+    struct timeval start,end;
+    ULONG elapsed;
     ULONG iterations = 50000;
     ULONG ops_per_iter = 8;  /* FP operations per iteration */
     ULONG i;
@@ -502,7 +495,7 @@ ULONG run_mflops_benchmark(void)
 
     if (!TimerBase) return 0;
 
-    start_time = get_timer_ticks();
+    get_timer(&start);
 
     __asm__ volatile (
         "fmove.l  #2,fp0\n\t"         /* fb = 2 */
@@ -529,8 +522,9 @@ ULONG run_mflops_benchmark(void)
         );
     }
 
-    end_time = get_timer_ticks();
-    elapsed = end_time - start_time;
+    get_timer(&end);
+    SubTime(&end, &start);
+    elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
@@ -556,11 +550,11 @@ ULONG run_mflops_benchmark(void)
  */
 ULONG measure_loop_overhead(ULONG count)
 {
-    ULONG start, end;
+    struct timeval start,end;
 
     if (!TimerBase || count == 0) return 0;
 
-    start = get_timer_ticks();
+    get_timer(&start);
 
     __asm__ volatile (
         "1: subq.l #1,%0\n\t"
@@ -570,8 +564,9 @@ ULONG measure_loop_overhead(ULONG count)
         : "cc"
     );
 
-    end = get_timer_ticks();
-    return end - start;
+    get_timer(&end);
+    SubTime(&end, &start);
+    return (end.tv_secs * 1000000UL) + end.tv_micro;
 }
 
 /*
@@ -580,7 +575,9 @@ ULONG measure_loop_overhead(ULONG count)
  */
 ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG iterations)
 {
-    ULONG start_time, end_time, elapsed, overhead;
+    struct timeval start,end;
+
+    ULONG elapsed, overhead;
     ULONG total_read = 0;
     ULONG longs_per_read;
     ULONG loop_count;
@@ -605,7 +602,8 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
 
     if (loop_count == 0) return 0;
 
-    start_time = get_timer_ticks();
+
+    get_timer(&start);
 
     for (i = 0; i < iterations; i++) {
         volatile ULONG *p = aligned_src;
@@ -629,9 +627,9 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
         total_read += buffer_size;
     }
 
-    end_time = get_timer_ticks();
-
-    elapsed = end_time - start_time;
+    get_timer(&end);
+    SubTime(&end, &start);
+    elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
 
     /* Compensate for loop overhead */
     /* Total loops executed = iterations * loop_count */
@@ -692,7 +690,16 @@ void run_memory_speed_tests(void)
  */
 void run_benchmarks(void)
 {
-    memset(&bench_results, 0, sizeof(bench_results));
+    //clear last results
+    bench_results.dhrystones = 0;
+    bench_results.mips = 0;
+    bench_results.mflops = 0;
+    bench_results.chip_speed = 0;
+    bench_results.fast_speed = 0;
+    bench_results.rom_speed = 0;
+    bench_results.benchmarks_valid = FALSE;
+    hw_info.cpu_mhz = 0;
+    hw_info.fpu_mhz = 0;
 
     /* Run Dhrystone */
     bench_results.dhrystones = run_dhrystone();
@@ -707,6 +714,9 @@ void run_benchmarks(void)
 
     /* Run memory speed tests (CHIP, FAST, ROM) */
     run_memory_speed_tests();
+
+    hw_info.cpu_mhz = get_mhz_cpu();
+    hw_info.fpu_mhz = get_mhz_fpu();
 
     bench_results.benchmarks_valid = TRUE;
 }
