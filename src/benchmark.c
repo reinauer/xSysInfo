@@ -219,12 +219,14 @@ ULONG get_mhz_cpu()
         case CPU_68040:
         case CPU_68EC040:
         case CPU_68LC040:
-            tmp *= 3316;
+            tmp *= 3253;
+            count *=100;
             break;
         case CPU_68060:
         case CPU_68EC060:
         case CPU_68LC060:
             tmp *= 1085;
+            count *=100;
             break;
         default:
             tmp *= 100;
