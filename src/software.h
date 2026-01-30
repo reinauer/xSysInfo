@@ -37,6 +37,7 @@ extern SoftwareList resources_list;
 void enumerate_libraries(void);
 void enumerate_devices(void);
 void enumerate_resources(void);
+void enumerate_mmu_entries(void);
 void enumerate_all_software(void);
 
 /* Get the current list based on type */

@@ -13,6 +13,7 @@
 #include <exec/resident.h>
 
 #include <proto/exec.h>
+#include <proto/mmu.h>
 
 #include "xsysinfo.h"
 #include "software.h"
@@ -26,6 +27,11 @@ SoftwareList mmu_list;
 
 /* External references */
 extern struct ExecBase *SysBase;
+
+/* Global variables*/
+BOOL mmuLoaded = FALSE;
+extern struct Library *MMUBase;
+extern struct DosLibrary *DOSBase;
 
 /*
  * Copy name, stripping everything after the last dot
@@ -106,6 +112,9 @@ void enumerate_libraries(void)
 
         if (lib->lib_Node.ln_Name) {
             copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+            if (strcmp(lib->lib_Node.ln_Name,"mmu.library") == 0) {
+                mmuLoaded = TRUE;
+            }
         } else {
             strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
         }
@@ -253,9 +262,29 @@ void enumerate_mmu_entries(void)
 
     Forbid();
 
-    SoftwareEntry *entry = &mmu_list.entries[0];
-    strncpy(entry->name, "no mmu entry", sizeof(entry->name) - 1);
-    mmu_list.count++;
+    //is mmu.library loaded?
+    if (mmuLoaded && hw_info->mmu_enabled) {
+        //no else: iff mmu.library is in the libraries lsit, it can load!
+        if ((DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L))) {
+            if ((MMUBase = OpenLibrary((CONST_STRPTR)"mmu.library", 40L))) {
+
+                SoftwareEntry *entry = &mmu_list.entries[mmu_list.count];
+                snprintf(entry->name, sizeof(entry->name), "MMU page size: %dk bytes.",GetPageSize(NULL)/1024);
+                mmu_list.count++;
+
+                CloseLibrary((struct Library *)MMUBase);
+            }
+            CloseLibrary((struct Library *)DOSBase);
+        }
+    }
+    else {
+        SoftwareEntry *entry = &mmu_list.entries[0];
+        strncpy(entry->name, "mmu.library not loaded", sizeof(entry->name) - 1);
+        mmu_list.count++;
+    }
+
+
+
 
     Permit();
 
