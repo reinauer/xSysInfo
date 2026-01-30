@@ -38,7 +38,7 @@ const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
     /* A2500: 68020 @ 14 MHz */
     {"A2500", "68020",  14,   2100,  120,    0},
     /* A3000: 68030 / 68882 @ 25 MHz */
-    {"A3000", "68030",  25,   7090,  403,  285},
+    {"A3000", "68030",  25,   8300,  475,  285},
     /* A4000: 68040 @ 25 MHz, internal FPU */
     {"A4000", "68040",  25,  20530, 1168,  578},
 };
@@ -56,6 +56,10 @@ static struct MsgPort *timer_port = NULL;
 static struct timerequest *timer_req = NULL;
 struct Device *TimerBase = NULL;
 static BOOL timer_open = FALSE;
+static struct timerequest *etimer_req = NULL;
+struct Device *ETimerBase = NULL;
+static BOOL etimer_open = FALSE;
+
 
 /* External references */
 extern HardwareInfo hw_info;
@@ -79,6 +83,13 @@ BOOL init_timer(void)
         timer_port = NULL;
         return FALSE;
     }
+    etimer_req = (struct timerequest *)
+        CreateIORequest(timer_port, sizeof(struct timerequest));
+    if (!etimer_req) {
+        DeleteMsgPort(timer_port);
+        timer_port = NULL;
+        return FALSE;
+    }
 
     if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_MICROHZ,
                    (struct IORequest *)timer_req, 0) != 0) {
@@ -89,8 +100,23 @@ BOOL init_timer(void)
         return FALSE;
     }
 
+    if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_ECLOCK,
+                   (struct IORequest *)etimer_req, 0) != 0) {
+        DeleteIORequest((struct IORequest *)timer_req);
+        DeleteIORequest((struct IORequest *)etimer_req);
+        DeleteMsgPort(timer_port);
+        timer_req = NULL;
+        etimer_req = NULL;
+        timer_port = NULL;
+        return FALSE;
+    }
+
     TimerBase = (struct Device *)timer_req->tr_node.io_Device;
     timer_open = TRUE;
+
+    ETimerBase = (struct Device *)etimer_req->tr_node.io_Device;
+    etimer_open = TRUE;
+
 
     return TRUE;
 }
@@ -100,6 +126,18 @@ BOOL init_timer(void)
  */
 void cleanup_timer(void)
 {
+    if (etimer_open) {
+        CloseDevice((struct IORequest *)etimer_req);
+        etimer_open = FALSE;
+    }
+
+    if (etimer_req) {
+        DeleteIORequest((struct IORequest *)etimer_req);
+        etimer_req = NULL;
+    }
+
+    ETimerBase = NULL;
+
     if (timer_open) {
         CloseDevice((struct IORequest *)timer_req);
         timer_open = FALSE;
@@ -123,9 +161,9 @@ void cleanup_timer(void)
 */
 ULONG get_mhz_cpu()
 {
+    if (!ETimerBase) return 0;
 
     ULONG count, tmp, mhz = 0, multiplier, loop;
-    struct timeval start, end;
     APTR test; //for testing the memtype we are running in
 
     // correction factors for fast CPUs!
@@ -133,17 +171,8 @@ ULONG get_mhz_cpu()
     for (multiplier = 1; multiplier <= MAX_MULTIPLY; multiplier++)
     {
         loop = CPULOOPS * multiplier;
-        get_timer(&start);
-        __asm__ volatile(
-            "1: subq.l #1,%0\n\t"
-            "bne.s 1b"
-            : "+d"(loop)
-            :
-            : "cc");
 
-        get_timer(&end);
-        SubTime(&end, &start);
-        count = (end.tv_secs * 1000000UL) + end.tv_micro;
+        count = measure_loop_overhead(loop); //this counts the speed of looping
         if (count >= MIN_MHZ_MEASURE)
         {
             break;
@@ -158,8 +187,6 @@ ULONG get_mhz_cpu()
     { // correct increment for last loop
         tmp = BASE_FACTOR * MAX_MULTIPLY;
     }
-
-    debug("    cpu_mhz: timer: %ld %ld %ld\n", count, end.tv_secs, end.tv_micro);
 
     if (count > 0)
     {
@@ -259,6 +286,8 @@ ULONG get_mhz_fpu()
         return 0;
     }
 
+    if (!TimerBase) return 0;
+
     switch (hw_info.cpu_type)
     {
     case CPU_68LC040:
@@ -279,12 +308,14 @@ ULONG get_mhz_fpu()
     }
 
     ULONG count, tmp, mhz = 0, loop, multiplier, overhead;
-    struct timeval start, end;
+    ULONG E_Freq;
+    struct EClockVal start, end;
 
     for (multiplier = 1; multiplier <= MAX_MULTIPLY; multiplier++)
     {
         loop = FPULOOPS * multiplier;
-        get_timer(&start);
+        Forbid();
+        E_Freq =ReadEClock(&start);
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
             "1:        fdiv.x fp1,fp1\n\t"
@@ -294,10 +325,11 @@ ULONG get_mhz_fpu()
             :
             : "cc", "fp1");
 
-        get_timer(&end);
-        SubTime(&end, &start);
+        E_Freq =ReadEClock(&end);
+        Permit();
+        count = ((end.ev_lo-start.ev_lo) * 1000000UL) / E_Freq;
+
         overhead = measure_loop_overhead(loop);
-        count = (end.tv_secs * 1000000UL) + end.tv_micro;
         if (count > overhead)
             count -= overhead;
 
@@ -556,23 +588,25 @@ ULONG run_mflops_benchmark(void)
  */
 ULONG measure_loop_overhead(ULONG count)
 {
-    struct timeval start,end;
 
-    if (!TimerBase || count == 0) return 0;
+    if (!ETimerBase || count == 0)
+        return 0;
+    ULONG E_Freq;
+    struct EClockVal start, end;
 
-    get_timer(&start);
-
-    __asm__ volatile (
+    Forbid();
+    E_Freq = ReadEClock(&start);
+    __asm__ volatile(
         "1: subq.l #1,%0\n\t"
         "bne.s 1b"
-        : "+d" (count)
+        : "+d"(count)
         :
-        : "cc"
-    );
+        : "cc");
 
-    get_timer(&end);
-    SubTime(&end, &start);
-    return (end.tv_secs * 1000000UL) + end.tv_micro;
+    E_Freq = ReadEClock(&end);
+    Permit();
+
+    return ((end.ev_lo - start.ev_lo) * 1000000UL) / E_Freq;
 }
 
 /*
