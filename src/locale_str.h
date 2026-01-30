@@ -28,6 +28,7 @@ typedef enum {
     MSG_LIBRARIES,
     MSG_DEVICES,
     MSG_RESOURCES,
+    MSG_MMU_ENTRIES,
 
     /* Scale toggle */
     MSG_EXPAND,

@@ -34,6 +34,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_LIBRARIES */         "LIBRARIES",
     /* MSG_DEVICES */           "DEVICES",
     /* MSG_RESOURCES */         "RESOURCES",
+    /* MSG_MMU_ENTRIES */       "MMU SCAN",
 
     /* Scale toggle */
     /* MSG_EXPAND */            "EXPAND",

@@ -85,7 +85,8 @@ typedef enum {
 typedef enum {
     SOFTWARE_LIBRARIES,
     SOFTWARE_DEVICES,
-    SOFTWARE_RESOURCES
+    SOFTWARE_RESOURCES,
+    SOFTWARE_MMU
 } SoftwareType;
 
 /* Software list types */

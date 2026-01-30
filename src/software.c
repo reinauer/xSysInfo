@@ -22,6 +22,7 @@
 SoftwareList libraries_list;
 SoftwareList devices_list;
 SoftwareList resources_list;
+SoftwareList mmu_list;
 
 /* External references */
 extern struct ExecBase *SysBase;
@@ -246,6 +247,22 @@ void enumerate_resources(void)
     sort_software_list(&resources_list);
 }
 
+void enumerate_mmu_entries(void)
+{
+    memset(&mmu_list, 0, sizeof(mmu_list));
+
+    Forbid();
+
+    SoftwareEntry *entry = &mmu_list.entries[0];
+    strncpy(entry->name, "no mmu entry", sizeof(entry->name) - 1);
+    mmu_list.count++;
+
+    Permit();
+
+    sort_software_list(&mmu_list);
+
+}
+
 /*
  * Enumerate all software types
  */
@@ -254,6 +271,7 @@ void enumerate_all_software(void)
     enumerate_libraries();
     enumerate_devices();
     enumerate_resources();
+    enumerate_mmu_entries();
 }
 
 /*
@@ -268,6 +286,8 @@ SoftwareList *get_software_list(SoftwareType type)
             return &devices_list;
         case SOFTWARE_RESOURCES:
             return &resources_list;
+        case SOFTWARE_MMU:
+            return &mmu_list;
         default:
             return NULL;
     }

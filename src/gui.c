@@ -38,6 +38,7 @@ extern BenchmarkResults bench_results;
 extern SoftwareList libraries_list;
 extern SoftwareList devices_list;
 extern SoftwareList resources_list;
+extern SoftwareList mmu_list;
 extern MemoryRegionList memory_regions;
 extern DriveList drive_list;
 extern BoardList board_list;
@@ -211,7 +212,9 @@ void main_view_update_buttons(void)
                    get_string(MSG_LIBRARIES) :
                app->software_type == SOFTWARE_DEVICES ?
                    get_string(MSG_DEVICES) :
-                   get_string(MSG_RESOURCES),
+               app->software_type == SOFTWARE_RESOURCES ?
+                   get_string(MSG_RESOURCES):
+                   get_string(MSG_MMU_ENTRIES),
                BTN_SOFTWARE_CYCLE, TRUE);
 
     /* Software scroll buttons (arrows on right side) */
@@ -335,7 +338,7 @@ void main_view_handle_button(ButtonID id)
             break;
 
         case BTN_SOFTWARE_CYCLE:
-            app->software_type = (app->software_type + 1) % 3;
+            app->software_type = (app->software_type + 1) % 4;
             app->software_scroll = 0;
             update_software_list();
             break;
@@ -387,7 +390,9 @@ void main_view_handle_button(ButtonID id)
                 SoftwareList *list = app->software_type == SOFTWARE_LIBRARIES ?
                                          &libraries_list :
                                      app->software_type == SOFTWARE_DEVICES ?
-                                         &devices_list : &resources_list;
+                                         &devices_list :
+                                     app->software_type == SOFTWARE_RESOURCES ?
+                                         &resources_list : &mmu_list;
                 if (app->software_scroll < (LONG)list->count - SOFTWARE_LIST_LINES) {
                     app->software_scroll++;
                     update_software_list();
@@ -859,6 +864,9 @@ static void update_software_list(void)
         case SOFTWARE_RESOURCES:
             list = &resources_list;
             break;
+        case SOFTWARE_MMU:
+            list = &mmu_list;
+            break;
         default:
             return;
     }
@@ -876,7 +884,9 @@ static void update_software_list(void)
                                     get_string(MSG_LIBRARIES) :
                                 app->software_type == SOFTWARE_DEVICES ?
                                     get_string(MSG_DEVICES) :
-                                    get_string(MSG_RESOURCES);
+                                app->software_type == SOFTWARE_RESOURCES ?
+                                    get_string(MSG_RESOURCES):
+                                    get_string(MSG_MMU_ENTRIES);
         if (cycle_btn->label != new_label) {
             cycle_btn->label = new_label;
             draw_cycle_button(cycle_btn);
@@ -914,27 +924,35 @@ static void update_software_list(void)
 
         SoftwareEntry *entry = &list->entries[i];
 
-        /* Name (truncated if needed) */
-        snprintf(buffer, 16, "%-15s", entry->name);
-        SetAPen(rp, COLOR_TEXT);
-        Move(rp, SOFTWARE_PANEL_X + 4, y);
-        Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+        if (app->software_type == SOFTWARE_MMU) {
+            snprintf(buffer, 40, "%-39s", entry->name);
+            SetAPen(rp, COLOR_TEXT);
+            Move(rp, SOFTWARE_PANEL_X + 4, y);
+            Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+        }
+        else {
+            /* Name (truncated if needed) */
+            snprintf(buffer, 16, "%-15s", entry->name);
+            SetAPen(rp, COLOR_TEXT);
+            Move(rp, SOFTWARE_PANEL_X + 4, y);
+            Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
-        /* Location */
-        snprintf(buffer, 12, "%-10s", get_location_string(entry->location));
-        Move(rp, SOFTWARE_PANEL_X + 126, y);
-        Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+            /* Location */
+            snprintf(buffer, 12, "%-10s", get_location_string(entry->location));
+            Move(rp, SOFTWARE_PANEL_X + 126, y);
+            Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
-        /* Address */
-        snprintf(buffer, 12, "$%08lX", (unsigned long)entry->address);
-        SetAPen(rp, COLOR_HIGHLIGHT);
-        Move(rp, SOFTWARE_PANEL_X + 200, y);
-        Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+            /* Address */
+            snprintf(buffer, 12, "$%08lX", (unsigned long)entry->address);
+            SetAPen(rp, COLOR_HIGHLIGHT);
+            Move(rp, SOFTWARE_PANEL_X + 200, y);
+            Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
-        /* Version */
-        snprintf(buffer, sizeof(buffer), "V%d.%d", entry->version, entry->revision);
-        Move(rp, SOFTWARE_PANEL_X + 284, y);
-        Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+            /* Version */
+            snprintf(buffer, sizeof(buffer), "V%d.%d", entry->version, entry->revision);
+            Move(rp, SOFTWARE_PANEL_X + 284, y);
+            Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+        }
 
         y += 8;
     }
@@ -1718,6 +1736,9 @@ void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
             break;
         case SOFTWARE_RESOURCES:
             list = &resources_list;
+            break;
+        case SOFTWARE_MMU:
+            list = &mmu_list;
             break;
         default:
             return;
