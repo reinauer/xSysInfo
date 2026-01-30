@@ -127,7 +127,8 @@ void enumerate_libraries(void)
         if ((hw_info.kickstart_version != hw_info.kickstart_patch_version ||
             hw_info.kickstart_revision != hw_info.kickstart_patch_revision) &&
             0 != hw_info.kickstart_patch_version &&
-            0 != hw_info.kickstart_patch_revision
+            0 != hw_info.kickstart_patch_revision &&
+            hw_info.kickstart_version >= 40 //softkick is possible from Kick 3.1 (v40) and newer
         ) {
             /* Shift all entries by 1 position */
             for (i = libraries_list.count; i > 0; i--) {
@@ -136,7 +137,7 @@ void enumerate_libraries(void)
 
             /* Insert kickstart entry at position 0 */
             entry = &libraries_list.entries[0];
-            strncpy(entry->name, "kickstart (sw)", sizeof(entry->name) - 1);
+            strncpy(entry->name, "kick update", sizeof(entry->name) - 1);
             entry->name[sizeof(entry->name) - 1] = '\0';
             entry->location = LOC_KICKSTART;
             /* ROM base: 0x00f80000 for 512K, 0x00fc0000 for 256K */

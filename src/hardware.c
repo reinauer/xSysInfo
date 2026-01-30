@@ -51,6 +51,9 @@ BOOL detect_hardware(void)
         debug("  hw: Detecting CPU...\n");
         detect_cpu();
     }
+    else {
+        debug("  hw: Emu68-System detected...\n");
+    }
     debug("  hw: Detecting FPU...\n");
     detect_fpu();
     debug("  hw: Detecting MMU...\n");
@@ -81,7 +84,7 @@ BOOL detect_hardware(void)
     /* Fallback to exec version if above didn't provide ROM version */
     if (hw_info.kickstart_version == 0) {
         hw_info.kickstart_version = SysBase->LibNode.lib_Version;
-        hw_info.kickstart_revision = SysBase->LibNode.lib_Revision;
+        hw_info.kickstart_revision = SysBase->SoftVer;
     }
 
     /* Get ROM size*/
@@ -96,7 +99,7 @@ BOOL detect_hardware(void)
 
     //save SysBase-Version in case we are softkicking
     hw_info.kickstart_patch_version = SysBase->LibNode.lib_Version;
-    hw_info.kickstart_patch_revision = SysBase->LibNode.lib_Revision;
+    hw_info.kickstart_patch_revision = SysBase->SoftVer;
 
     debug("  hw: Hardware detection complete.\n");
     return TRUE;
