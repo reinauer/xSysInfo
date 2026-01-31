@@ -925,7 +925,7 @@ static void update_software_list(void)
         SoftwareEntry *entry = &list->entries[i];
 
         if (app->software_type == SOFTWARE_MMU) {
-            snprintf(buffer, 40, "%-39s", entry->name);
+            snprintf(buffer, 45, "%-44s", entry->name);
             SetAPen(rp, COLOR_TEXT);
             Move(rp, SOFTWARE_PANEL_X + 4, y);
             Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
