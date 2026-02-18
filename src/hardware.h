@@ -43,7 +43,12 @@
 #define CUSTOM_AGNUS_ID CUSTOM_VPOSR
 #define CUSTOM_AGNUS_ID_MIRR 0xDCF004
 #define GAYLE_ID 0xDE1000
-#define FAT_GARY_POWER 0xDE0002
+#define FAT_GARY_POWER_REG 0xDE0002
+#define FAT_GARY_POWER_CYCLE 0x80
+#define FAT_GARY_POWER_GOOD 0x0
+#define FAT_GARY_TIME_OUT_REG 0xDE0000
+#define FAT_GARY_TIME_OUT_DSACK 0x0
+#define FAT_GARY_TIME_OUT_BERR 0x80
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
 #define SDMAC_WTC       ((volatile uint32_t *)0xDD0024)
 #define SDMAC_WTC_ALT   ((volatile uint32_t *)0xDD0028)
@@ -67,6 +72,7 @@ typedef enum {
     CPU_68060,
     CPU_68EC060,
     CPU_68LC060,
+    CPU_EMU,
     CPU_UNKNOWN
 } CPUType;
 
@@ -243,6 +249,7 @@ BOOL detect_hardware(void);
 void refresh_cache_status(void);
 
 /* Individual detection functions */
+BOOL detect_emu68_systems(void);
 void detect_cpu(void);
 void detect_fpu(void);
 void detect_mmu(void);

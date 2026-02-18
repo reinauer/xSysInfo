@@ -22,6 +22,7 @@
 #include <proto/timer.h>
 #include <proto/dos.h>
 #include <proto/mmu.h>
+#include <proto/expansion.h>
 
 #include "xsysinfo.h"
 #include "hardware.h"
@@ -46,8 +47,10 @@ BOOL detect_hardware(void)
 
     memset(&hw_info, 0, sizeof(HardwareInfo));
 
-    debug("  hw: Detecting CPU...\n");
-    detect_cpu();
+    if (!detect_emu68_systems()) {
+        debug("  hw: Detecting CPU...\n");
+        detect_cpu();
+    }
     debug("  hw: Detecting FPU...\n");
     detect_fpu();
     debug("  hw: Detecting MMU...\n");
@@ -99,6 +102,37 @@ BOOL detect_hardware(void)
     return TRUE;
 }
 
+
+/*
+    Detects emu68 CPUs
+    Returns true if emulated CPU is found
+*/
+BOOL detect_emu68_systems(void)
+{
+    struct ConfigDev *cd = NULL;
+    struct Library *ExpansionBase;
+    BOOL retVal = FALSE;
+    debug("  emu68: Opening expansion.library...\n");
+    ExpansionBase = OpenLibrary((CONST_STRPTR)"expansion.library", MIN_EXPANSION_VERSION);
+    if (!ExpansionBase) {
+        Printf((CONST_STRPTR)"Could not open expansion.library v%d\n", MIN_EXPANSION_VERSION);
+    }
+    else {
+
+        debug("  emu68: Scanning for EMU68-ConfigDev...\n");
+        if ((cd = FindConfigDev(cd, 28019, 1)) != NULL) {
+            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "Emu68");
+            hw_info.cpu_type = CPU_EMU;
+            retVal = TRUE;
+        }
+        debug("  emu68: Closing expansion.library...\n");
+        CloseLibrary(ExpansionBase);
+    }
+
+     return retVal;
+}
+
+
 /*
  * Detect CPU type and speed
  */
@@ -115,7 +149,7 @@ void detect_cpu(void)
         hw_info.cpu_type = CPU_68000;
     }
 
-    else if ((attnFlags & (UWORD)AFF_68020) == 0) { //not even a 68020?
+    else if ((attnFlags & (UWORD)AFF_68020) == 0) { //not a 68020?
         snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68010");
         hw_info.cpu_type = CPU_68010;
     }
@@ -661,10 +695,9 @@ void detect_ramsey(void)
     }
 
     hw_info.ramsey_rev = (ULONG)*((volatile unsigned char *)(RAMSEY_VER));
-    if (hw_info.ramsey_rev == 0xFF) { // unlikely!
+    if (hw_info.ramsey_rev == 0xFF || hw_info.ramsey_rev == 0x00) { // unlikely!
         hw_info.ramsey_rev = 0;
-    }
-    if (hw_info.ramsey_rev > 0) {
+    }else {
         hw_info.ramsey_ctl = *((volatile unsigned char *)(RAMSEY_CTRL));
 
         hw_info.ramsey_page_enabled = hw_info.ramsey_ctl & RAMSEY_PAGE_MODE;
@@ -679,8 +712,6 @@ void detect_ramsey(void)
 /*
  * Detect SDMAC
  */
-
-
 /* Returns 2 for SDMAC-02, 4 for SDMAC-04/ReSDMAC, 0 if not present/detection fails */
 void detect_sdmac(void)
 {
@@ -691,7 +722,9 @@ void detect_sdmac(void)
     int pass;
     hw_info.sdmac_rev = 0;
     hw_info.is_A4000T = FALSE;
-    if (hw_info.ramsey_rev>0) { //you need ramsey to access sdmac!
+    if (hw_info.ramsey_rev>0 && hw_info.gary_type == FAT_GARY) { //you need fat gary and ramsey to access sdmac!
+        //Switch to DSACK-Timeout to avoid bus erros on a A4000!
+        *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
         sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
         if (sdmac_rev != 0 && sdmac_rev <= 0xF0) { //realistic values!
             hw_info.sdmac_rev = sdmac_rev;
@@ -752,6 +785,8 @@ void detect_sdmac(void)
             }
             hw_info.sdmac_rev = sdmac_version;
         }
+        //switch back berr-timeout
+        *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_BERR;
     }
 }
 
@@ -785,26 +820,26 @@ void detect_gary(void)
     Test, if we have the Power-Up-Register (A3000/4000).
     This writes a 0x80 and a zero to DMACONR on a A1000, which should be save
     */
-    val =  *((volatile unsigned char *)(FAT_GARY_POWER)); //save old value
-    //write a FF
-    *((volatile unsigned char *)FAT_GARY_POWER) = 0x80; //set bit 7
+    val =  *((volatile unsigned char *)(FAT_GARY_POWER_REG)); //save old value
+    //write a value
+    *((volatile unsigned char *)FAT_GARY_POWER_REG) = FAT_GARY_POWER_CYCLE; //set bit 7
     //read something from the bus to clear sticky bus
     testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
     //read back POWER register
-    tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
-    tmp &= 0x80; //mask bus rubbish
-    if (tmp == 0x80) {
+    tmp = *((volatile unsigned char *)(FAT_GARY_POWER_REG));
+    tmp &= FAT_GARY_POWER_CYCLE; //mask bus rubbish
+    if (tmp == FAT_GARY_POWER_CYCLE) {
         //write a zero to MSB
-        *((volatile unsigned char *)FAT_GARY_POWER) = 0;
+        *((volatile unsigned char *)FAT_GARY_POWER_REG) = FAT_GARY_POWER_GOOD;
         //read something from the bus to clear sticky bus
         testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
         //read back
-        tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
-        tmp &= 0x80; //mask bus rubbish
-        if (tmp == 0) {
+        tmp = *((volatile unsigned char *)(FAT_GARY_POWER_REG));
+        tmp &= FAT_GARY_POWER_CYCLE; //mask bus rubbish
+        if (tmp == FAT_GARY_POWER_GOOD) {
             hw_info.gary_type = FAT_GARY;
             //restore old value
-            *((volatile unsigned char *)FAT_GARY_POWER) = val;
+            *((volatile unsigned char *)FAT_GARY_POWER_REG) = val;
             return;
         }
     }
