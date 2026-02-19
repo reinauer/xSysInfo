@@ -1162,7 +1162,7 @@ static void draw_speed_panel(void)
 
     if (bench_results.benchmarks_valid) {
         char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.mips, FALSE);
+        format_scaled(scaled, sizeof(scaled), bench_results.mips, TRUE);
         snprintf(buffer, sizeof(buffer), "%s", scaled);
     } else {
         snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
@@ -1176,7 +1176,7 @@ static void draw_speed_panel(void)
     TightText(rp, SPEED_PANEL_X + 84, y, (CONST_STRPTR)buffer, -1, 4);
     if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid) {
         char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.mflops, FALSE);
+        format_scaled(scaled, sizeof(scaled), bench_results.mflops, TRUE);
         snprintf(buffer, sizeof(buffer), "%s", scaled);
     } else {
         snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
