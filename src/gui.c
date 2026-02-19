@@ -937,10 +937,14 @@ static void update_software_list(void)
         SoftwareEntry *entry = &list->entries[i];
 
         if (app->software_type == SOFTWARE_MMU) {
-            snprintf(buffer, 45, "%-44s", entry->name);
+            if (strlen(entry->name) > 49) {
+                entry->name[48] = '+';
+                entry->name[49] = '\0';
+            }
+            snprintf(buffer, 50, "%-49s", entry->name);
             SetAPen(rp, COLOR_TEXT);
             Move(rp, SOFTWARE_PANEL_X + 4, y);
-            Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+            TightText(rp, SOFTWARE_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 8);
         }
         else {
             /* Name (truncated if needed) */

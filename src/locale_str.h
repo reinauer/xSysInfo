@@ -282,6 +282,13 @@ typedef enum {
     MSG_UNCERTAIN,
     MSG_MMU_SIZE,
     MSG_MMU_ADDRESS_HINT,
+    MSG_MMU_FLAGS1_HINT,
+    MSG_MMU_FLAGS2_HINT,
+    MSG_MMU_FLAGS3_HINT,
+    MSG_MMU_FLAGS4_HINT,
+    MSG_MMU_FLAGS5_HINT,
+    MSG_MMU_FLAGS6_HINT,
+    MSG_MMU_FLAGS7_HINT,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

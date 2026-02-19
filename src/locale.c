@@ -286,6 +286,14 @@ static const char *default_strings[MSG_COUNT] = {
     /*MSG_UNCERTAIN*/   "uncertain",
     /*MSG_MMU_SIZE*/    "MMU page size",
     /*MSG_MMU_ADDRESS_HINT*/    "Addresses in hex!",
+    //below must be max 48 chars per line!
+    /*MSG_MMU_FLAGS1_HINT*/     "WP=Write Prot. U=Used M=Modified G=Global",
+    /*MSG_MMU_FLAGS2_HINT*/     "TT=Translated UPx=User-pageX CI=CacheInhibit",
+    /*MSG_MMU_FLAGS3_HINT*/     "IM=Imprecise NS=non-serial CB=CopyBack",
+    /*MSG_MMU_FLAGS4_HINT*/     "SO=Supervisor BL=Blank SH=Shared INV=Invalid",
+    /*MSG_MMU_FLAGS5_HINT*/     "SNG=Single Page RP=Repairable IO=IOspace",
+    /*MSG_MMU_FLAGS6_HINT*/     "Ux=UserX SW=Swapped MAP=Remapped BN=Bundled",
+    /*MSG_MMU_FLAGS7_HINT*/     "IND=Indirect +=more flags",
 
 };
 
