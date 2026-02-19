@@ -54,6 +54,17 @@
 #define SDMAC_WTC_ALT   ((volatile uint32_t *)0xDD0028)
 #define NCR_CTEST8_REG 0x00DD0061
 
+#ifndef AFB_68080
+/*
+ * The AFB_68080 bit is set when a working AC68080
+ * is in the system. If this is set then all bits
+ * for 010/020/030/040 are also set, since the 080
+ * is intended to be compatible with all of them.
+ */
+#define AFB_68080	10
+#define AFF_68080	(1<<10)
+#endif
+
 /* ISTR bits */
 #define SDMAC_ISTR_FIFOE  0x01
 #define SDMAC_ISTR_FIFOF  0x02
@@ -72,6 +83,7 @@ typedef enum {
     CPU_68060,
     CPU_68EC060,
     CPU_68LC060,
+    CPU_68080,
     CPU_EMU,
     CPU_UNKNOWN
 } CPUType;
@@ -83,6 +95,7 @@ typedef enum {
     FPU_68882,
     FPU_68040,
     FPU_68060,
+    FPU_68080,
     FPU_UNKNOWN
 } FPUType;
 
@@ -93,6 +106,7 @@ typedef enum {
     MMU_68030,
     MMU_68040,
     MMU_68060,
+    MMU_68080,
     MMU_UNKNOWN
 } MMUType;
 

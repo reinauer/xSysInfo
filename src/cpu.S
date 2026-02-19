@@ -27,7 +27,9 @@ ASM_CPU_68EC040 EQU 9
 ASM_CPU_68060 EQU 10
 ASM_CPU_68EC060 EQU 11
 ASM_CPU_68LC060 EQU 12
-ASM_CPU_UNKNOWN  EQU 13
+ASM_CPU_68080 EQU 13
+ASM_CPU_EMU EQU 14
+ASM_CPU_UNKNOWN  EQU 15
 ASM_MMU EQU 1
 RAMSEY_VER EQU $DE0043
 RAMSEY_CTRL EQU $DE0003
@@ -54,55 +56,73 @@ _readreg:
 	movec	PCR,d0
 	rte
 
+;this method distinguishes between a 68040 and 68(LC)060
 _GetCPU060:
-	movem.l	d1/a0/a1/a2/a5/a6,-(sp)
+	movem.l	a5/a6,-(sp)
 	lea.l	_read060fpu,a5
 	move.l	$4.w,a6
 	jsr	_LVOSupervisor(a6)
-	movem.l	(sp)+,d1/a0/a1/a2/a5/a6
+	movem.l	(sp)+,a5/a6
 	rts
 
 _read060fpu
-	move.l	IllegalInstructionVector.w,a1	;save Illegal Instruction and LineF vectors
-	move.l	Line1111Vector.w,a2
-	lea	crashvector(pc),a0
-	move.l	a0,IllegalInstructionVector.w
-	move.l	a0,Line1111Vector.w
-	move.l	sp,a0
+
+	ori.w	#$0700,sr               ;disable interrupts
+	movem.l	d1-d5/a2-a3,-(sp)
+	lea	-$f0(a7),a7             ;reserve f0-bytes room for temporary
+	                                ;exception vectors
+
+	moveq	#ASM_CPU_68020,d0       ;default result is: ASM_CPU_68020
+	movec.l	vbr,a0                  ;saveback VBR
+	lea	illegal060(pc),a1       ;entry for Illegal/LineF
+	move.l	a1,$10(a7)              ;set it
+	move.l	a1,$2c(a7)              ;ditto
+	move.l	a1,$34(a7)
+	move.l	a1,$e0(a7)
+	move.l	a1,$e4(a7)
+	move.l	a1,$e8(a7)
+	lea	nmi060(pc),a1
+	move.l	a1,$7c(a7)              ;NMI disable
+	movec.l	a7,vbr                  ;VBR temporary on stack
+	lea	continue060(pc),a1      ;jump address in case of fault
 
 	;the code below avoids a crash on xx060
 	;alternatively, just the moveq/movec would suffice where all other CPUs
 	;(20/30,xx040,LC060,EC060) are pushed into the trap vector trampoline
 
 	;test for 040/60
-	movec	CACR,d1					; this will crash on 68000/010 -> crashvector
-	move.l	d1,d0					; copy
-	or.l	#CACRF_EnableI,d0		; 020/30 only flag
-	movec	d0,CACR					; this will crash on 68000/010 -> crashvector
+	movec	CACR,d1                 ; this will crash on 68000/010 -> illegal060
+	move.l	d1,d0                   ; copy
+	or.l	#CACRF_EnableI,d0       ; 020/30 only flag
+	movec	d0,CACR                 ; this will crash on 68000/010 -> illegal060
 	movec	CACR,d0
-	movec	d1,CACR					; restore old cache state
-	btst	#CACRB_EnableI,d0		; this flag is ignored on 68040/60
+	movec	d1,CACR                 ; restore old cache state
+	btst	#CACRB_EnableI,d0       ; this flag is ignored on 68040/60
 	bne.s	no_040_60
 
 
-	movec	PCR,d0				; this will crash 040 -> crashvector
-	swap	d0				; get upper 16 Bit
-	cmp.w	#$430,d0			; ID for full 060 (EC/LC have 0x431)
-	bne.s	no_060_FPU			; nope, no need for FP disable
+	movec	PCR,d0                  ; this will crash 040 -> illegal060
+	swap	d0                      ; get upper 16 Bit
+	cmp.w	#$430,d0                ; ID for full 060 (EC/LC have 0x431)
+	bne.s	no_060_FPU              ; nope, no need for FP disable
 	moveq	#ASM_CPU_68060,d0
-	bra.s	vectorrestore			;we have a 68060 with FPU
+	bra.s	continue060             ;we have a 68060 with FPU
 no_060_FPU:
 	moveq	#ASM_CPU_68LC060,d0
-	bra.s	vectorrestore			;we have a 68LC/EC060 without FPU
+	bra.s	continue060             ;we have a 68LC/EC060 without FPU
 no_040_60:
-	moveq	#ASM_CPU_68020,d0
-	bra.s	vectorrestore		;we have a 68020/030-CPU
-crashvector:
+	moveq	#ASM_CPU_68020,d0       ;we have a 68020/030-CPU
+
+continue060:
+	movec.l	a0,vbr                  ;restore VBR
+	                                ;result is in d0
+	lea	$f0(a7),a7              ;release stack
+	movem.l	(sp)+,d1-d5/a2-a3
+nmi060:
+	rte                             ;this restores interrupts anyways
+illegal060:
 	moveq	#ASM_CPU_68040,d0
-vectorrestore:
-	move.l	a0,sp				;restore Stack Pointer
-	move.l	a1,IllegalInstructionVector.w	;restore Illegal Instruction and LineF vectors
-	move.l	a2,Line1111Vector.w
+	move.l	a1,2(a7)
 	rte
 
 _GetVBR:

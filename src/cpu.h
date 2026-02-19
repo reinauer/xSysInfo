@@ -21,7 +21,9 @@
 #define ASM_CPU_68060 10
 #define ASM_CPU_68EC060 11
 #define ASM_CPU_68LC060 12
-#define ASM_CPU_UNKNOWN  13
+#define ASM_CPU_68080 13
+#define ASM_CPU_EMU 14
+#define ASM_CPU_UNKNOWN  15
 
 ULONG GetCPUReg(void);
 ULONG GetCPU060(void);

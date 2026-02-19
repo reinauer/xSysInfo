@@ -192,27 +192,34 @@ void detect_cpu(void)
         }
         else
         {
-            // now it's 68040/060 and it's derivatives
-            ULONG cpuBits = GetCPU060(); // same bits as CPUType
-            if (cpuBits == ASM_CPU_68040)
-            {
-                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
-                hw_info.cpu_type = CPU_68040;
+            //check for Apollo Vampire cores
+            if ((attnFlags & (UWORD)AFF_68080) != 0) {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68080");
+                hw_info.cpu_type = CPU_68080;
             }
-            else if (cpuBits == ASM_CPU_68060)
-            {
-                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
-                hw_info.cpu_type = CPU_68060;
-            }
-            else if (cpuBits == ASM_CPU_68LC060)
-            {
-                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
-                hw_info.cpu_type = CPU_68LC060;
-            }
-            else
-            {
-                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), get_string(MSG_UNKNOWN));
-                hw_info.cpu_type = CPU_UNKNOWN;
+            else {
+                // now it's 68040/060 and it's derivatives
+                ULONG cpuBits = GetCPU060(); // same bits as CPUType
+                if (cpuBits == ASM_CPU_68040)
+                {
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
+                    hw_info.cpu_type = CPU_68040;
+                }
+                else if (cpuBits == ASM_CPU_68060)
+                {
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
+                    hw_info.cpu_type = CPU_68060;
+                }
+                else if (cpuBits == ASM_CPU_68LC060)
+                {
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
+                    hw_info.cpu_type = CPU_68LC060;
+                }
+                else
+                {
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), get_string(MSG_UNKNOWN));
+                    hw_info.cpu_type = CPU_UNKNOWN;
+                }
             }
         }
     }
@@ -249,6 +256,13 @@ void detect_fpu(void)
     //default values
     hw_info.fpu_type = FPU_UNKNOWN;
     hw_info.fpu_mhz = 0;
+
+    //check for vampire
+    if ((attnFlags & (UWORD)AFF_68080) > 0) { //68080 always has a fpu
+        snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68080");
+        hw_info.fpu_type = FPU_68080;
+        return;
+    }
 
     //is there any fpu?
     if ((attnFlags & ((UWORD)AFF_68881|(UWORD)AFF_FPU40)) == 0) { //No FPU
@@ -352,6 +366,10 @@ void detect_mmu(void)
                     hw_info.cpu_type = CPU_68EC060;
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC060");
                     break;
+                case CPU_68080:
+                    hw_info.mmu_type = MMU_68060;
+                    snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68080");
+                    break;
                 default:
                     break;
                 }
@@ -390,13 +408,17 @@ void detect_mmu(void)
         case CPU_68060:
             cpuType = ASM_CPU_68060;
             break;
+        case CPU_68080:
+            cpuType = ASM_CPU_68080;
+            mmuResult = 1; // there is some kind of mmu
+            break;
         default:
             cpuType = 0;
             break;
         }
 
 
-        if (cpuType >= ASM_CPU_68020)
+        if (cpuType >= ASM_CPU_68020 && cpuType != ASM_CPU_68080)
         {
             mmuResult = GetMMU(cpuType);
         }
@@ -425,6 +447,10 @@ void detect_mmu(void)
             case CPU_68EC060:
             case CPU_68060:
                 snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060 (%s)", get_string(MSG_UNCERTAIN));
+                hw_info.mmu_type = MMU_68060;
+                break;
+            case CPU_68080:
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68080 (%s)", get_string(MSG_UNCERTAIN));
                 hw_info.mmu_type = MMU_68060;
                 break;
             default:
