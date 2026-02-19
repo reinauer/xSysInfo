@@ -997,14 +997,14 @@ void draw_single_bar(WORD x, WORD y, ULONG value, ULONG max_value, WORD color)
         /* Linear scale */
         calculated_width = (ULONG)(((unsigned long long)value * SPEED_BAR_MAX_WIDTH) / max_value);
     } else {
-        /* Shrink mode: A4000 at 50% */
-        ULONG a4000_value = reference_systems[REF_A4000].dhrystones;
-        ULONG half_width = SPEED_BAR_MAX_WIDTH / 2;
+        /* Shrink mode: A3000 at 100% */
+        ULONG a4000_value = reference_systems[REF_A3000].dhrystones;
+        ULONG ref_width = SPEED_BAR_MAX_WIDTH;
         if (value <= a4000_value) {
-            calculated_width = (ULONG)(((unsigned long long)value * half_width) / a4000_value);
+            calculated_width = (ULONG)(((unsigned long long)value * ref_width) / a4000_value);
         } else {
-            calculated_width = half_width +
-                (ULONG)(((unsigned long long)(value - a4000_value) * half_width) /
+            calculated_width = ref_width +
+                (ULONG)(((unsigned long long)(value - a4000_value) * ref_width) /
                 (max_value - a4000_value));
         }
     }
