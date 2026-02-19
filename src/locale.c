@@ -172,7 +172,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_ROM */               "ROM",
     /* MSG_24BIT_RAM */         "24BIT RAM",
     /* MSG_32BIT_RAM */         "32BIT RAM",
-    /* MSG_MEM_SPEED_HEADER */  "CHIP  FAST  ROM   SPEED",
+    /* MSG_MEM_SPEED_HEADER */  "CHIP  FAST  ROM ",
 
     /* SCSI Types */
     /* MSG_SCSI_TYPE_DISK */    "DISK",
