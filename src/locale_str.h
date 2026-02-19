@@ -58,6 +58,7 @@ typedef enum {
     MSG_IBURST,
     MSG_DBURST,
     MSG_CBACK,
+    MSG_SUPER_SCALAR,
 
     /* Speed comparison labels */
     MSG_DHRYSTONES,

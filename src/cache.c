@@ -81,6 +81,16 @@ void toggle_copyback(void)
 }
 
 /*
+ * Toggle super-scalar mode
+ */
+void toggle_super_scalar(void)
+{
+    if (cpu_has_super_scalar()) {
+        hw_info.super_scalar_enabled = set_super_scalar_mode(!(hw_info.super_scalar_enabled));
+    }
+}
+
+/*
  * Check if CPU has instruction cache
  */
 BOOL cpu_has_icache(void)
@@ -118,4 +128,12 @@ BOOL cpu_has_dburst(void)
 BOOL cpu_has_copyback(void)
 {
     return hw_info.has_copyback;
+}
+
+/*
+ * Check if CPU has super-scalar mode
+ */
+BOOL cpu_has_super_scalar(void)
+{
+    return hw_info.has_super_scalar;
 }

@@ -64,6 +64,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_IBURST */            "IBurst",
     /* MSG_DBURST */            "DBurst",
     /* MSG_CBACK */             "CBack",
+    /* MSG_SUPER_SCALAR */      "SuperS",
 
     /* Speed comparison labels */
     /* MSG_DHRYSTONES */        "Dhrystones",

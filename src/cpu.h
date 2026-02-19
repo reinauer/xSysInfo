@@ -26,6 +26,7 @@
 #define ASM_CPU_UNKNOWN  15
 
 ULONG GetCPUReg(void);
+ULONG SetCPUReg(ULONG value __asm("d0"));
 ULONG GetCPU060(void);
 ULONG GetVBR(void);
 ULONG GetMMU( ULONG cpuType __asm("d0"));

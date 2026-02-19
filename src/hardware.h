@@ -188,11 +188,13 @@ typedef struct {
     BOOL has_iburst;
     BOOL has_dburst;
     BOOL has_copyback;
+    BOOL has_super_scalar;
     BOOL icache_enabled;
     BOOL dcache_enabled;
     BOOL iburst_enabled;
     BOOL dburst_enabled;
     BOOL copyback_enabled;
+    BOOL super_scalar_enabled;
 
     /* Chipset */
     AgnusType agnus_type;
@@ -279,6 +281,8 @@ void detect_frequencies(void);
 void generate_comment(void);
 void detect_kickstart(void);
 UWORD detect_cpu_rev(void);
+BOOL get_super_scalar_mode(void);
+BOOL set_super_scalar_mode(BOOL value);
 
 /* CPU MHz measurement */
 ULONG measure_cpu_frequency(void);

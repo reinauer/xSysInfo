@@ -18,6 +18,7 @@ void toggle_dcache(void);
 void toggle_iburst(void);
 void toggle_dburst(void);
 void toggle_copyback(void);
+void toggle_super_scalar(void);
 
 /* Read current cache state */
 void read_cache_state(BOOL *icache, BOOL *dcache,
@@ -29,5 +30,6 @@ BOOL cpu_has_dcache(void);
 BOOL cpu_has_iburst(void);
 BOOL cpu_has_dburst(void);
 BOOL cpu_has_copyback(void);
+BOOL cpu_has_super_scalar(void);
 
 #endif /* CACHE_H */

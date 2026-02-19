@@ -50,7 +50,7 @@ int num_buttons = 0;
 
 /* Static buffers for cache button labels (name + ON/OFF/N/A status) */
 static char icache_label[16], dcache_label[16], iburst_label[16];
-static char dburst_label[16], cback_label[16];
+static char dburst_label[16], cback_label[16], super_scalar_label[16];
 
 /* Forward declarations */
 static void draw_header(void);
@@ -272,6 +272,10 @@ void main_view_update_buttons(void)
              hw_info.has_copyback ?
                  (hw_info.copyback_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
                  get_string(MSG_NA));
+    snprintf(super_scalar_label, sizeof(super_scalar_label), "%s",
+             hw_info.has_super_scalar ?
+                 (hw_info.super_scalar_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 get_string(MSG_NA));
 
     /* Use explicit Y values to avoid any macro expansion issues */
     /* Base Y = 116 (cache block shifted up 4px so CBack aligns with Card Slot) */
@@ -286,6 +290,8 @@ void main_view_update_buttons(void)
                dburst_label, BTN_DBURST, hw_info.has_dburst);
     add_button(CACHE_BTN_X, 168, CACHE_BTN_W, CACHE_BTN_H,
                cback_label, BTN_CBACK, hw_info.has_copyback);
+    add_button(CACHE_BTN_X, 179, CACHE_BTN_W, CACHE_BTN_H,
+               super_scalar_label, BTN_SUPER_SCALAR, hw_info.has_super_scalar);
 
     /* Set pressed state based on whether each cache is enabled */
     set_button_pressed(BTN_ICACHE, hw_info.icache_enabled);
@@ -293,6 +299,7 @@ void main_view_update_buttons(void)
     set_button_pressed(BTN_IBURST, hw_info.iburst_enabled);
     set_button_pressed(BTN_DBURST, hw_info.dburst_enabled);
     set_button_pressed(BTN_CBACK, hw_info.copyback_enabled);
+    set_button_pressed(BTN_SUPER_SCALAR, hw_info.super_scalar_enabled);
 }
 
 /*
@@ -375,6 +382,11 @@ void main_view_handle_button(ButtonID id)
 
         case BTN_CBACK:
             toggle_copyback();
+            refresh_all_cache_buttons();
+            break;
+
+        case BTN_SUPER_SCALAR:
+            toggle_super_scalar();
             refresh_all_cache_buttons();
             break;
 
@@ -1424,6 +1436,9 @@ static void draw_hardware_panel(void)
             cache_y += 11;
             draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
                              get_string(MSG_CBACK), NULL, 56);
+            cache_y += 11;
+            draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
+                             get_string(MSG_SUPER_SCALAR), NULL, 56);
         }
         y += 8;
 
@@ -1618,7 +1633,7 @@ static void draw_cache_buttons(void)
 {
     int i;
     for (i = 0; i < num_buttons; i++) {
-        if (buttons[i].id >= BTN_ICACHE && buttons[i].id <= BTN_CBACK) {
+        if (buttons[i].id >= BTN_ICACHE && buttons[i].id <= BTN_SUPER_SCALAR) {
             draw_button(&buttons[i]);
         }
     }
@@ -1654,6 +1669,10 @@ static void refresh_all_cache_buttons(void)
              hw_info.has_copyback ?
                  (hw_info.copyback_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
                  get_string(MSG_NA));
+    snprintf(super_scalar_label, sizeof(super_scalar_label), "%s",
+             hw_info.has_super_scalar ?
+                 (hw_info.super_scalar_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 get_string(MSG_NA));
 
     /* Update all button pressed states */
     set_button_pressed(BTN_ICACHE, hw_info.icache_enabled);
@@ -1661,6 +1680,7 @@ static void refresh_all_cache_buttons(void)
     set_button_pressed(BTN_IBURST, hw_info.iburst_enabled);
     set_button_pressed(BTN_DBURST, hw_info.dburst_enabled);
     set_button_pressed(BTN_CBACK, hw_info.copyback_enabled);
+    set_button_pressed(BTN_SUPER_SCALAR, hw_info.super_scalar_enabled);
 
     /* Redraw all cache buttons */
     draw_cache_buttons();

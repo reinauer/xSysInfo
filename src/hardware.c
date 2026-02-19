@@ -225,11 +225,14 @@ void detect_cpu(void)
     }
 
     /* Get CPU revision from identify.library (returns string) */
-    if ( hw_info.cpu_type == CPU_68060 ||
+    if (hw_info.cpu_type == CPU_68060 ||
         hw_info.cpu_type == CPU_68LC060 ||
-        hw_info.cpu_type == CPU_68EC060
+        hw_info.cpu_type == CPU_68EC060 ||
+        hw_info.cpu_type == CPU_68080
     ) {
         hw_info.cpu_rev = detect_cpu_rev();
+        hw_info.has_super_scalar = TRUE;
+        hw_info.super_scalar_enabled = get_super_scalar_mode();
         snprintf(hw_info.cpu_revision, sizeof(hw_info.cpu_revision), "Rev. %d", hw_info.cpu_rev);
     }
     else {
@@ -244,6 +247,21 @@ UWORD detect_cpu_rev(void)
     cpuReg = cpuReg>>8;
     cpuReg &= 0xFF;
     return (UWORD) cpuReg;
+}
+
+BOOL get_super_scalar_mode(void)
+{
+    ULONG cpuReg = GetCPUReg();
+    cpuReg &= 1L; //lowest bit is super scalar bit
+    return cpuReg > 0;
+}
+
+BOOL set_super_scalar_mode(BOOL value)
+{
+    ULONG cpuReg = value ? 1L : 0L;
+    cpuReg = SetCPUReg(cpuReg);
+    cpuReg &= 1L; //lowest bit is super scalar bit
+    return cpuReg > 0;
 }
 
 /*

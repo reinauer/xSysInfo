@@ -36,6 +36,7 @@ typedef enum {
     BTN_IBURST,
     BTN_DBURST,
     BTN_CBACK,
+    BTN_SUPER_SCALAR,
 
     /* Memory view buttons */
     BTN_MEM_PREV,

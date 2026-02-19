@@ -38,6 +38,7 @@ RAMSEY_CTRL EQU $DE0003
     SECTION Code,CODE
     MACHINE 68060
 	XDEF	_GetCPUReg
+	XDEF	_SetCPUReg
 	XDEF	_GetCPU060;
 	XDEF	_GetVBR
 	XDEF	_GetMMU
@@ -53,6 +54,21 @@ _GetCPUReg:
 	rts
 
 _readreg:
+	movec	PCR,d0
+	rte
+
+_SetCPUReg:
+	;value to write is in d0 final result back in d0
+	movem.l	a5/a6,-(sp)
+	lea.l	_writereg,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a5/a6
+	rts
+
+_writereg:
+	and.l	#$FF,d0
+	movec	d0,PCR
 	movec	PCR,d0
 	rte
 
@@ -109,7 +125,10 @@ _read060fpu
 	bra.s	continue060             ;we have a 68060 with FPU
 no_060_FPU:
 	moveq	#ASM_CPU_68LC060,d0
-	bra.s	continue060             ;we have a 68LC/EC060 without FPU
+	cmp.w	#$440,d0                ; ID for 68080 (Apollo core)
+	bne.s	continue060             ; nope
+	moveq	#ASM_CPU_68080,d0
+	bra.s	continue060             ;we have a 68080
 no_040_60:
 	moveq	#ASM_CPU_68020,d0       ;we have a 68020/030-CPU
 
