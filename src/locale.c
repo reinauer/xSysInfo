@@ -225,6 +225,9 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_ERR_NO_WINDOW */     "Could not open window",
 
     /* Comments based on system speed */
+    /*MSG_COMMENT_WARP11*/      "WARP 11!",
+    /*MSG_COMMENT_LUDICROUS*/   "Ludicrous speed!",
+    /*MSG_COMMENT_RIDICULUS*/   "Ridiculus speed!",
     /* MSG_COMMENT_BLAZING */   "Blazingly fast!",
     /* MSG_COMMENT_VERY_FAST */ "Very fast!",
     /* MSG_COMMENT_FAST */      "Fast system",

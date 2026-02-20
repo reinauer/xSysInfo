@@ -52,7 +52,11 @@ extern struct DosLibrary *DOSBase;
 static struct WBStartup *wb_startup = NULL;
 
 /* Global debug flag */
-BOOL g_debug_enabled = FALSE;
+#ifdef DEBUG
+    BOOL g_debug_enabled = TRUE;
+#else
+    BOOL g_debug_enabled = FALSE;
+#endif
 
 /* Global application context */
 AppContext app_context;

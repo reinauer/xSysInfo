@@ -72,8 +72,6 @@ BOOL detect_hardware(void)
     detect_frequencies();
     debug("  hw: Refreshing cache status...\n");
     refresh_cache_status();
-    debug("  hw: Generating comment...\n");
-    generate_comment();
 
     /* Get Kickstart info */
     UWORD kick_version = *((volatile UWORD *)KICK_VERSION);
@@ -1074,32 +1072,6 @@ void refresh_cache_status(void)
     hw_info.dburst_enabled = (cacr_bits & CACRF_DBE) ? TRUE : FALSE;
     hw_info.copyback_enabled = (cacr_bits & CACRF_CopyBack) ? TRUE : FALSE;
     hw_info.super_scalar_enabled = get_super_scalar_mode();
-}
-
-/*
- * Generate a comment based on system configuration
- */
-void generate_comment(void)
-{
-    const char *comment;
-
-    if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_mhz >= 5000) {
-        comment = get_string(MSG_COMMENT_BLAZING);
-    } else if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_mhz >= 2500) {
-        comment = get_string(MSG_COMMENT_VERY_FAST);
-    } else if (hw_info.cpu_type >= CPU_68040 && hw_info.cpu_mhz >= 2500) {
-        comment = get_string(MSG_COMMENT_VERY_FAST);
-    } else if (hw_info.cpu_type >= CPU_68030 && hw_info.cpu_mhz >= 2500) {
-        comment = get_string(MSG_COMMENT_FAST);
-    } else if (hw_info.cpu_type >= CPU_68020 && hw_info.cpu_mhz >= 1400) {
-        comment = get_string(MSG_COMMENT_GOOD);
-    } else if (hw_info.cpu_type <= CPU_68010) {
-        comment = get_string(MSG_COMMENT_CLASSIC);
-    } else {
-        comment = get_string(MSG_COMMENT_DEFAULT);
-    }
-
-    strncpy(hw_info.comment, comment, sizeof(hw_info.comment) - 1);
 }
 
 /*

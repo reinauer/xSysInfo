@@ -36,8 +36,10 @@ typedef struct {
 #define CPULOOPS 14680
 #define FPULOOPS 1200
 #define BASE_FACTOR 136000
-#define MFLOPS_BASE_LOOPS 50000
+#define FLOPS_BASE_LOOPS 50000
 #define MIN_FLOP_MEASURE 4000
+#define FLOP_LOOP_INSTRUCTIONS 9
+#define FLOP_INIT_INSTRUCTIONS 3
 
 /* Benchmark results */
 typedef struct {
@@ -83,5 +85,6 @@ uint64_t get_timer_ticks(void);    /* Returns ticks (1/1000000 sec precision) */
 void get_timer(struct timeval *tv);    /* Returns result in provided timeval-structure */
 void wait_ticks(ULONG ticks);
 ULONG measure_loop_overhead(ULONG count);
+void generate_comment(void);
 
 #endif /* BENCHMARK_H */

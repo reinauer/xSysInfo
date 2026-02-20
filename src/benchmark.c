@@ -20,6 +20,7 @@
 #include "hardware.h"
 #include "debug.h"
 #include "cpu.h"
+#include "locale_str.h"
 
 extern struct ExecBase *SysBase;
 
@@ -527,9 +528,7 @@ ULONG run_mflops_benchmark(void)
     ULONG E_Freq;
     ULONG elapsed = 0;
     ULONG iterations = 50000;
-    ULONG ops_per_iter = 8;  /* FP operations per iteration */
-    ULONG multiplier;
-    ULONG fpuType = 0;
+    ULONG multiplier, i;
 
     /* Check if FPU is available */
     if (hw_info.fpu_type == FPU_NONE) {
@@ -538,45 +537,41 @@ ULONG run_mflops_benchmark(void)
 
     if (!ETimerBase) return 0;
 
-    switch (hw_info.fpu_type) {
-    case FPU_68881:
-        fpuType = ASM_FPU_68881;
-        break;
-    case FPU_68882:
-        fpuType = ASM_FPU_68882;
-        break;
-    case FPU_68040:
-        fpuType = ASM_FPU_68040;
-        break;
-    case FPU_68060:
-        fpuType = ASM_FPU_68060;
-        break;
-    case FPU_68080:
-        fpuType = ASM_FPU_68080;
-        break;
-    default:
-        fpuType = FPU_NONE;
-        break;
-    }
-
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
     {
-        iterations = MFLOPS_BASE_LOOPS * multiplier;
-        Forbid();
+        iterations = FLOPS_BASE_LOOPS * multiplier;
         E_Freq = ReadEClock(&start);
-        DoFlops(iterations, fpuType); //assembler routine
+
+        /* Inline 68881+/040/060 FPU sequence; no C-side FP state needed */
+        __asm__ volatile(
+            "fmove.l  #2,fp0\n\t"     /* fb = 2 */
+            "fmove.l  #3,fp1\n\t"     /* fc = 3 */
+            "fmove.l  #4,fp2\n\t"     /* fd = 4 */
+            "1: fadd.x   fp1,fp0\n\t" /* fa = fb + fc */
+            "fmul.x   fp2,fp0\n\t"    /* fb = fa * fd */
+            "fsub.x   fp1,fp0\n\t"    /* fc = fb - fa */
+            "fdiv.x   fp2,fp0\n\t"    /* fd = fc / fb */
+            "fmul.x   fp1,fp0\n\t"    /* fa = fb * fc */
+            "fadd.x   fp2,fp0\n\t"    /* fb = fa + fd */
+            "fsub.x   fp1,fp0\n\t"    /* fc = fb - fa */
+            "fmul.x   fp2,fp0\n\t"    /* fd = fc * fa */
+            "fdbeq    %0,1b\n\t"      /* floating point decrease branch*/
+            : "+d"(iterations)
+            :
+            : "d0", "fp0", "fp1", "fp2", "cc", "memory");
+
         E_Freq = ReadEClock(&end);
-        Permit();
         elapsed = ((end.ev_lo - start.ev_lo) * 1000000UL) / E_Freq;
+        iterations = FLOPS_BASE_LOOPS * multiplier;
     }
     debug("  bench: elapsed: %ld, loops %ld tries: %ld\n", elapsed, iterations, multiplier);
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
-        ULONG total_ops = iterations * ops_per_iter;
+        ULONG total_ops = (iterations * FLOP_LOOP_INSTRUCTIONS) + FLOP_INIT_INSTRUCTIONS;
         unsigned long long scaled =
-            (unsigned long long)total_ops * 100ULL;
-        scaled /= 343; //correction factor to match old Sysinfo MFlops
+            (unsigned long long)total_ops * 1000ULL;
+        scaled /= 58; //correction factor to match old Sysinfo MFlops
         scaled /= (unsigned long long)elapsed; /* ops per microsecond = MFLOPS */
         if (scaled > ULONG_MAX) {
             return ULONG_MAX;
@@ -767,6 +762,7 @@ void run_benchmarks(void)
     hw_info.fpu_mhz = get_mhz_fpu();
 
     bench_results.benchmarks_valid = TRUE;
+    generate_comment();
 }
 
 /*
@@ -794,4 +790,44 @@ ULONG get_max_dhrystones(void)
     if (max_val < 1000) max_val = 1000;
 
     return max_val;
+}
+
+/*
+ * Generate a comment based on system configuration
+ */
+void generate_comment(void)
+{
+    const char *comment;
+    if (bench_results.benchmarks_valid) {
+        comment = get_string(MSG_COMMENT_DEFAULT); //slower than a stock A500!
+
+        if (bench_results.dhrystones > 980) {
+            comment = get_string(MSG_COMMENT_CLASSIC);
+        }
+        if (bench_results.dhrystones > 1300) {
+            comment = get_string(MSG_COMMENT_GOOD);
+        }
+        if (bench_results.dhrystones > 2000) {
+            comment = get_string(MSG_COMMENT_FAST);
+        }
+        if (bench_results.dhrystones > 7000) {
+            comment = get_string(MSG_COMMENT_VERY_FAST);
+        }
+        if (bench_results.dhrystones > 30000) {
+            comment = get_string(MSG_COMMENT_BLAZING);
+        }
+        if (bench_results.dhrystones > 80000) {
+            comment = get_string(MSG_COMMENT_RIDICULUS);
+        }
+        if (bench_results.dhrystones > 130000) {
+            comment = get_string(MSG_COMMENT_LUDICROUS);
+        }
+        if (bench_results.dhrystones > 170000) {
+            comment = get_string(MSG_COMMENT_WARP11);
+        }
+    } else {
+        comment = get_string(MSG_NA);
+    }
+
+    strncpy(hw_info.comment, comment, sizeof(hw_info.comment) - 1);
 }

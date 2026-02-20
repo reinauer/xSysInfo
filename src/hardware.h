@@ -278,7 +278,6 @@ void detect_ramsey(void);
 void detect_sdmac(void);
 void detect_system_chips(void);
 void detect_frequencies(void);
-void generate_comment(void);
 void detect_kickstart(void);
 UWORD detect_cpu_rev(void);
 BOOL get_super_scalar_mode(void);
