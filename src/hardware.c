@@ -110,25 +110,17 @@ BOOL detect_hardware(void)
 */
 BOOL detect_emu68_systems(void)
 {
-    struct ConfigDev *cd = NULL;
-    struct Library *ExpansionBase;
     BOOL retVal = FALSE;
-    debug("  emu68: Opening expansion.library...\n");
-    ExpansionBase = OpenLibrary((CONST_STRPTR)"expansion.library", MIN_EXPANSION_VERSION);
-    if (!ExpansionBase) {
-        Printf((CONST_STRPTR)"Could not open expansion.library v%d\n", MIN_EXPANSION_VERSION);
-    }
-    else {
 
-        debug("  emu68: Scanning for EMU68-ConfigDev...\n");
-        if ((cd = FindConfigDev(cd, 28019, 1)) != NULL) {
-            debug("  emu68: EMU-CPU found!...\n");
-            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "Emu68");
-            hw_info.cpu_type = CPU_EMU;
-            retVal = TRUE;
-        }
-        debug("  emu68: Closing expansion.library...\n");
-        CloseLibrary(ExpansionBase);
+    debug("  emu68: Scanning for EMU68 devicetree.resource...\n");
+    if (OpenResource((CONST_STRPTR)"devicetree.resource") != NULL)
+    {
+        debug("  emu68: devicetree.resource found!\n");
+        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "Emu68");
+        hw_info.cpu_type = CPU_EMU;
+        retVal = TRUE;
+    } else {
+        debug("  emu68: NO devicetree.resource found! Assuming real CPU.\n");
     }
 
     return retVal;
