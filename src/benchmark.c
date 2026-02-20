@@ -19,6 +19,7 @@
 #include "benchmark.h"
 #include "hardware.h"
 #include "debug.h"
+#include "cpu.h"
 
 extern struct ExecBase *SysBase;
 
@@ -161,32 +162,19 @@ void cleanup_timer(void)
 */
 ULONG get_mhz_cpu()
 {
-    if (!ETimerBase) return 0;
 
-    ULONG count, tmp, mhz = 0, multiplier, loop;
+    ULONG count = 0, tmp, mhz = 0, multiplier, loop;
     APTR test; //for testing the memtype we are running in
 
     // correction factors for fast CPUs!
 
-    for (multiplier = 1; multiplier <= MAX_MULTIPLY; multiplier++)
+    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier++)
     {
         loop = CPULOOPS * multiplier;
-
         count = measure_loop_overhead(loop); //this counts the speed of looping
-        if (count >= MIN_MHZ_MEASURE)
-        {
-            break;
-        }
     }
 
-    if (multiplier <= MAX_MULTIPLY)
-    {
-        tmp = BASE_FACTOR * multiplier;
-    }
-    else
-    { // correct increment for last loop
-        tmp = BASE_FACTOR * MAX_MULTIPLY;
-    }
+    tmp = BASE_FACTOR * (multiplier-1);
 
     if (count > 0)
     {
@@ -535,55 +523,60 @@ ULONG calculate_mips(ULONG dhrystones)
  */
 ULONG run_mflops_benchmark(void)
 {
-    struct timeval start,end;
-    ULONG elapsed;
+    struct EClockVal start, end;
+    ULONG E_Freq;
+    ULONG elapsed = 0;
     ULONG iterations = 50000;
     ULONG ops_per_iter = 8;  /* FP operations per iteration */
-    ULONG i;
+    ULONG multiplier;
+    ULONG fpuType = 0;
 
     /* Check if FPU is available */
     if (hw_info.fpu_type == FPU_NONE) {
         return 0;
     }
 
-    if (!TimerBase) return 0;
+    if (!ETimerBase) return 0;
 
-    get_timer(&start);
-
-    __asm__ volatile (
-        "fmove.l  #2,fp0\n\t"         /* fb = 2 */
-        "fmove.l  #3,fp1\n\t"         /* fc = 3 */
-        "fmove.l  #4,fp2\n\t"         /* fd = 4 */
-        :
-        :
-        : "fp0", "fp1", "fp2", "cc", "memory"
-    );
-    for (i = 0; i < iterations; i++) {
-        /* Inline 68881+/040/060 FPU sequence; no C-side FP state needed */
-        __asm__ volatile (
-            "fadd.x   fp1,fp0\n\t"        /* fa = fb + fc */
-            "fmul.x   fp2,fp0\n\t"        /* fb = fa * fd */
-            "fsub.x   fp1,fp0\n\t"        /* fc = fb - fa */
-            "fdiv.x   fp2,fp0\n\t"        /* fd = fc / fb */
-            "fmul.x   fp1,fp0\n\t"        /* fa = fb * fc */
-            "fadd.x   fp2,fp0\n\t"        /* fb = fa + fd */
-            "fsub.x   fp1,fp0\n\t"        /* fc = fb - fa */
-            "fmul.x   fp2,fp0\n\t"        /* fd = fc * fa */
-            :
-            :
-            : "fp0", "fp1", "fp2", "cc", "memory"
-        );
+    switch (hw_info.fpu_type) {
+    case FPU_68881:
+        fpuType = ASM_FPU_68881;
+        break;
+    case FPU_68882:
+        fpuType = ASM_FPU_68882;
+        break;
+    case FPU_68040:
+        fpuType = ASM_FPU_68040;
+        break;
+    case FPU_68060:
+        fpuType = ASM_FPU_68060;
+        break;
+    case FPU_68080:
+        fpuType = ASM_FPU_68080;
+        break;
+    default:
+        fpuType = FPU_NONE;
+        break;
     }
 
-    get_timer(&end);
-    SubTime(&end, &start);
-    elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
+    for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
+    {
+        iterations = MFLOPS_BASE_LOOPS * multiplier;
+        Forbid();
+        E_Freq = ReadEClock(&start);
+        DoFlops(iterations, fpuType); //assembler routine
+        E_Freq = ReadEClock(&end);
+        Permit();
+        elapsed = ((end.ev_lo - start.ev_lo) * 1000000UL) / E_Freq;
+    }
+    debug("  bench: elapsed: %ld, loops %ld tries: %ld\n", elapsed, iterations, multiplier);
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
         ULONG total_ops = iterations * ops_per_iter;
         unsigned long long scaled =
             (unsigned long long)total_ops * 100ULL;
+        scaled /= 343; //correction factor to match old Sysinfo MFlops
         scaled /= (unsigned long long)elapsed; /* ops per microsecond = MFLOPS */
         if (scaled > ULONG_MAX) {
             return ULONG_MAX;
@@ -748,21 +741,29 @@ void run_benchmarks(void)
     //clear last results
     memset(&bench_results, 0, sizeof(bench_results));
 
+    debug("  bench: run dhrystone...\n");
     /* Run Dhrystone */
     bench_results.dhrystones = run_dhrystone();
 
     /* Calculate MIPS */
+    debug("  bench: run mips...\n");
     bench_results.mips = calculate_mips(bench_results.dhrystones);
 
     /* Run MFLOPS if FPU available */
     if (hw_info.fpu_type != FPU_NONE) {
-        bench_results.mflops = run_mflops_benchmark();
+        debug("  bench: run mflops...\n");
+        //attention! an unpatched 68040 crashes here!
+        if (hw_info.fpu_type != FPU_68040 || hw_info.mmu_enabled)
+            bench_results.mflops = run_mflops_benchmark();
     }
 
     /* Run memory speed tests (CHIP, FAST, ROM) */
+    debug("  bench: run ram/rom speed...\n");
     run_memory_speed_tests();
 
+    debug("  bench: calc cpu frequency...\n");
     hw_info.cpu_mhz = get_mhz_cpu();
+    debug("  bench: calc fpu frequency...\n");
     hw_info.fpu_mhz = get_mhz_fpu();
 
     bench_results.benchmarks_valid = TRUE;

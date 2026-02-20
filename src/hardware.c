@@ -251,17 +251,25 @@ UWORD detect_cpu_rev(void)
 
 BOOL get_super_scalar_mode(void)
 {
-    ULONG cpuReg = GetCPUReg();
-    cpuReg &= 1L; //lowest bit is super scalar bit
-    return cpuReg > 0;
+    if (hw_info.cpu_type >= CPU_68060) {
+        ULONG cpuReg = GetCPUReg();
+        cpuReg &= 1L; //lowest bit is super scalar bit
+        return cpuReg > 0;
+    } else {
+        return FALSE;
+    }
 }
 
 BOOL set_super_scalar_mode(BOOL value)
 {
-    ULONG cpuReg = value ? 1L : 0L;
-    cpuReg = SetCPUReg(cpuReg);
-    cpuReg &= 1L; //lowest bit is super scalar bit
-    return cpuReg > 0;
+    if (hw_info.cpu_type >= CPU_68060) {
+        ULONG cpuReg = value ? 1L : 0L;
+        cpuReg = SetCPUReg(cpuReg);
+        cpuReg &= 1L; //lowest bit is super scalar bit
+        return cpuReg > 0;
+    } else {
+        return FALSE;
+    }
 }
 
 /*

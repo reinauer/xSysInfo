@@ -25,6 +25,14 @@
 #define ASM_CPU_EMU 14
 #define ASM_CPU_UNKNOWN  15
 
+#define ASM_FPU_NONE 0
+#define ASM_FPU_68881 1
+#define ASM_FPU_68882 2
+#define ASM_FPU_68040 3
+#define ASM_FPU_68060 4
+#define ASM_FPU_68080 5
+#define ASM_FPU_UNKNOWN 6
+
 ULONG GetCPUReg(void);
 ULONG SetCPUReg(ULONG value __asm("d0"));
 ULONG GetCPU060(void);
@@ -32,5 +40,6 @@ ULONG GetVBR(void);
 ULONG GetMMU( ULONG cpuType __asm("d0"));
 UBYTE GetRamseyRev(void);
 UBYTE GetRamseyCtrl(void);
+double DoFlops(ULONG loops __asm("d0"), ULONG fpuType __asm("d1"));
 
 #endif /* CPU_H */

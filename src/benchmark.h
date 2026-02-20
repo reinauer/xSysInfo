@@ -36,6 +36,8 @@ typedef struct {
 #define CPULOOPS 14680
 #define FPULOOPS 1200
 #define BASE_FACTOR 136000
+#define MFLOPS_BASE_LOOPS 50000
+#define MIN_FLOP_MEASURE 4000
 
 /* Benchmark results */
 typedef struct {

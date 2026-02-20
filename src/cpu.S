@@ -30,6 +30,13 @@ ASM_CPU_68LC060 EQU 12
 ASM_CPU_68080 EQU 13
 ASM_CPU_EMU EQU 14
 ASM_CPU_UNKNOWN  EQU 15
+ASM_FPU_NONE EQU 0
+ASM_FPU_68881 EQU 1
+ASM_FPU_68882 EQU 2
+ASM_FPU_68040 EQU 3
+ASM_FPU_68060 EQU 4
+ASM_FPU_68080 EQU 5
+ASM_FPU_UNKNOWN EQU 6
 ASM_MMU EQU 1
 RAMSEY_VER EQU $DE0043
 RAMSEY_CTRL EQU $DE0003
@@ -37,6 +44,7 @@ RAMSEY_CTRL EQU $DE0003
 
     SECTION Code,CODE
     MACHINE 68060
+	XDEF	_DoFlops
 	XDEF	_GetCPUReg
 	XDEF	_SetCPUReg
 	XDEF	_GetCPU060;
@@ -44,6 +52,58 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_GetMMU
 	XDEF	_GetRamseyRev
 	XDEF	_GetRamseyCtrl
+
+_DoFlops:
+	cmp.l	#ASM_FPU_68881,d1		;is it 68881-code?
+	beq		m68881_fpu
+	cmp.l	#ASM_FPU_68882,d1		;is it 68882-code? (same as 68881)
+	beq		m68881_fpu
+	cmp.l	#ASM_FPU_68040,d1		;is it 68040-code?
+	beq		m68040_fpu
+	cmp.l	#ASM_FPU_68060,d1		;is it 68060-code? (same as 68040)
+	beq		m68040_fpu
+	cmp.l	#ASM_FPU_68080,d1		;is it 68080-code? (same as 68881)
+	beq		m68881_fpu
+	;not supported fpu!
+	bra	end_fpu
+m68881_fpu:
+	MACHINE 68881
+	fmove.l  #2,fp0 ; fb = 2
+	fmove.l  #3,fp1 ; fc = 3
+	fmove.l  #4,fp2 ; fd = 4
+m68881_fpu_loop:
+	fadd.x   fp1,fp0 ; fa = fb + fc
+	fmul.x   fp2,fp0 ; fb = fa * fd
+	fsub.x   fp1,fp0 ; fc = fb - fa
+	fdiv.x   fp2,fp0 ; fd = fc / fb
+	fmul.x   fp1,fp0 ; fa = fb * fc
+	fadd.x   fp2,fp0 ; fb = fa + fd
+	fsub.x   fp1,fp0 ; fc = fb - fa
+	fmul.x   fp2,fp0 ; fd = fc * fa
+	subq.l #1,d0		;loop decrement
+	bne.s m68881_fpu_loop
+	fmove.l  fp0,d0	; fa -> d0
+	bra	end_fpu
+m68040_fpu:
+	MACHINE 68040
+	fmove.l  #2,fp0 ; fb = 2
+	fmove.l  #3,fp1 ; fc = 3
+	fmove.l  #4,fp2 ; fd = 4
+m68040_fpu_loop:
+	fadd.x   fp1,fp0 ; fa = fb + fc
+	fmul.x   fp2,fp0 ; fb = fa * fd
+	fsub.x   fp1,fp0 ; fc = fb - fa
+	fdiv.x   fp2,fp0 ; fd = fc / fb
+	fmul.x   fp1,fp0 ; fa = fb * fc
+	fadd.x   fp2,fp0 ; fb = fa + fd
+	fsub.x   fp1,fp0 ; fc = fb - fa
+	fmul.x   fp2,fp0 ; fd = fc * fa
+	subq.l #1,d0		;loop decrement
+	bne.s m68040_fpu_loop
+	fmove.l  fp0,d0	; fa -> d0
+end_fpu:
+	MACHINE 68060
+	rts
 
 _GetCPUReg:
 	movem.l	a5/a6,-(sp)
