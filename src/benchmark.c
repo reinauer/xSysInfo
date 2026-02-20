@@ -528,7 +528,7 @@ ULONG run_mflops_benchmark(void)
     ULONG E_Freq;
     ULONG elapsed = 0;
     ULONG iterations = 50000;
-    ULONG multiplier, i;
+    ULONG multiplier;
 
     /* Check if FPU is available */
     if (hw_info.fpu_type == FPU_NONE) {
