@@ -122,6 +122,7 @@ BOOL detect_emu68_systems(void)
 
         debug("  emu68: Scanning for EMU68-ConfigDev...\n");
         if ((cd = FindConfigDev(cd, 28019, 1)) != NULL) {
+            debug("  emu68: EMU-CPU found!...\n");
             snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "Emu68");
             hw_info.cpu_type = CPU_EMU;
             retVal = TRUE;
@@ -130,7 +131,7 @@ BOOL detect_emu68_systems(void)
         CloseLibrary(ExpansionBase);
     }
 
-     return retVal;
+    return retVal;
 }
 
 
@@ -140,7 +141,14 @@ BOOL detect_emu68_systems(void)
 void detect_cpu(void)
 {
     /*
-    first determine kickstart:
+    First check for emulated CPUs
+    */
+    if (hw_info.cpu_type == CPU_EMU) {
+        return;
+    }
+
+    /*
+    now determine kickstart:
     Kick <=1.3 does only know 68000-68020
     Kick <=3.1 does not know >=68060
     */
@@ -320,11 +328,11 @@ void detect_fpu(void)
     if ((attnFlags & (UWORD)AFF_FPU40) > 0) {
         if (hw_info.cpu_type == CPU_68040) {
             hw_info.fpu_type = FPU_68040;
-        snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68040");
+            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68040");
         }
         else if (hw_info.cpu_type == CPU_68060) {
             hw_info.fpu_type = FPU_68060;
-        snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060");
+            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060");
         }
     }
 
