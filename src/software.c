@@ -112,7 +112,11 @@ void enumerate_libraries(void)
         entry = &libraries_list.entries[libraries_list.count];
 
         if (lib->lib_Node.ln_Name) {
-            copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+            if (strstr(lib->lib_Node.ln_Name, ".library") != NULL) {
+                copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+            } else { //not a ".library"
+                strncpy(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+            }
             if (strcmp(lib->lib_Node.ln_Name,"mmu.library") == 0) {
                 mmuLoaded = TRUE;
             }
@@ -200,8 +204,12 @@ void enumerate_devices(void)
         SoftwareEntry *entry = &devices_list.entries[devices_list.count];
 
         if (dev->dd_Library.lib_Node.ln_Name) {
-            copy_base_name(entry->name, dev->dd_Library.lib_Node.ln_Name,
-                           sizeof(entry->name));
+            if (strstr(dev->dd_Library.lib_Node.ln_Name, ".device") != NULL) {
+                copy_base_name(entry->name, dev->dd_Library.lib_Node.ln_Name,
+                               sizeof(entry->name));
+            } else { //not a ".device"
+                strncpy(entry->name, dev->dd_Library.lib_Node.ln_Name, sizeof(entry->name));
+            }
         } else {
             strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
         }
@@ -239,7 +247,12 @@ void enumerate_resources(void)
         SoftwareEntry *entry = &resources_list.entries[resources_list.count];
 
         if (res->lib_Node.ln_Name) {
-            copy_base_name(entry->name, res->lib_Node.ln_Name, sizeof(entry->name));
+            if (strstr(res->lib_Node.ln_Name, ".resource") != NULL) {
+                copy_base_name(entry->name, res->lib_Node.ln_Name,
+                               sizeof(entry->name));
+            } else { //not a ".resource"
+                strncpy(entry->name, res->lib_Node.ln_Name, sizeof(entry->name));
+            }
         } else {
             strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
         }
