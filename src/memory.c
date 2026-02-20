@@ -230,7 +230,6 @@ ULONG measure_memory_speed(ULONG index)
     oldTailPred = (struct MemHeader *)SysBase->MemList.lh_TailPred;
     mh = region->memListNode;
     if (mh) {
-        debug("  mem: Speed: found entry x%08X at x%08X\n", (ULONG)(region->upper_bound), (ULONG)(mh->mh_Upper));
         oldSucc = (struct MemHeader *)mh->mh_Node.ln_Succ;
         oldPred = (struct MemHeader *)mh->mh_Node.ln_Pred;
         //now start modifying the lists!
