@@ -169,13 +169,14 @@ ULONG get_mhz_cpu()
 
     // correction factors for fast CPUs!
 
-    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier++)
+    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier *= 2)
     {
         loop = CPULOOPS * multiplier;
         count = measure_loop_overhead(loop); //this counts the speed of looping
     }
 
-    tmp = BASE_FACTOR * (multiplier-1);
+    multiplier = loop / CPULOOPS;
+    tmp = BASE_FACTOR * multiplier;
 
     if (count > 0)
     {
@@ -311,11 +312,11 @@ ULONG get_mhz_fpu()
         break;
     }
 
-    ULONG count, tmp, mhz = 0, loop, multiplier, overhead;
+    ULONG count = 0, tmp, mhz = 0, loop, multiplier, overhead;
     ULONG E_Freq;
     struct EClockVal start, end;
 
-    for (multiplier = 1; multiplier <= MAX_MULTIPLY; multiplier++)
+    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier *= 2)
     {
         loop = FPULOOPS * multiplier;
         Forbid();
@@ -335,22 +336,16 @@ ULONG get_mhz_fpu()
         count = EClock_Diff_in_ms(&start, &end, E_Freq);
 
         overhead = measure_loop_overhead(loop);
-        if (count > overhead)
+        if (count > overhead) {
             count -= overhead;
-
-        if (count >= MIN_MHZ_MEASURE)
-        {
-            break;
+        } else {
+            count = 0;
         }
     }
-    if (multiplier <= MAX_MULTIPLY)
-    {
-        tmp = BASE_FACTOR * multiplier;
-    }
-    else
-    { // correct increment for last loop
-        tmp = BASE_FACTOR * MAX_MULTIPLY;
-    }
+
+    multiplier /= 2;
+    tmp = BASE_FACTOR * multiplier;
+    debug("    fpu_mhz: results: %ld %ld %ld\n", count, tmp, overhead);
 
     if (count > 0)
     {
@@ -446,9 +441,9 @@ void wait_ticks(ULONG ticks)
  */
 ULONG run_dhrystone(void)
 {
-    const ULONG default_loops = 10000UL;
-    const ULONG min_runtime_us = 2000000UL; /* Aim for ~2 seconds to reduce timer noise */
-    const ULONG max_loops = 5000000UL;      /* Upper bound from the original sources */
+    const ULONG default_loops = 1000UL;
+    const uint64_t min_runtime_us = 2000000ULL; /* Aim for ~2 seconds to reduce timer noise */
+    const uint64_t max_loops = 5000000ULL;      /* Upper bound from the original sources */
     const int max_attempts = 3;
     ULONG loops = default_loops;
     ULONG E_Freq;
@@ -478,13 +473,10 @@ ULONG run_dhrystone(void)
                 loops = max_loops;
             }
         } else {
-            unsigned long long scaled_loops =
-                ((unsigned long long)loops * (unsigned long long)min_runtime_us) /
-                (unsigned long long)elapsed;
-            if (scaled_loops <= (unsigned long long)loops) {
-                scaled_loops = (unsigned long long)(2UL * loops); //double the loops
+            unsigned long long scaled_loops = (min_runtime_us * (uint64_t)loops / elapsed) + (uint64_t)loops;
+            if (scaled_loops <= (uint64_t)loops) {
+                scaled_loops = (2ULL) * (uint64_t)loops; //double the loops
             }
-
             if (scaled_loops > max_loops) {
                 scaled_loops = max_loops;
             }
@@ -492,14 +484,14 @@ ULONG run_dhrystone(void)
         }
     }
 
+    debug("  bench: finished Dhrystone with %ld attempts and %ld loops in %ld us\n", attempt, loops, (ULONG)elapsed);
     if (elapsed == 0) {
         return 0;
     }
 
     {
-        unsigned long long dhrystones_per_sec =
-            ((unsigned long long)loops * 1000000ULL) /
-            (unsigned long long)elapsed;
+        uint64_t dhrystones_per_sec =
+            ((uint64_t)loops * 1000000ULL) / elapsed;
 
         if (dhrystones_per_sec > ULONG_MAX) {
             return ULONG_MAX;
