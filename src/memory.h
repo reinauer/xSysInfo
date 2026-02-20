@@ -30,6 +30,7 @@ typedef struct {
     char type_string[64];   /* Human-readable type */
     ULONG speed_bytes_sec;  /* Read speed in bytes/second */
     BOOL speed_measured;    /* TRUE if speed test has been run */
+    struct MemHeader *memListNode;
 } MemoryRegion;
 
 /* Memory region list */

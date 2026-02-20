@@ -20,6 +20,7 @@
 #include "gui.h"
 #include "locale_str.h"
 #include "benchmark.h"
+#include "debug.h"
 
 /* Global memory region list */
 MemoryRegionList memory_regions;
@@ -125,6 +126,7 @@ void enumerate_memory_regions(void)
         region->upper_bound = mh->mh_Upper;
         region->first_free = mh->mh_First;
         region->amount_free = mh->mh_Free;
+        region->memListNode = mh; //to find me in the list
 
         analyze_memory_region(mh, &region->num_chunks, &region->largest_block);
 
@@ -183,7 +185,7 @@ ULONG measure_memory_speed(ULONG index)
 {
     MemoryRegion *region;
     ULONG buffer_size;
-    ULONG bytes_per_sec;
+    ULONG bytes_per_sec = 0;
 
     if (index >= memory_regions.count) return 0;
 
@@ -204,12 +206,61 @@ ULONG measure_memory_speed(ULONG index)
         return 0;
     }
 
-    /* Use shared benchmark function (16 iterations) */
-    bytes_per_sec = measure_mem_read_speed((volatile ULONG *)region->start_address, buffer_size, 16);
+    /*
+        Mega magic: I want to allocate a buffer in exactly this region (to avoid any mem corruption)
+        So what to do (according to Thomas Richter):
 
-    region->speed_bytes_sec = bytes_per_sec;
-    region->speed_measured = TRUE;
+        Forbid()
+        Fetch my entry in the System Memlist
+        Save old head and tail of memlist
+        Save prev/next-pointer of my entry
+        set head and tail to my entry
+        set prev/next-pointer of my entry to myself
+        alloc mem (there is only one entry left!)
+        restore all pointers
+        Permit()
+    */
 
+    struct MemHeader *oldHead, *oldTail, *mh, *oldSucc, *oldPred, *oldTailPred;
+    APTR buffer = NULL;
+
+    Forbid();
+    oldHead = (struct MemHeader *)SysBase->MemList.lh_Head;
+    oldTail = (struct MemHeader *)SysBase->MemList.lh_Tail;
+    oldTailPred = (struct MemHeader *)SysBase->MemList.lh_TailPred;
+    mh = region->memListNode;
+    if (mh) {
+        debug("  mem: Speed: found entry x%08X at x%08X\n", (ULONG)(region->upper_bound), (ULONG)(mh->mh_Upper));
+        oldSucc = (struct MemHeader *)mh->mh_Node.ln_Succ;
+        oldPred = (struct MemHeader *)mh->mh_Node.ln_Pred;
+        //now start modifying the lists!
+        SysBase->MemList.lh_Head = (struct Node *)mh;
+        SysBase->MemList.lh_Tail = (struct Node *)mh;
+        SysBase->MemList.lh_TailPred = NULL;
+        mh->mh_Node.ln_Succ = (struct Node *)mh;
+        mh->mh_Node.ln_Pred = (struct Node *)mh;
+        //AllocMem
+        buffer = AllocMem(buffer_size, region->mem_type | MEMF_CLEAR);
+        //restore the old pointers
+        SysBase->MemList.lh_Head = (struct Node *)oldHead;
+        SysBase->MemList.lh_Tail = (struct Node *)oldTail;
+        SysBase->MemList.lh_TailPred = (struct Node *)oldTailPred;
+        mh->mh_Node.ln_Succ = (struct Node *)oldSucc;
+        mh->mh_Node.ln_Pred = (struct Node *)oldPred;
+    }
+    Permit();
+
+    if (buffer) { // we found memory
+        /* Use shared benchmark function (16 iterations) */
+        bytes_per_sec = measure_mem_read_speed((volatile ULONG *)buffer, buffer_size, 16);
+        FreeMem(buffer, buffer_size);
+        region->speed_bytes_sec = bytes_per_sec;
+        region->speed_measured = TRUE;
+    } else {
+        region->speed_measured = TRUE; //got no membrain : nothing to try again!
+        region->speed_bytes_sec = 0;
+        bytes_per_sec = 0;
+    }
     return bytes_per_sec;
 }
 
