@@ -18,6 +18,7 @@
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/graphics.h>
+#include <proto/timer.h>
 
 #include "xsysinfo.h"
 #include "drives.h"
@@ -35,6 +36,7 @@ DriveList drive_list;
 extern AppContext *app;
 extern Button buttons[];
 extern int num_buttons;
+extern struct Device *ETimerBase;
 
 /* DOS type identifiers */
 /* ID_DOS_DISK and ID_FFS_DISK are defined in dos/dos.h */
@@ -514,7 +516,9 @@ ULONG measure_drive_speed(ULONG index)
     ULONG buffer_size = 0;
     ULONG block_size;
     ULONG total_read = 0;
-    uint64_t start_time, end_time, elapsed;
+    ULONG E_Freq;
+    struct EClockVal start, end;
+    uint64_t elapsed;
     ULONG bytes_per_sec = 0;
     ULONG num_reads;
     ULONG read_offset;
@@ -522,6 +526,8 @@ ULONG measure_drive_speed(ULONG index)
     ULONG i;
     BYTE error;
     BOOL is_floppy;
+
+    if (!ETimerBase) return 0;
 
     if (index >= (ULONG)drive_list.count) {
         debug("  drives: Invalid drive index %ld (count=%ld)\n",
@@ -633,7 +639,7 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Get start time */
-    start_time = get_timer_ticks();
+    E_Freq = ReadEClock(&start);
 
     /* Perform reads */
     for (i = 0; i < num_reads; i++) {
@@ -651,10 +657,11 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Get end time */
-    end_time = get_timer_ticks();
+    E_Freq = ReadEClock(&end);
 
     /* Calculate speed */
-    elapsed = end_time - start_time;
+    elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
+
     if (elapsed > 0 && total_read > 0) {
         /* Timer ticks are in microseconds */
         bytes_per_sec = (ULONG)(((uint64_t)total_read * 1000000ULL) / elapsed);

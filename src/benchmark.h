@@ -10,6 +10,8 @@
 
 #include "xsysinfo.h"
 #include "hardware.h"
+#include <devices/timer.h>
+#include <proto/timer.h>
 
 /* Reference system data */
 typedef struct {
@@ -86,5 +88,6 @@ void get_timer(struct timeval *tv);    /* Returns result in provided timeval-str
 void wait_ticks(ULONG ticks);
 ULONG measure_loop_overhead(ULONG count);
 void generate_comment(void);
+ULONG EClock_Diff_in_ms(struct EClockVal *start, struct EClockVal *end, ULONG EFreq);
 
 #endif /* BENCHMARK_H */

@@ -289,7 +289,7 @@ ULONG get_mhz_fpu()
         return 0;
     }
 
-    if (!TimerBase) return 0;
+    if (!ETimerBase) return 0;
 
     switch (hw_info.cpu_type)
     {
@@ -331,7 +331,8 @@ ULONG get_mhz_fpu()
 
         E_Freq =ReadEClock(&end);
         Permit();
-        count = ((end.ev_lo-start.ev_lo) * 1000000UL) / E_Freq;
+
+        count = EClock_Diff_in_ms(&start, &end, E_Freq);
 
         overhead = measure_loop_overhead(loop);
         if (count > overhead)
@@ -450,22 +451,22 @@ ULONG run_dhrystone(void)
     const ULONG max_loops = 5000000UL;      /* Upper bound from the original sources */
     const int max_attempts = 3;
     ULONG loops = default_loops;
-    struct timeval start,end;
-    ULONG elapsed = 0;
+    ULONG E_Freq;
+    struct EClockVal start, end;
+    uint64_t elapsed = 0;
     int attempt;
 
-    if (!TimerBase) return 0;
+    if (!ETimerBase) return 0;
 
     for (attempt = 0; attempt < max_attempts; attempt++) {
         if (!Dhry_Initialize()) {
             return 0;
         }
 
-        get_timer(&start);
+        E_Freq = ReadEClock(&start);
         Dhry_Run(loops);
-        get_timer(&end);
-        SubTime(&end, &start);
-        elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
+        E_Freq = ReadEClock(&end);
+        elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
 
         if (elapsed >= min_runtime_us || loops >= max_loops) {
             break;
@@ -526,7 +527,7 @@ ULONG run_mflops_benchmark(void)
 {
     struct EClockVal start, end;
     ULONG E_Freq;
-    ULONG elapsed = 0;
+    uint64_t elapsed = 0;
     ULONG iterations = 50000;
     ULONG multiplier;
 
@@ -561,7 +562,7 @@ ULONG run_mflops_benchmark(void)
             : "d0", "fp0", "fp1", "fp2", "cc", "memory");
 
         E_Freq = ReadEClock(&end);
-        elapsed = ((end.ev_lo - start.ev_lo) * 1000000UL) / E_Freq;
+        elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
         iterations = FLOPS_BASE_LOOPS * multiplier;
     }
     debug("  bench: elapsed: %ld, loops %ld tries: %ld\n", elapsed, iterations, multiplier);
@@ -572,7 +573,7 @@ ULONG run_mflops_benchmark(void)
         unsigned long long scaled =
             (unsigned long long)total_ops * 1000ULL;
         scaled /= 58; //correction factor to match old Sysinfo MFlops
-        scaled /= (unsigned long long)elapsed; /* ops per microsecond = MFLOPS */
+        scaled /= elapsed; /* ops per microsecond = MFLOPS */
         if (scaled > ULONG_MAX) {
             return ULONG_MAX;
         }
@@ -596,6 +597,7 @@ ULONG measure_loop_overhead(ULONG count)
         return 0;
     ULONG E_Freq;
     struct EClockVal start, end;
+    uint64_t elapsed;
 
     Forbid();
     E_Freq = ReadEClock(&start);
@@ -608,8 +610,8 @@ ULONG measure_loop_overhead(ULONG count)
 
     E_Freq = ReadEClock(&end);
     Permit();
-
-    return ((end.ev_lo - start.ev_lo) * 1000000UL) / E_Freq;
+    elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
+    return (ULONG)elapsed;
 }
 
 /*
@@ -618,9 +620,10 @@ ULONG measure_loop_overhead(ULONG count)
  */
 ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG iterations)
 {
-    struct timeval start,end;
-
-    ULONG elapsed, overhead;
+    ULONG E_Freq;
+    struct EClockVal start, end;
+    uint64_t elapsed;
+    ULONG overhead;
     ULONG total_read = 0;
     ULONG longs_per_read;
     ULONG loop_count;
@@ -628,7 +631,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
     volatile ULONG *aligned_src;
 
     /* Ensure buffer is large enough for our unrolled loop */
-    if (!TimerBase) return 0;
+    if (!ETimerBase) return 0;
 
     /* Align source pointer to 16 bytes for optimal burst mode */
     aligned_src = (volatile ULONG *)(((ULONG)src + 15) & ~15);
@@ -646,7 +649,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
     if (loop_count == 0) return 0;
 
 
-    get_timer(&start);
+    E_Freq = ReadEClock(&start);
 
     for (i = 0; i < iterations; i++) {
         volatile ULONG *p = aligned_src;
@@ -670,9 +673,8 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
         total_read += buffer_size;
     }
 
-    get_timer(&end);
-    SubTime(&end, &start);
-    elapsed = (end.tv_secs * 1000000UL) + end.tv_micro;
+    E_Freq = ReadEClock(&end);
+    elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
 
     /* Compensate for loop overhead */
     /* Total loops executed = iterations * loop_count */
@@ -830,4 +832,12 @@ void generate_comment(void)
     }
 
     strncpy(hw_info.comment, comment, sizeof(hw_info.comment) - 1);
+}
+
+ULONG EClock_Diff_in_ms(struct EClockVal *start, struct EClockVal *end, ULONG EFreq)
+{
+    uint64_t elapsed;
+    elapsed = (((((uint64_t)end->ev_hi << 32) + (uint64_t)end->ev_lo) - (((uint64_t)start->ev_hi << 32) + (uint64_t)start->ev_lo))) * (uint64_t)1000000;
+    elapsed /= EFreq; //this should put the value in range of ULONG again
+    return (ULONG)elapsed;
 }
