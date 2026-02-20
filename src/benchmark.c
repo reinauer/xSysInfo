@@ -227,7 +227,11 @@ ULONG get_mhz_cpu()
         case CPU_68LC060:
         case CPU_68080:
             tmp *= 1085;
-            count *=100;
+            if (hw_info.mmu_enabled || hw_info.cpu_type == CPU_68080) {
+                count *=100;
+            } else {
+                count *=25; //without mmu the 68060 seems 4 times slower!
+            }
             break;
         default:
             tmp *= 100;
