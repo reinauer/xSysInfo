@@ -37,12 +37,12 @@ const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
     {"B2000", "68000",   7,   1408,   81,    0},
     /* A1200: 68EC020 @ 14 MHz, no FPU */
     {"A1200", "EC020",  14,   2550,  145,    0},
-    /* A2500: 68020 @ 14 MHz */
-    {"A2500", "68020",  14,   2100,  120,    0},
     /* A3000: 68030 / 68882 @ 25 MHz */
     {"A3000", "68030",  25,   8300,  475,  285},
     /* A4000: 68040 @ 25 MHz, internal FPU */
     {"A4000", "68040",  25,  32809, 1867,  504},
+    /* A4000: 68060 @ 50 MHz, internal FPU */
+    {"A4000", "68060",  50,  91000, 5200,  685},
 };
 
 void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSystem *ref)
@@ -447,7 +447,7 @@ void wait_ticks(ULONG ticks)
 ULONG run_dhrystone(void)
 {
     const ULONG default_loops = 10000UL;
-    const ULONG min_runtime_us = 4000000UL; /* Aim for ~4 seconds to reduce timer noise */
+    const ULONG min_runtime_us = 2000000UL; /* Aim for ~2 seconds to reduce timer noise */
     const ULONG max_loops = 5000000UL;      /* Upper bound from the original sources */
     const int max_attempts = 3;
     ULONG loops = default_loops;
@@ -472,17 +472,19 @@ ULONG run_dhrystone(void)
             break;
         }
 
-        if (elapsed == 0) {
+        if (elapsed < 100) { // super fast system
             loops *= 10;
+            if (loops > max_loops) {
+                loops = max_loops;
+            }
         } else {
             unsigned long long scaled_loops =
                 ((unsigned long long)loops * (unsigned long long)min_runtime_us) /
                 (unsigned long long)elapsed;
-            if (scaled_loops < (unsigned long long)loops) {
-                scaled_loops = loops + 1;
-            } else {
-                scaled_loops += 1ULL;
+            if (scaled_loops <= (unsigned long long)loops) {
+                scaled_loops = (unsigned long long)(2UL * loops); //double the loops
             }
+
             if (scaled_loops > max_loops) {
                 scaled_loops = max_loops;
             }
@@ -809,22 +811,22 @@ void generate_comment(void)
         if (bench_results.dhrystones > 1300) {
             comment = get_string(MSG_COMMENT_GOOD);
         }
-        if (bench_results.dhrystones > 2000) {
+        if (bench_results.dhrystones > 2000) { //68020@14 MHz should be here
             comment = get_string(MSG_COMMENT_FAST);
         }
-        if (bench_results.dhrystones > 7000) {
+        if (bench_results.dhrystones > 7000) { //68030@25 MHz should be here
             comment = get_string(MSG_COMMENT_VERY_FAST);
         }
-        if (bench_results.dhrystones > 30000) {
+        if (bench_results.dhrystones > 30000) { //68040@25 MHz should be here
             comment = get_string(MSG_COMMENT_BLAZING);
         }
-        if (bench_results.dhrystones > 80000) {
+        if (bench_results.dhrystones > 80000) { //68060@ 50 MHz should be here
             comment = get_string(MSG_COMMENT_RIDICULUS);
         }
-        if (bench_results.dhrystones > 130000) {
+        if (bench_results.dhrystones > 130000) { //68060>75Mhz should be here
             comment = get_string(MSG_COMMENT_LUDICROUS);
         }
-        if (bench_results.dhrystones > 170000) {
+        if (bench_results.dhrystones > 200000) { //this is more than a 68060@100MHz -> "new CPU"
             comment = get_string(MSG_COMMENT_WARP11);
         }
     } else {
