@@ -228,9 +228,13 @@ ULONG get_mhz_cpu()
         case CPU_68080:
             tmp *= 1085;
             if (hw_info.mmu_enabled || hw_info.cpu_type == CPU_68080) {
-                count *=100;
+                if (hw_info.super_scalar_enabled) {
+                    count *=100;
+                } else {
+                    count *=50; //without super scalar the cpu seems 2 times slower!
+                }
             } else {
-                count *=25; //without mmu the 68060 seems 4 times slower!
+                count *=20; //without mmu the 68060 seems 5 times slower!
             }
             break;
         default:
