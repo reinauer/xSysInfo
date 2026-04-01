@@ -1,9 +1,9 @@
 ; SPDX-License-Identifier: BSD-2-Clause
 ; SPDX-FileCopyrightText: 2025 Stefan Reinauer
-
+;
 ; TinySetPatch.S
 ; Tiny SetPatch replacement
-; Implements: 680x0 Support, AGA Graphics, Data Cache
+; Implements: 680x0 Support, AGA Graphics, CPU Caches
 ;
 ; Usage: TinySetPatch [QUIET]
 ;   QUIET - Suppress all output (for startup-sequence use)
@@ -26,10 +26,12 @@
 ;     - Detects AGA via LISAID register ($DFF07C)
 ;     - Enables 64-bit fetch mode via FMODE ($DFF1FC)
 ;   3. Patch_DataCache (Patch 2):
-;     - CPU-specific cache enabling:
-;         - 68020/030: I-cache and D-cache bits
-;       - 68040: $80008000 pattern
-;       - 68060: Full cache/branch/store buffer
+;     - Uses exec CacheControl() for CPU-aware cache management (V36+)
+;     - Enables I-cache, I-burst, D-cache, D-burst, copyback
+;     - Direct CACR fallback for pre-V36 (Kickstart 1.3):
+;       - 68020/030: I-cache, I-burst, D-cache, D-burst
+;       - 68040: $80008000 (IE + DE)
+;       - 68060: $A0C08000 (full cache/branch/store buffer)
 ;
 ;   Exception Handlers:
 ;   - FLineHandler (Vector 11) - chains to old handler or skips F-line instructions
@@ -58,7 +60,7 @@ EB_AttnFlags    EQU 296
 PATCH_ID_BASE   EQU $0BAD0000
 PATCH_680X0     EQU 0           ; Generic 680x0 Support Code Loaded
 PATCH_AGA       EQU 1           ; Enabled Advanced Graphics Modes
-PATCH_DCACHE    EQU 2           ; Enabled data cache
+PATCH_DCACHE    EQU 2           ; Enabled CPU caches
 
 ; Vector offsets
 VEC_FLINE       EQU $2C         ; Vector 11 - F-Line Emulator
@@ -517,7 +519,7 @@ Patch_AGAGraphics:
     rts
 
 ; =============================================================
-; PATCH 2: Enable Data Cache
+; PATCH 2: Enable CPU Caches
 ; =============================================================
 Patch_DataCache:
     movem.l d1-d7/a0-a6,-(sp)
@@ -530,20 +532,38 @@ Patch_DataCache:
     bsr     PrintString
 
     move.l  AbsExecBase.w,a6
+
+    ; Use exec CacheControl() when available (V36+/Kickstart 2.0+).
+    ; This updates exec's internal cache state so diagnostic tools
+    ; report correctly, and the 68060.library-patched version handles
+    ; 060-specific CACR bits, DTT registers, and store/branch caches.
+    ; On 040/060, direct CACR writes alone are insufficient because
+    ; without DTT/MMU setup all memory defaults to noncacheable.
+    cmpi.w  #36,LIB_VERSION(a6)
+    blt.s   .DirectCACR
+
+    ; V36+: CacheControl(bits, mask)
+    ; CACRF_EnableI|CACRF_IBE|CACRF_EnableD|CACRF_DBE|CACRF_CopyBack
+    move.l  #$80001111,d0       ; bits to set
+    move.l  d0,d1               ; mask (modify all these bits)
+    jsr     _LVOCacheControl(a6)
+    bra.s   .CacheDone
+
+.DirectCACR:
+    ; Pre-V36 fallback: direct CACR write for Kickstart 1.3
     jsr     _LVOSuperState(a6)
     move.l  d0,-(sp)
 
     ; Read current CACR
     dc.w    $4E7A,$0002         ; MOVEC CACR,D0
 
-    ; Enable data cache (and instruction cache)
-    ; 68020/030: bit 0 = I-cache enable, bit 8 = D-cache enable
-    ; 68040/060: different bit layout, but setting these is safe
     cmpi.l  #4,d7
     bge.s   .Cache040Plus
 
     ; 68020/030 cache enable
-    or.l    #$0101,d0           ; Enable I-cache and D-cache
+    ; 68020: I-cache only (bit 0), other bits harmlessly ignored
+    ; 68030: I-cache (0), I-burst (4), D-cache (8), D-burst (12)
+    or.l    #$1111,d0           ; Enable I-cache, I-burst, D-cache, D-burst
     bra.s   .SetCache
 
 .Cache040Plus:
@@ -567,6 +587,7 @@ Patch_DataCache:
     move.l  (sp)+,d0
     jsr     _LVOUserState(a6)
 
+.CacheDone:
     movem.l (sp)+,d1-d7/a0-a6
     moveq   #1,d0
     rts
@@ -1171,7 +1192,7 @@ MsgPatchCount:  dc.b    "Patches applied: ",0
 Msg680x0:       dc.b    "  680x0 Support: ",0
 MsgInstallVec:  dc.b    "Installing exception vectors...",10,0
 MsgAGA:         dc.b    "  AGA Graphics: Enabling 64-bit fetch",10,0
-MsgCache:       dc.b    "  Data Cache: Enabling",10,0
+MsgCache:       dc.b    "  CPU Caches: Enabling",10,0
 MsgLoading:     dc.b    "Loading ",0
 MsgEllipsis:    dc.b    "... ",0
 MsgOK:          dc.b    "OK.",10,0
