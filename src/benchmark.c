@@ -14,6 +14,7 @@
 
 #include <proto/exec.h>
 #include <proto/timer.h>
+#include <clib/alib_protos.h>
 
 #include "xsysinfo.h"
 #include "benchmark.h"
@@ -41,7 +42,7 @@ const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
     {"A3000", "68030",  25,   8300,  475,  285},
     /* A4000: 68040 @ 25 MHz, internal FPU */
     {"A4000", "68040",  25,  32809, 1867,  504},
-    /* A4000: 68060 @ 50 MHz, internal FPU */
+    /* A4000: 68040 @ 25 MHz, internal FPU */
     {"A4000", "68060",  50,  91000, 5200,  685},
 };
 
@@ -55,6 +56,7 @@ void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSys
 
 /* Timer resources */
 static struct MsgPort *timer_port = NULL;
+static struct MsgPort *etimer_port = NULL;
 static struct timerequest *timer_req = NULL;
 struct Device *TimerBase = NULL;
 static BOOL timer_open = FALSE;
@@ -75,28 +77,40 @@ void Dhry_Run(unsigned long Number_Of_Runs);
  */
 BOOL init_timer(void)
 {
-    timer_port = CreateMsgPort();
+    timer_port = CreatePort(NULL, 0);
     if (!timer_port) return FALSE;
 
+    etimer_port = CreatePort(NULL, 0);
+    if (!etimer_port) {
+        DeletePort(timer_port);
+        return FALSE;
+    }
+
     timer_req = (struct timerequest *)
-        CreateIORequest(timer_port, sizeof(struct timerequest));
+        CreateExtIO(timer_port, sizeof(struct timerequest));
     if (!timer_req) {
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no timer_req\n");
+        DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_port = NULL;
         return FALSE;
     }
     etimer_req = (struct timerequest *)
-        CreateIORequest(timer_port, sizeof(struct timerequest));
+        CreateExtIO(timer_port, sizeof(struct timerequest));
     if (!etimer_req) {
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no etimer_req\n");
+        DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_port = NULL;
         return FALSE;
     }
 
     if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_MICROHZ,
                    (struct IORequest *)timer_req, 0) != 0) {
-        DeleteIORequest((struct IORequest *)timer_req);
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no OpenDevice timer_req\n");
+        DeleteExtIO((struct IORequest *)timer_req);
+        DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_req = NULL;
         timer_port = NULL;
         return FALSE;
@@ -104,9 +118,11 @@ BOOL init_timer(void)
 
     if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_ECLOCK,
                    (struct IORequest *)etimer_req, 0) != 0) {
-        DeleteIORequest((struct IORequest *)timer_req);
-        DeleteIORequest((struct IORequest *)etimer_req);
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no OpenDevice etimer_req\n");
+        DeleteExtIO((struct IORequest *)timer_req);
+        DeleteExtIO((struct IORequest *)etimer_req);
+        DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_req = NULL;
         etimer_req = NULL;
         timer_port = NULL;
@@ -128,34 +144,39 @@ BOOL init_timer(void)
  */
 void cleanup_timer(void)
 {
-    if (etimer_open) {
-        CloseDevice((struct IORequest *)etimer_req);
-        etimer_open = FALSE;
-    }
-
-    if (etimer_req) {
-        DeleteIORequest((struct IORequest *)etimer_req);
-        etimer_req = NULL;
-    }
-
-    ETimerBase = NULL;
-
     if (timer_open) {
         CloseDevice((struct IORequest *)timer_req);
         timer_open = FALSE;
     }
 
     if (timer_req) {
-        DeleteIORequest((struct IORequest *)timer_req);
+        DeleteExtIO((struct IORequest *)timer_req);
         timer_req = NULL;
     }
 
+    if (etimer_open) {
+        CloseDevice((struct IORequest *)etimer_req);
+        etimer_open = FALSE;
+    }
+
+    if (etimer_req) {
+        DeleteExtIO((struct IORequest *)etimer_req);
+        etimer_req = NULL;
+    }
+
     if (timer_port) {
-        DeleteMsgPort(timer_port);
+        DeletePort(timer_port);
         timer_port = NULL;
     }
 
+    if (etimer_port) {
+        DeletePort(etimer_port);
+        etimer_port = NULL;
+    }
+
+
     TimerBase = NULL;
+    ETimerBase = NULL;
 }
 
 /*
@@ -164,19 +185,40 @@ void cleanup_timer(void)
 ULONG get_mhz_cpu()
 {
 
-    ULONG count = 0, tmp, mhz = 0, multiplier, loop;
+    ULONG multiplier, loop, maxMultiplier, startMultiplier;
+    uint64_t count = 0, tmp, mhz = 0;
     APTR test; //for testing the memtype we are running in
 
     // correction factors for fast CPUs!
+    switch (hw_info.cpu_type)
+        {
+        case CPU_68040:
+        case CPU_68EC040:
+        case CPU_68LC040:
+        case CPU_68060:
+        case CPU_68EC060:
+        case CPU_68LC060:
+        case CPU_68080:
+            maxMultiplier = MAX_MULTIPLY*16;
+            startMultiplier = MAX_MULTIPLY/16;
+            break;
+        default:
+            maxMultiplier = MAX_MULTIPLY;
+            startMultiplier = 1;
+            break;
+        }
 
-    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier *= 2)
+
+    for (multiplier = startMultiplier; multiplier <= maxMultiplier && count < MIN_MHZ_MEASURE; multiplier *= 2)
     {
         loop = CPULOOPS * multiplier;
-        count = measure_loop_overhead(loop); //this counts the speed of looping
+        count = (uint64_t) measure_loop_overhead(loop); //this counts the speed of looping
+        if (multiplier >= maxMultiplier || count >= MIN_MHZ_MEASURE) {
+            break;
+        }
     }
 
-    multiplier = loop / CPULOOPS;
-    tmp = BASE_FACTOR * multiplier;
+    tmp = BASE_FACTOR * (uint64_t)multiplier;
 
     if (count > 0)
     {
@@ -190,7 +232,7 @@ ULONG get_mhz_cpu()
             //see if we run in fastram or chipram (huge difference in speed calc!)
             test = __builtin_return_address(0); // this gets the return address, which tells me if we are running in fast ram
             // see if it is fast mem!
-            if ((ULONG)test >= 0x200000 && (ULONG)test < 0xC00000)
+            if ((long unsigned int)test >= 0x200000 && (long unsigned int)test < 0xC00000)
             {
                 // real fastmem!
                 tmp *= 204;
@@ -220,10 +262,12 @@ ULONG get_mhz_cpu()
             if (hw_info.mmu_enabled || hw_info.cpu_type == CPU_68080) {
                 if (hw_info.super_scalar_enabled) {
                     count *=100;
-                } else {
+                }
+                else {
                     count *=50; //without super scalar the cpu seems 2 times slower!
                 }
-            } else {
+            }
+            else {
                 count *=20; //without mmu the 68060 seems 5 times slower!
             }
             break;
@@ -231,8 +275,8 @@ ULONG get_mhz_cpu()
             tmp *= 100;
             break;
         }
-        debug("    cpu_mhz: results: %ld %ld %ld\n", count, tmp, tmp / count);
         mhz = tmp / count;
+        debug("    cpu_mhz: results: %lu %lu %lu %lu\n", (ULONG)count, (ULONG)tmp, (ULONG)mhz, multiplier);
     }
     else
     {
@@ -266,10 +310,11 @@ ULONG get_mhz_cpu()
             break;
         default:
             mhz = 709;
+            break;
         }
     }
 
-    return mhz;
+    return (ULONG) mhz;
 }
 
 /*
@@ -312,10 +357,10 @@ ULONG get_mhz_fpu()
         break;
     }
 
-    ULONG count = 0, tmp, mhz = 0, loop, multiplier, overhead;
+    ULONG loop, multiplier, overhead;
     ULONG E_Freq;
     struct EClockVal start, end;
-
+    uint64_t count = 0, tmp, mhz = 0;
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier *= 2)
     {
         loop = FPULOOPS * multiplier;
@@ -323,29 +368,30 @@ ULONG get_mhz_fpu()
         E_Freq =ReadEClock(&start);
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
-            "1:        fdiv.x fp1,fp1\n\t"
-            "subq.l    #1,%0\n\t"
-            "bne.s    1b\n\t"
+            "1:\t\tfdiv.x fp1,fp1\n\t"
+            "subq.l\t#1,%0\n\t"
+            "bne.s\t1b\n\t"
             : "+d"(loop)
             :
             : "cc", "fp1");
 
         E_Freq =ReadEClock(&end);
         Permit();
+        loop = FPULOOPS * multiplier; //the above inlineassembly modifies loop
 
-        count = EClock_Diff_in_ms(&start, &end, E_Freq);
+        count = (uint64_t) EClock_Diff_in_ms(&start, &end, E_Freq);
 
         overhead = measure_loop_overhead(loop);
         if (count > overhead) {
-            count -= overhead;
-        } else {
-            count = 0;
+            count -= (uint64_t) overhead;
+        }
+        if (multiplier >= MAX_MULTIPLY || count >= MIN_MHZ_MEASURE) {
+            break;
         }
     }
 
-    multiplier /= 2;
-    tmp = BASE_FACTOR * multiplier;
-    debug("    fpu_mhz: results: %ld %ld %ld\n", count, tmp, overhead);
+    tmp = BASE_FACTOR * (uint64_t) multiplier;
+    debug("    fpu_mhz: results: %llu %llu %lu\n", count, tmp, overhead);
 
     if (count > 0)
     {
@@ -355,10 +401,10 @@ ULONG get_mhz_fpu()
         switch (hw_info.fpu_type)
         {
         case FPU_68881:
-            tmp *= 88;
+            tmp *= 79;
             break;
         case FPU_68882:
-            tmp *= 88;
+            tmp *= 79;
             break;
         default:
             break;
@@ -386,13 +432,17 @@ ULONG get_mhz_fpu()
         case FPU_68060:
             mhz = 5000;
             break;
+        case FPU_68080:
+            mhz = 8000;
+            break;
         case FPU_UNKNOWN:
         default:
             mhz = 0;
+            break;
         }
     }
 
-    return mhz;
+    return (ULONG)mhz;
 }
 /*
  * Get current timer ticks (microseconds)
@@ -414,13 +464,10 @@ uint64_t get_timer_ticks(void)
  */
 void get_timer(struct timeval *tv)
 {
-
     if (!TimerBase) return;
 
     GetSysTime(tv);
-
 }
-
 
 /*
  * Wait for specified number of microseconds
@@ -457,10 +504,11 @@ ULONG run_dhrystone(void)
         if (!Dhry_Initialize()) {
             return 0;
         }
-
+        Forbid();
         E_Freq = ReadEClock(&start);
         Dhry_Run(loops);
         E_Freq = ReadEClock(&end);
+        Permit();
         elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
 
         if (elapsed >= min_runtime_us || loops >= max_loops) {
@@ -468,7 +516,7 @@ ULONG run_dhrystone(void)
         }
 
         if (elapsed < 100) { // super fast system
-            loops *= 10;
+            loops *= 16;
             if (loops > max_loops) {
                 loops = max_loops;
             }
@@ -484,7 +532,7 @@ ULONG run_dhrystone(void)
         }
     }
 
-    debug("  bench: finished Dhrystone with %ld attempts and %ld loops in %ld us\n", attempt, loops, (ULONG)elapsed);
+    debug("  bench: finished Dhrystone with %lu attempts and %lu loops in %lu us\n", attempt, loops, (ULONG)elapsed);
     if (elapsed == 0) {
         return 0;
     }
@@ -524,49 +572,61 @@ ULONG run_mflops_benchmark(void)
     uint64_t elapsed = 0;
     ULONG iterations = 50000;
     ULONG multiplier;
+    ULONG fpu;
 
     /* Check if FPU is available */
     if (hw_info.fpu_type == FPU_NONE) {
+        debug("  bench: no fpu!\n");
         return 0;
     }
 
-    if (!ETimerBase) return 0;
+    switch (hw_info.fpu_type)
+        {
+        case FPU_NONE:
+            return 0;
+        case FPU_68881:
+            fpu = ASM_FPU_68881;
+            break;
+        case FPU_68882:
+            fpu = ASM_FPU_68882;
+            break;
+        case FPU_68040:
+            fpu = ASM_FPU_68040;
+            break;
+        case FPU_68060:
+            fpu = ASM_FPU_68060;
+            break;
+        case FPU_68080:
+            fpu = ASM_FPU_68080;
+            break;
+        case FPU_UNKNOWN:
+        default:
+            debug("  bench: unknown fpu!\n");
+            return 0;
+        }
+
+    if (!ETimerBase) {
+        debug("  bench: no timer!\n");
+        return 0;
+    }
 
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
     {
         iterations = FLOPS_BASE_LOOPS * multiplier;
+        Forbid();
         E_Freq = ReadEClock(&start);
-
-        /* Inline 68881+/040/060 FPU sequence; no C-side FP state needed */
-        __asm__ volatile(
-            "fmove.l  #2,fp0\n\t"     /* fb = 2 */
-            "fmove.l  #3,fp1\n\t"     /* fc = 3 */
-            "fmove.l  #4,fp2\n\t"     /* fd = 4 */
-            "1: fadd.x   fp1,fp0\n\t" /* fa = fb + fc */
-            "fmul.x   fp2,fp0\n\t"    /* fb = fa * fd */
-            "fsub.x   fp1,fp0\n\t"    /* fc = fb - fa */
-            "fdiv.x   fp2,fp0\n\t"    /* fd = fc / fb */
-            "fmul.x   fp1,fp0\n\t"    /* fa = fb * fc */
-            "fadd.x   fp2,fp0\n\t"    /* fb = fa + fd */
-            "fsub.x   fp1,fp0\n\t"    /* fc = fb - fa */
-            "fmul.x   fp2,fp0\n\t"    /* fd = fc * fa */
-            "fdbeq    %0,1b\n\t"      /* floating point decrease branch*/
-            : "+d"(iterations)
-            :
-            : "d0", "fp0", "fp1", "fp2", "cc", "memory");
-
+        DoFlops(iterations, fpu);
         E_Freq = ReadEClock(&end);
+        Permit();
         elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
-        iterations = FLOPS_BASE_LOOPS * multiplier;
     }
-    debug("  bench: elapsed: %ld, loops %ld tries: %ld\n", elapsed, iterations, multiplier);
+    debug("  bench: flops elapsed: %lu, loops %lu\n", (ULONG)elapsed, iterations);
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
         ULONG total_ops = (iterations * FLOP_LOOP_INSTRUCTIONS) + FLOP_INIT_INSTRUCTIONS;
         unsigned long long scaled =
-            (unsigned long long)total_ops * 1000ULL;
-        scaled /= 58; //correction factor to match old Sysinfo MFlops
+            (unsigned long long)total_ops * 100ULL;
         scaled /= elapsed; /* ops per microsecond = MFLOPS */
         if (scaled > ULONG_MAX) {
             return ULONG_MAX;
@@ -589,9 +649,8 @@ ULONG measure_loop_overhead(ULONG count)
 
     if (!ETimerBase || count == 0)
         return 0;
-    ULONG E_Freq;
+    ULONG E_Freq, oldCount;
     struct EClockVal start, end;
-    uint64_t elapsed;
 
     Forbid();
     E_Freq = ReadEClock(&start);
@@ -604,8 +663,8 @@ ULONG measure_loop_overhead(ULONG count)
 
     E_Freq = ReadEClock(&end);
     Permit();
-    elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
-    return (ULONG)elapsed;
+    count = oldCount;
+    return EClock_Diff_in_ms(&start, &end, E_Freq);
 }
 
 /*
@@ -618,14 +677,14 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
     struct EClockVal start, end;
     uint64_t elapsed;
     ULONG overhead;
-    ULONG total_read = 0;
+    ULONG total_read = 0, total_loops = 0;
     ULONG longs_per_read;
     ULONG loop_count;
     ULONG i;
     volatile ULONG *aligned_src;
 
     /* Ensure buffer is large enough for our unrolled loop */
-    if (!ETimerBase) return 0;
+    if (!TimerBase) return 0;
 
     /* Align source pointer to 16 bytes for optimal burst mode */
     aligned_src = (volatile ULONG *)(((ULONG)src + 15) & ~15);
@@ -642,7 +701,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
 
     if (loop_count == 0) return 0;
 
-
+    Forbid();
     E_Freq = ReadEClock(&start);
 
     for (i = 0; i < iterations; i++) {
@@ -665,14 +724,15 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
             : "d1", "d2", "d3", "d4", "a1", "a2", "a3", "a4", "cc", "memory"
         );
         total_read += buffer_size;
+        total_loops += loop_count;
     }
-
     E_Freq = ReadEClock(&end);
+    Permit();
     elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
 
+
     /* Compensate for loop overhead */
-    /* Total loops executed = iterations * loop_count */
-    overhead = measure_loop_overhead(iterations * loop_count);
+    overhead = measure_loop_overhead(total_loops);
     if (elapsed > overhead) {
         elapsed -= overhead;
     } else {
@@ -744,8 +804,12 @@ void run_benchmarks(void)
     if (hw_info.fpu_type != FPU_NONE) {
         debug("  bench: run mflops...\n");
         //attention! an unpatched 68040 crashes here!
-        if (hw_info.fpu_type != FPU_68040 || hw_info.mmu_enabled)
+        if (hw_info.fpu_enabled) {
             bench_results.mflops = run_mflops_benchmark();
+        }
+        else {
+            debug("  bench: 68040/060: missing 68040/060.library. Cannot compute flops!\n");
+        }
     }
 
     /* Run memory speed tests (CHIP, FAST, ROM) */
