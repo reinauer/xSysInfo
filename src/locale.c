@@ -11,6 +11,9 @@
 
 #include "xsysinfo.h"
 #include "locale_str.h"
+#ifdef __KICK13__
+#include "tagitem.h"
+#endif
 
 /* Locale library and catalog handles */
 struct LocaleBase *LocaleBase = NULL;
@@ -64,7 +67,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_IBURST */            "IBurst",
     /* MSG_DBURST */            "DBurst",
     /* MSG_CBACK */             "CBack",
-    /* MSG_SUPER_SCALAR */      "SuperS",
+    /* MSG_SUPER_SCALAR */      "SuperS/BranchC/StoreB",
 
     /* Speed comparison labels */
     /* MSG_DHRYSTONES */        "Dhrystones",
@@ -172,7 +175,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_ROM */               "ROM",
     /* MSG_24BIT_RAM */         "24BIT RAM",
     /* MSG_32BIT_RAM */         "32BIT RAM",
-    /* MSG_MEM_SPEED_HEADER */  "CHIP  FAST  ROM ",
+    /* MSG_MEM_SPEED_HEADER */  "CHIP  FAST  ROM",
 
     /* SCSI Types */
     /* MSG_SCSI_TYPE_DISK */    "DISK",
@@ -292,8 +295,8 @@ static const char *default_strings[MSG_COUNT] = {
     /*MSG_AGNUS_UNKNOWN*/    "Unknown Agnus",
     /*MSG_UNCERTAIN*/   "uncertain",
     /*MSG_MMU_SIZE*/    "MMU page size",
-    /*MSG_MMU_ADDRESS_HINT*/    "Addresses in hex!",
     //below must be max 48 chars per line!
+    /*MSG_MMU_ADDRESS_HINT*/    "Addresses in hex!",
     /*MSG_MMU_FLAGS1_HINT*/     "WP=Write Prot. U=Used M=Modified G=Global",
     /*MSG_MMU_FLAGS2_HINT*/     "TT=Translated UPx=User-pageX CI=CacheInhibit",
     /*MSG_MMU_FLAGS3_HINT*/     "IM=Imprecise NS=non-serial CB=CopyBack",
