@@ -33,13 +33,16 @@
 #define ASM_FPU_68080 5
 #define ASM_FPU_UNKNOWN 6
 
+
 ULONG GetCPUReg(void);
-ULONG SetCPUReg(ULONG value __asm("d0"));
+ULONG SetCPUReg( ULONG value __asm("d0"));
+ULONG GetCacheBits(void);
+ULONG SetCacheBits( ULONG value __asm("d1"),ULONG mask __asm("d2")) ;
 ULONG GetCPU060(void);
 ULONG GetVBR(void);
 ULONG GetMMU( ULONG cpuType __asm("d0"));
 UBYTE GetRamseyRev(void);
 UBYTE GetRamseyCtrl(void);
-double DoFlops(ULONG loops __asm("d0"), ULONG fpuType __asm("d1"));
+double DoFlops( ULONG loops __asm("d0"), ULONG fpuType __asm("d1"));
 
 #endif /* CPU_H */

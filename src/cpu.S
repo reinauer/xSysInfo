@@ -30,6 +30,7 @@ ASM_CPU_68LC060 EQU 12
 ASM_CPU_68080 EQU 13
 ASM_CPU_EMU EQU 14
 ASM_CPU_UNKNOWN  EQU 15
+
 ASM_FPU_NONE EQU 0
 ASM_FPU_68881 EQU 1
 ASM_FPU_68882 EQU 2
@@ -50,6 +51,8 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_GetCPU060;
 	XDEF	_GetVBR
 	XDEF	_GetMMU
+	XDEF	_GetCacheBits
+	XDEF	_SetCacheBits
 	XDEF	_GetRamseyRev
 	XDEF	_GetRamseyCtrl
 
@@ -60,47 +63,59 @@ _DoFlops:
 	beq		m68881_fpu
 	cmp.l	#ASM_FPU_68040,d1		;is it 68040-code?
 	beq		m68040_fpu
-	cmp.l	#ASM_FPU_68060,d1		;is it 68060-code? (same as 68040)
-	beq		m68040_fpu
+	cmp.l	#ASM_FPU_68060,d1		;is it 68060-code?
+	beq		m68060_fpu
 	cmp.l	#ASM_FPU_68080,d1		;is it 68080-code? (same as 68881)
 	beq		m68881_fpu
 	;not supported fpu!
-	bra	end_fpu
+	bra 	end_fpu
 m68881_fpu:
 	MACHINE 68881
-	fmove.l  #2,fp0 ; fb = 2
-	fmove.l  #3,fp1 ; fc = 3
-	fmove.l  #4,fp2 ; fd = 4
+	fmove.x  #2,fp0 	; fb = 2
+	fmove.x  #3,fp1 	; fc = 3
+	fmove.x  #4,fp2		; fd = 4
 m68881_fpu_loop:
-	fadd.x   fp1,fp0 ; fa = fb + fc
-	fmul.x   fp2,fp0 ; fb = fa * fd
-	fsub.x   fp1,fp0 ; fc = fb - fa
-	fdiv.x   fp2,fp0 ; fd = fc / fb
-	fmul.x   fp1,fp0 ; fa = fb * fc
-	fadd.x   fp2,fp0 ; fb = fa + fd
-	fsub.x   fp1,fp0 ; fc = fb - fa
-	fmul.x   fp2,fp0 ; fd = fc * fa
-	subq.l #1,d0		;loop decrement
-	bne.s m68881_fpu_loop
-	fmove.l  fp0,d0	; fa -> d0
-	bra	end_fpu
+	fadd.x   fp1,fp0 	; fa = fb + fc
+	fmul.x   fp2,fp0	; fb = fa * fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fdiv.x   fp2,fp0	; fd = fc / fb
+	fmul.x   fp1,fp0	; fa = fb * fc
+	fadd.x   fp2,fp0	; fb = fa + fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fmul.x   fp2,fp0	; fd = fc * fa
+	dbne	d0,m68881_fpu_loop ;loop decrement
+	bra 	end_fpu
 m68040_fpu:
 	MACHINE 68040
 	fmove.x  #2,fp0 ; fb = 2
 	fmove.x  #3,fp1 ; fc = 3
-	fmove.x  #4,fp2 ; fd = 4
+	fmove.x  #4,fp2	; fd = 4
 m68040_fpu_loop:
-	fadd.x   fp1,fp0 ; fa = fb + fc
-	fmul.x   fp2,fp0 ; fb = fa * fd
-	fsub.x   fp1,fp0 ; fc = fb - fa
-	fdiv.x   fp2,fp0 ; fd = fc / fb
-	fmul.x   fp1,fp0 ; fa = fb * fc
-	fadd.x   fp2,fp0 ; fb = fa + fd
-	fsub.x   fp1,fp0 ; fc = fb - fa
-	fmul.x   fp2,fp0 ; fd = fc * fa
-	subq.l #1,d0		;loop decrement
-	bne.s m68040_fpu_loop
-	fmove.l  fp0,d0	; fa -> d0
+	fadd.x   fp1,fp0 	; fa = fb + fc
+	fmul.x   fp2,fp0	; fb = fa * fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fdiv.x   fp2,fp0	; fd = fc / fb
+	fmul.x   fp1,fp0	; fa = fb * fc
+	fadd.x   fp2,fp0	; fb = fa + fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fmul.x   fp2,fp0	; fd = fc * fa
+	dbne	 d0,m68040_fpu_loop ;loop decrement
+	bra 	 end_fpu
+m68060_fpu:
+	MACHINE 68060
+	fmove.x  #2,fp0 ; fb = 2
+	fmove.x  #3,fp1 ; fc = 3
+	fmove.x  #4,fp2	; fd = 4
+m68060_fpu_loop:
+	fadd.x   fp1,fp0 	; fa = fb + fc
+	fmul.x   fp2,fp0	; fb = fa * fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fdiv.x   fp2,fp0	; fd = fc / fb
+	fmul.x   fp1,fp0	; fa = fb * fc
+	fadd.x   fp2,fp0	; fb = fa + fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fmul.x   fp2,fp0	; fd = fc * fa
+	dbne	d0,m68060_fpu_loop ;loop decrement
 end_fpu:
 	MACHINE 68060
 	rts
@@ -131,6 +146,7 @@ _writereg:
 	movec	d0,PCR
 	movec	PCR,d0
 	rte
+
 
 ;this method distinguishes between a 68040 and 68(LC)060
 _GetCPU060:
@@ -215,6 +231,35 @@ _GetVBR:
 
 _readvbr:
 	movec	VBR,d0
+	rte
+
+
+_GetCacheBits:
+	movem.l	a5/a6,-(sp)
+	lea.l	_readCacheBits,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a5/a6
+	rts
+
+_readCacheBits:
+	movec	CACR,d0				; this will crash on 68000/010
+	rte
+
+_SetCacheBits:				; d1: flags, d2: mask
+	movem.l	d1/d2/a5/a6,-(sp)
+	lea.l	_writeCacheBits,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,d1/d2/a5/a6
+	rts
+
+_writeCacheBits:
+	movec	CACR,d0				; save old value
+	not.l	d2				; invert mask
+	and.l	d0,d2				; keep unaffected values
+	or.l	d2,d1
+	movec	d1,CACR				; this will crash on 68000/010
 	rte
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
