@@ -278,7 +278,7 @@ int main(int argc, char **argv)
     if (!g_text_mode) {
         debug(XSYSINFO_NAME ": Opening display...\n");
         if (!open_display()) {
-            Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_WINDOW));
+            Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_WINDOW));
             ret = RETURN_FAIL;
             goto cleanup;
         }
@@ -551,7 +551,7 @@ static BOOL open_display(void)
         }
 
         if (!app->screen) {
-            Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_SCREEN));
+            Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_SCREEN));
             return FALSE;
         }
 

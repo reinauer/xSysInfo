@@ -19,6 +19,7 @@
 #include <proto/dos.h>
 #include <proto/graphics.h>
 #include <proto/timer.h>
+#include <clib/alib_protos.h>
 
 #include "xsysinfo.h"
 #include "drives.h"
@@ -190,7 +191,7 @@ static struct DosList *MyNextDosEntry(struct DosList *list, ULONG flags)
         }
         dol = (struct DosList *)BADDR(list->dol_Next);
         while (dol) {
-            if (dol->dol_Type == flags) {
+            if ((ULONG)dol->dol_Type == flags) {
                 break;
             }
             dol = (struct DosList *)BADDR(dol->dol_Next);
@@ -223,7 +224,7 @@ static void scan_dos_list(void)
         snprintf(drive->device_name, sizeof(drive->device_name), "%s:",
                      buffer);
 
-        debug("  drives: Found device '%s'\n", drive->device_name);
+        debug("  drives: Found device '%s'\n", (LONG)drive->device_name);
 
         /* Try to get startup info */
         if (dol->dol_misc.dol_handler.dol_Startup) {
@@ -323,8 +324,8 @@ static void match_volumes_to_drives(void)
                              sizeof(drive_list.drives[i].volume_name));
                 drive_list.drives[i].disk_state = DISK_OK;
                 debug("  drives: Matched volume '%s' to device '%s'\n",
-                      drive_list.drives[i].volume_name,
-                      drive_list.drives[i].device_name);
+                      (LONG)drive_list.drives[i].volume_name,
+                      (LONG)drive_list.drives[i].device_name);
                 break;
             }
         }
@@ -357,10 +358,10 @@ static void query_drive_details(void)
         /* Skip clearly invalid entries */
         if (!drive->is_valid && !has_volume) continue;
 
-        debug("  drives: Trying Info() on '%s'\n", drive->device_name);
+        debug("  drives: Trying Info() on '%s'\n", (LONG)drive->device_name);
         lock = Lock((CONST_STRPTR)drive->device_name, ACCESS_READ);
         if (!lock) {
-            debug("  drives: Lock failed on '%s'\n", drive->device_name);
+            debug("  drives: Lock failed on '%s'\n", (LONG)drive->device_name);
             if (drive->disk_state == DISK_OK) {
                 drive->disk_state = DISK_NO_DISK;
             }
@@ -403,7 +404,7 @@ static void query_drive_details(void)
 
             drive->is_valid = TRUE;
         } else {
-            debug("  drives: Info() failed on '%s'\n", drive->device_name);
+            debug("  drives: Info() failed on '%s'\n", (LONG)drive->device_name);
         }
 
         UnLock(lock);
@@ -427,8 +428,8 @@ static void check_scsi_support_all(void)
         drive->scsi_supported = check_scsi_direct_support(
             drive->handler_name, drive->unit_number);
         debug("  drives: SCSI support for %s: %s\n",
-              drive->handler_name,
-              (drive->scsi_supported ? get_string(MSG_YES) : get_string(MSG_NO)));
+              (LONG)drive->handler_name,
+              (LONG)(drive->scsi_supported ? get_string(MSG_YES) : get_string(MSG_NO)));
     }
 }
 
@@ -552,8 +553,8 @@ BOOL check_disk_present(ULONG index)
     DeletePort(port);
 
     debug("  drives: TD_CHANGESTATE on %s unit %lu: disk %s\n",
-          drive->handler_name, drive->unit_number,
-          (disk_present ? "present" : "not present"));
+          (LONG)drive->handler_name, (LONG)drive->unit_number,
+          (LONG)(disk_present ? "present" : "not present"));
 
     return disk_present;
 }
@@ -595,7 +596,7 @@ ULONG measure_drive_speed(ULONG index)
     /* Check if we have device info */
     if (!drive->handler_name[0]) {
         debug("  drives: No handler name for speed test on %s\n",
-              drive->device_name);
+              (LONG)drive->device_name);
         /* Mark as measured with 0 speed so user sees it was attempted */
         drive->speed_measured = TRUE;
         drive->speed_bytes_sec = 0;

@@ -400,7 +400,7 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
     strncpy(scsi_device_list.device_name, handler_name,
             sizeof(scsi_device_list.device_name) - 1);
 
-    debug("  scsi: Scanning SCSI devices on %s\n", handler_name);
+    debug("  scsi: Scanning SCSI devices on %s\n", (LONG)handler_name);
 
     /* Create message port */
     port = (struct MsgPort *)CreatePort(NULL, 0);
@@ -478,7 +478,7 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
                     scsi_device_list.count++;
 
                     debug("  scsi: Found device ID %d: %s %s\n",
-                          (LONG)target, dev->manufacturer, dev->model);
+                          (LONG)target, (LONG)dev->manufacturer, (LONG)dev->model);
 
                     if (scsi_device_list.count >= MAX_SCSI_DEVICES) {
                         break;
