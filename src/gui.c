@@ -1174,7 +1174,7 @@ static void draw_speed_panel(void)
     snprintf(buffer, sizeof(buffer), "%s ",
                  get_string(MSG_MFLOPS));
     TightText(rp, SPEED_PANEL_X + 84, y, (CONST_STRPTR)buffer, -1, 4);
-    if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid) {
+    if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid && hw_info.fpu_enabled) {
         char scaled[16];
         format_scaled(scaled, sizeof(scaled), bench_results.mflops, TRUE);
         snprintf(buffer, sizeof(buffer), "%s", scaled);
@@ -1403,14 +1403,24 @@ static void draw_hardware_panel(void)
         if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_mhz > 0) {
             char mhz_buf[16];
             format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, FALSE);
-            snprintf(buffer, sizeof(buffer), "%s %s",
-                     hw_info.fpu_string, mhz_buf);
-            draw_label_value(HARDWARE_PANEL_X + 4, y,
-                             get_string(MSG_FPU), buffer, 80);
+            if (hw_info.fpu_enabled) {
+                snprintf(buffer, sizeof(buffer), "%s %s",
+                         hw_info.fpu_string, mhz_buf);
+            } else {
+                snprintf(buffer, sizeof(buffer), "%s %s (%s)",
+                         hw_info.fpu_string, mhz_buf, get_string(MSG_OFF));
+            }
         } else {
-            draw_label_value(HARDWARE_PANEL_X + 4, y,
-                             get_string(MSG_FPU), hw_info.fpu_string, 80);
+            if (hw_info.fpu_enabled) {
+                snprintf(buffer, sizeof(buffer), "%s",
+                         hw_info.fpu_string);
+            } else {
+                snprintf(buffer, sizeof(buffer), "%s (%s)",
+                         hw_info.fpu_string, get_string(MSG_OFF));
+            }
         }
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_FPU), buffer, 80);
         y += 8;
 
         /* MMU */
