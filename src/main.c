@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <exec/execbase.h>
+#include <exec/memory.h>
 #include <intuition/intuition.h>
 #include <intuition/screens.h>
 #include <graphics/gfxbase.h>
@@ -52,11 +53,7 @@ extern struct DosLibrary *DOSBase;
 static struct WBStartup *wb_startup = NULL;
 
 /* Global debug flag */
-#ifdef DEBUG
-    BOOL g_debug_enabled = TRUE;
-#else
-    BOOL g_debug_enabled = FALSE;
-#endif
+BOOL g_debug_enabled = FALSE;
 
 /* Global application context */
 AppContext app_context;
@@ -89,9 +86,6 @@ static const UWORD palette[8] = {
     0x0444,     /* 7: Dark (3D button shadow) */
 };
 
-/* Default pens array for SA_Pens (use system defaults) */
-static const UWORD default_pens[] = { (UWORD)~0 };
-
 /* Forward declarations */
 static BOOL open_libraries(void);
 static void close_libraries(void);
@@ -101,30 +95,56 @@ static void main_loop(void);
 static void set_palette(void);
 static void allocate_pens(void);
 static void release_pens(void);
-static BOOL is_rtg_mode(struct Screen *screen);
 static void parse_tooltypes(void);
+
+/*
+ * Case-insensitive string compare (portable, no OS dependency)
+ */
+static int xstricmp(const char *o1, const char *o2)
+{
+    if (o1 == NULL)
+        return 1;
+    if (o2 == NULL)
+        return -1;
+    int i = 0;
+    char a, b;
+    while (o1[i] != 0 && o2[i] != 0) {
+        a = o1[i];
+        if (a >= 'A' && a <= 'Z')
+            a += 0x20;
+        b = o2[i];
+        if (b >= 'A' && b <= 'Z')
+            b += 0x20;
+        if (a != b) {
+            return a > b ? -1 : 1;
+        }
+        i++;
+    }
+    if (o1[i] == 0 && o2[i] == 0)
+        return 0;
+    if (o1[i] == 0)
+        return 1;
+    if (o2[i] == 0)
+        return -1;
+
+    return 0;
+}
 
 /*
  * Parse command line arguments
  * Returns TRUE on success, FALSE on failure
  */
-static BOOL parse_args(void)
+static BOOL parse_args(int argc, char **argv)
 {
-    struct RDArgs *rdargs;
-    LONG args[ARG_COUNT] = { 0 };
-
-    rdargs = ReadArgs((CONST_STRPTR)TEMPLATE, args, NULL);
-    if (!rdargs) {
-        /* ReadArgs failed - but we'll continue with defaults */
-        return TRUE;
+    /* At present only "debug" is recognized */
+    if (argc > 1) {
+        for (int i = 1; i < argc; i++) {
+            if (xstricmp(argv[i], "debug") == 0) {
+                g_debug_enabled = TRUE;
+                break;
+            }
+        }
     }
-
-    /* Check for DEBUG switch */
-    if (args[ARG_DEBUG]) {
-        g_debug_enabled = TRUE;
-    }
-
-    FreeArgs(rdargs);
     return TRUE;
 }
 
@@ -187,7 +207,7 @@ int main(int argc, char **argv)
         wb_startup = (struct WBStartup *)argv;
     } else {
         /* Started from CLI - parse command line arguments */
-        parse_args();
+        parse_args(argc, argv);
     }
 
     debug(XSYSINFO_NAME ": Starting...\n");
@@ -242,14 +262,16 @@ int main(int argc, char **argv)
     debug(XSYSINFO_NAME ": Opening display...\n");
     /* Open display (screen or window) */
     if (!open_display()) {
-        Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_WINDOW));
+        Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_WINDOW));
         ret = RETURN_FAIL;
         goto cleanup;
     }
 
+    debug(XSYSINFO_NAME ": Init buttons...\n");
     /* Initialize GUI buttons */
     init_buttons();
 
+    debug(XSYSINFO_NAME ": Init timer...\n");
     /* Initialize benchmark timer */
     if (!init_timer()) {
         Printf((CONST_STRPTR)"Failed to initialize timer\n");
@@ -257,9 +279,11 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
+    debug(XSYSINFO_NAME ": Draw screen...\n");
     /* Draw initial view */
     redraw_current_view();
 
+    debug(XSYSINFO_NAME ": Start main loop...\n");
     /* Main event loop */
     main_loop();
 
@@ -281,6 +305,7 @@ static BOOL open_libraries(void)
     // SysBase = *(struct ExecBase **)4;
 
     /* Open intuition.library */
+    debug(XSYSINFO_NAME " open_libraries: trying intuition.library\n");
     IntuitionBase = (struct IntuitionBase *)
         OpenLibrary((CONST_STRPTR)"intuition.library", MIN_INTUITION_VERSION);
     if (!IntuitionBase) {
@@ -290,6 +315,7 @@ static BOOL open_libraries(void)
     }
 
     /* Open graphics.library */
+    debug(XSYSINFO_NAME " open_libraries: trying graphics.library\n");
     GfxBase = (struct GfxBase *)
         OpenLibrary((CONST_STRPTR)"graphics.library", MIN_GRAPHICS_VERSION);
     if (!GfxBase) {
@@ -299,11 +325,8 @@ static BOOL open_libraries(void)
     }
 
     /* Open identify.library */
-    if ((DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L))) // kick >2.0?
-    {
-        IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
-        CloseLibrary((struct Library *)DOSBase);
-    }
+    debug(XSYSINFO_NAME " open_libraries: trying identify.library\n");
+    IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
     /*
     if (!IdentifyBase) {
         Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_IDENTIFY));
@@ -311,6 +334,8 @@ static BOOL open_libraries(void)
     */
 
     app->IdentifyBase = IdentifyBase;
+
+    debug(XSYSINFO_NAME " open_libraries: trying icon.library\n");
 
     /* Open icon.library - optional, for reading tooltypes */
     {
@@ -354,30 +379,12 @@ static void close_libraries(void)
 }
 
 /*
- * Check if a screen is using RTG (high resolution) mode
- */
-static BOOL is_rtg_mode(struct Screen *screen)
-{
-    if (!screen) return FALSE;
-
-    /* Check if resolution exceeds native chipset limits */
-    if (screen->Width > RTG_WIDTH_THRESHOLD ||
-        screen->Height > RTG_HEIGHT_THRESHOLD) {
-        return TRUE;
-    }
-
-    /* Could also check the ModeID for RTG modes, but resolution check
-     * is sufficient for our purposes */
-
-    return FALSE;
-}
-
-/*
  * Open display - either a window on Workbench or a custom screen
  */
 static BOOL open_display(void)
 {
-    struct Screen *wb_screen;
+    struct NewScreen *newScreen;
+    struct NewWindow *newWindow;
     BOOL use_window = FALSE;
 
     /* Check display mode setting from tooltypes */
@@ -387,16 +394,19 @@ static BOOL open_display(void)
         use_window = FALSE;
     } else {
         /* AUTO mode - detect based on RTG */
-        /* Lock Workbench screen to check its mode */
-        wb_screen = LockPubScreen((CONST_STRPTR)"Workbench");
-        if (!wb_screen) {
-            wb_screen = LockPubScreen(NULL);  /* Default public screen */
-        }
-
-        if (wb_screen) {
-            /* Check if Workbench is in RTG mode */
-            use_window = is_rtg_mode(wb_screen);
-            UnlockPubScreen(NULL, wb_screen);
+        if (wb_startup) {
+            /* Get a copy of Workbench screen to check its mode */
+            struct Screen *wb_screen = (struct Screen *)AllocMem(sizeof(struct Screen), MEMF_ANY | MEMF_CLEAR);
+            if (wb_screen) {
+                if (GetScreenData(wb_screen, sizeof(struct Screen), WBENCHSCREEN, NULL)) {
+                    /* If Workbench is in RTG mode: resolution exceeds native chipset limits */
+                    if (wb_screen->Width > RTG_WIDTH_THRESHOLD ||
+                        wb_screen->Height > RTG_HEIGHT_THRESHOLD) {
+                        use_window = TRUE;
+                    }
+                }
+                FreeMem(wb_screen, sizeof(struct Screen));
+            }
         }
     }
 
@@ -404,21 +414,27 @@ static BOOL open_display(void)
     app->is_pal = (GfxBase->DisplayFlags & PAL) ? TRUE : FALSE;
 
     if (use_window) {
+        debug(XSYSINFO_NAME " open_display: opening window\n");
+
         /* Open window on Workbench */
         app->use_custom_screen = FALSE;
 
-        app->window = OpenWindowTags(NULL,
-            WA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
-            WA_InnerWidth, SCREEN_WIDTH,
-            WA_InnerHeight, SCREEN_HEIGHT_NTSC + 10,
-            WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
-                      IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
-                      IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
-            WA_Flags, WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
-                      WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
-                      WFLG_REPORTMOUSE,
-            WA_PubScreenName, (ULONG)"Workbench",
-            TAG_DONE);
+        newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
+        if (newWindow) {
+            newWindow->Title = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
+            newWindow->Type = WBENCHSCREEN;
+            newWindow->Width = SCREEN_WIDTH;
+            newWindow->Height = SCREEN_HEIGHT_NTSC + 16;
+            newWindow->IDCMPFlags = IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
+                    IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
+                    IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
+            newWindow->Flags = WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
+                    WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
+                    WFLG_REPORTMOUSE;
+
+            app->window = OpenWindow(newWindow);
+            FreeMem(newWindow, sizeof(struct NewWindow));
+        }
 
         if (!app->window) {
             return FALSE;
@@ -438,25 +454,29 @@ static BOOL open_display(void)
             }
         }
     } else {
+        debug(XSYSINFO_NAME " open_display: opening screen\n");
+
         /* Open custom screen */
         app->use_custom_screen = TRUE;
 
         app->screen_height = app->is_pal ? SCREEN_HEIGHT_PAL : SCREEN_HEIGHT_NTSC;
 
-        app->screen = OpenScreenTags(NULL,
-            SA_Width, SCREEN_WIDTH,
-            SA_Height, app->screen_height,
-            SA_Depth, SCREEN_DEPTH,
-            SA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
-            SA_Type, CUSTOMSCREEN,
-            SA_Font, (ULONG)&Topaz8Font,
-            SA_DisplayID, HIRES_KEY,
-            SA_Pens, (ULONG)default_pens,
-            SA_ShowTitle, FALSE,
-            TAG_DONE);
+        newScreen = (struct NewScreen *)AllocMem(sizeof(struct NewScreen), MEMF_ANY | MEMF_CLEAR);
+        if (newScreen) {
+            newScreen->Width = SCREEN_WIDTH;
+            newScreen->Height = app->screen_height;
+            newScreen->Depth = SCREEN_DEPTH;
+            newScreen->DefaultTitle = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
+            newScreen->Type = CUSTOMSCREEN;
+            newScreen->Font = &Topaz8Font;
+            newScreen->ViewModes = HIRES;
+            app->screen = OpenScreen(newScreen);
+            ShowTitle(app->screen, FALSE);
+            FreeMem(newScreen, sizeof(struct NewScreen));
+        }
 
         if (!app->screen) {
-            Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_SCREEN));
+            Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_SCREEN));
             return FALSE;
         }
 
@@ -464,17 +484,19 @@ static BOOL open_display(void)
         set_palette();
 
         /* Open borderless window on our screen */
-        app->window = OpenWindowTags(NULL,
-            WA_CustomScreen, (ULONG)app->screen,
-            WA_Left, 0,
-            WA_Top, 0,
-            WA_Width, SCREEN_WIDTH,
-            WA_Height, app->screen_height,
-            WA_IDCMP, IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
-                      IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
-            WA_Flags, WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
-                      WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE,
-            TAG_DONE);
+        newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
+        if (newWindow) {
+            newWindow->Type = CUSTOMSCREEN;
+            newWindow->Width = SCREEN_WIDTH;
+            newWindow->Height = app->screen_height;
+            newWindow->IDCMPFlags = IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
+                        IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
+            newWindow->Flags = WFLG_BORDERLESS | WFLG_ACTIVATE |
+                        WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE;
+            newWindow->Screen = app->screen;
+            app->window = OpenWindow(newWindow);
+            FreeMem(newWindow, sizeof(struct NewWindow));
+        }
 
         if (!app->window) {
             CloseScreen(app->screen);
@@ -484,9 +506,11 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
     }
+    debug(XSYSINFO_NAME " open_display: allocating pens\n");
 
     /* Allocate/map pens for drawing */
     allocate_pens();
+    debug(XSYSINFO_NAME " open_display: finished\n");
 
     return TRUE;
 }
@@ -499,14 +523,14 @@ static void close_display(void)
     /* Release any allocated pens before closing */
     release_pens();
 
-    if (app->window) {
-        CloseWindow(app->window);
-        app->window = NULL;
-    }
-
     if (app->tf) {
         CloseFont(app->tf);
         app->tf = NULL;
+    }
+
+    if (app->window) {
+        CloseWindow(app->window);
+        app->window = NULL;
     }
 
     if (app->use_custom_screen && app->screen) {
@@ -547,7 +571,7 @@ static void allocate_pens(void)
 
     app->pens_allocated = FALSE;
 
-    if (app->use_custom_screen) {
+    if (app->use_custom_screen || hw_info.kickstart_patch_version < 36) {
         /* Custom screen: we control the palette, use direct indices */
         for (i = 0; i < NUM_COLORS; i++) {
             app->pens[i] = i;
@@ -594,7 +618,7 @@ static void release_pens(void)
     UWORD i;
     struct ColorMap *cm;
 
-    if (!app->pens_allocated || !app->screen) {
+    if (!app->pens_allocated || !app->screen || SysBase->LibNode.lib_Version <= 34) {
         return;
     }
 
