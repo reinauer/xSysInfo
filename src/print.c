@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include <dos/dos.h>
 #include <dos/datetime.h>
@@ -34,7 +35,7 @@ extern BoardList board_list;
 extern DriveList drive_list;
 
 /* Helper macro for writing to file */
-#define WRITE_LINE(fh, str) FPuts(fh, (STRPTR)str); FPuts(fh, (STRPTR)"\n")
+#define WRITE_LINE(fh, str) Write(fh, (const char *)str, strlen((const char *)str)); Write(fh, (const char *)"\n", 1)
 
 /*
  * Write a formatted line to file
@@ -48,8 +49,7 @@ static void write_formatted(BPTR fh, const char *format, ...)
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    FPuts(fh, (STRPTR)buffer);
-    FPuts(fh, (STRPTR)"\n");
+    WRITE_LINE(fh, (STRPTR)buffer);
 }
 
 /*
@@ -57,9 +57,10 @@ static void write_formatted(BPTR fh, const char *format, ...)
  */
 void export_header(BPTR fh)
 {
+    char date_str[32]; date_str[0] = '\0';
+    char time_str[32]; time_str[0] = '\0';
+#ifndef __KICK13__
     struct DateTime dt;
-    char date_str[32];
-    char time_str[32];
 
     DateStamp(&dt.dat_Stamp);
     dt.dat_Format = FORMAT_DOS;
@@ -69,6 +70,7 @@ void export_header(BPTR fh)
     dt.dat_StrTime = (STRPTR)time_str;
 
     DateToStr(&dt);
+#endif
 
     WRITE_LINE(fh, "================================================================================");
     WRITE_LINE(fh, "                    " XSYSINFO_NAME " " XSYSINFO_VERSION " System Report");

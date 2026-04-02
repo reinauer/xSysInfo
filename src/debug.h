@@ -14,11 +14,26 @@
 extern BOOL g_debug_enabled;
 
 /* Debug output macro - only prints if debugging is enabled */
-#define debug(fmt, ...) \
-    do { \
-        if (g_debug_enabled) { \
-            Printf((CONST_STRPTR)fmt, ##__VA_ARGS__); \
-        } \
-    } while (0)
+
+#ifdef __KICK13__
+    #define debug(fmt, ...) \
+        do { \
+            if (g_debug_enabled) { \
+                printf((const char *)fmt, ##__VA_ARGS__); \
+            } \
+        } while (0)
+
+    #define Printf(fmt, ...) \
+        do { \
+            printf((const char *)fmt, ##__VA_ARGS__); \
+        } while (0)
+#else
+    #define debug(fmt, ...) \
+        do { \
+            if (g_debug_enabled) { \
+                Printf((CONST_STRPTR)fmt, ##__VA_ARGS__); \
+            } \
+        } while (0)
+#endif /*__KICK13__*/
 
 #endif /* DEBUG_H */

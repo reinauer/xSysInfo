@@ -22,6 +22,9 @@
 #include "gui.h"
 #include "locale_str.h"
 #include "debug.h"
+#ifdef __KICK13__
+#include "tagitem.h"
+#endif
 
 /* Global board list */
 BoardList board_list;
@@ -79,7 +82,7 @@ void enumerate_boards(void)
     }
 
     debug("  boards: Scanning for ConfigDevs...\n");
-    while ((cd = FindConfigDev(cd, -1, -1)) != NULL) {
+    while ((cd = (struct ConfigDev *)FindConfigDev(cd, -1, -1)) != NULL) {
         if (board_list.count >= MAX_BOARDS) break;
 
         BoardInfo *board = &board_list.boards[board_list.count];
@@ -90,7 +93,7 @@ void enumerate_boards(void)
         board->product_id = cd->cd_Rom.er_Product;
         board->serial_number = cd->cd_Rom.er_SerialNumber;
 
-        debug("  boards: Found board at $%08lX\n", (LONG)board->board_address);
+        debug("  boards: Found board at $%08X\n", (ULONG)board->board_address);
 
         /* Determine Zorro type */
         if ((cd->cd_Rom.er_Type & ERT_TYPEMASK) == ERT_ZORROIII) {
@@ -125,7 +128,7 @@ void enumerate_boards(void)
 
     debug("  boards: Closing expansion.library...\n");
     CloseLibrary(ExpansionBase);
-    debug("  boards: Enumeration complete, found %ld boards\n", (LONG)board_list.count);
+    debug("  boards: Enumeration complete, found %d boards\n", (LONG)board_list.count);
 }
 
 /*

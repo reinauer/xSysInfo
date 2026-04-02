@@ -40,11 +40,11 @@ extern struct TextAttr Topaz8Font;
 
 /* Minimum library versions */
 #define MIN_IDENTIFY_VERSION    13
-#define MIN_INTUITION_VERSION   36
-#define MIN_GRAPHICS_VERSION    37
-#define MIN_DOS_VERSION         37
+#define MIN_INTUITION_VERSION   34
+#define MIN_GRAPHICS_VERSION    34
+#define MIN_DOS_VERSION         34
 #define MIN_EXPANSION_VERSION   33
-#define MIN_ICON_VERSION        36
+#define MIN_ICON_VERSION        34
 
 /* Screen dimensions */
 #define SCREEN_WIDTH        640
