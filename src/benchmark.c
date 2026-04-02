@@ -96,7 +96,7 @@ BOOL init_timer(void)
         return FALSE;
     }
     etimer_req = (struct timerequest *)
-        CreateExtIO(timer_port, sizeof(struct timerequest));
+        CreateExtIO(etimer_port, sizeof(struct timerequest));
     if (!etimer_req) {
         debug("    init_timer: no etimer_req\n");
         DeletePort(timer_port);
