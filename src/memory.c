@@ -21,12 +21,14 @@
 #include "locale_str.h"
 #include "benchmark.h"
 #include "debug.h"
+#include "hardware.h"
 
 /* Global memory region list */
 MemoryRegionList memory_regions;
 
 /* External references */
 extern struct ExecBase *SysBase;
+extern HardwareInfo hw_info;
 extern AppContext *app;
 
 /*
@@ -128,6 +130,16 @@ void enumerate_memory_regions(void)
         region->amount_free = mh->mh_Free;
         region->memListNode = mh; //to find me in the list
 
+        /* Detect 2MB Chip RAM variant of ECS Agnus */
+        if (region->mem_type & MEMF_CHIP) {
+            if (hw_info.agnus_type == AGNUS_ECS_PAL && mh->mh_Upper > (APTR)0x100000) {
+                hw_info.agnus_type = AGNUS_ECS_2MB_PAL;
+            }
+            if (hw_info.agnus_type == AGNUS_ECS_NTSC && mh->mh_Upper > (APTR)0x100000) {
+                hw_info.agnus_type = AGNUS_ECS_2MB_NTSC;
+            }
+        }
+
         analyze_memory_region(mh, &region->num_chunks, &region->largest_block);
 
         if (mh->mh_Node.ln_Name) {
@@ -194,9 +206,9 @@ ULONG measure_memory_speed(ULONG index)
     /* Use a reasonable buffer size - 64K for test reads */
     buffer_size = 64 * 1024;
 
-    /* Limit to available region size */
-    if (buffer_size > region->total_size) {
-        buffer_size = region->total_size;
+    /* Limit to largest available block (halved for safety margin) */
+    if (buffer_size > region->largest_block / 2) {
+        buffer_size = region->largest_block / 2;
     }
 
     /* Ensure reasonable minimum size */
