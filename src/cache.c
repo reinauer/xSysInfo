@@ -10,6 +10,7 @@
 #include "xsysinfo.h"
 #include "cache.h"
 #include "hardware.h"
+#include "cpu.h"
 
 /* External references */
 extern HardwareInfo hw_info;
@@ -19,14 +20,14 @@ extern HardwareInfo hw_info;
  */
 static void toggle_cache_flag(ULONG flag)
 {
-    ULONG current = CacheControl(0, 0);
+    ULONG current = GetCacheBits();
 
     if (current & flag) {
         /* Disable */
-        CacheControl(0, flag);
+        SetCacheBits(0, flag);
     } else {
         /* Enable */
-        CacheControl(flag, flag);
+        SetCacheBits(flag, flag);
     }
 }
 
