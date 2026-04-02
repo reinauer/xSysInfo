@@ -29,6 +29,7 @@
 #include "locale_str.h"
 #include "debug.h"
 #include "cpu.h" //for cpu-type/rev
+#include "cache.h"
 #include "benchmark.h" //for frequencies
 
 /* Global hardware info */
@@ -72,6 +73,8 @@ BOOL detect_hardware(void)
     detect_frequencies();
     debug("  hw: Refreshing cache status...\n");
     refresh_cache_status();
+    debug("  hw: Generating comment...\n");
+    generate_comment();
 
     /* Get Kickstart info */
     UWORD kick_version = *((volatile UWORD *)KICK_VERSION);
@@ -160,14 +163,14 @@ void detect_cpu(void)
 
         // now we have at least a 68020/030
         // the CACRF_FreezeI is a 68020/030-only flag!
-        oldBits = CacheControl(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
-        newBits = CacheControl(0, 0);
-        CacheControl(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
+        oldBits = SetCacheBits(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frozen?
+        newBits = GetCacheBits();
+        SetCacheBits(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
         if ((newBits & CACRF_FreezeI) == CACRF_FreezeI)
         {
-            oldBits = CacheControl(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
-            newBits = CacheControl(0, 0);
-            CacheControl(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
+            oldBits = SetCacheBits(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
+            newBits = GetCacheBits();
+            SetCacheBits(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
             if ((newBits & CACRF_IBE) == 0)
             {
                 // no 68030
@@ -190,34 +193,33 @@ void detect_cpu(void)
         }
         else
         {
-            //check for Apollo Vampire cores
-            if ((attnFlags & (UWORD)AFF_68080) != 0) {
+            // check for Apollo Vampire cores
+            //  now it's 68040/060/080 and its derivatives
+            ULONG cpuBits = GetCPU060(); // same bits as CPUType
+            if (cpuBits == ASM_CPU_68040)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
+                hw_info.cpu_type = CPU_68040;
+            }
+            else if (cpuBits == ASM_CPU_68060)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
+                hw_info.cpu_type = CPU_68060;
+            }
+            else if (cpuBits == ASM_CPU_68LC060)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
+                hw_info.cpu_type = CPU_68LC060;
+            }
+            else if (cpuBits == ASM_CPU_68080)
+            {
                 snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68080");
                 hw_info.cpu_type = CPU_68080;
             }
-            else {
-                // now it's 68040/060 and it's derivatives
-                ULONG cpuBits = GetCPU060(); // same bits as CPUType
-                if (cpuBits == ASM_CPU_68040)
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
-                    hw_info.cpu_type = CPU_68040;
-                }
-                else if (cpuBits == ASM_CPU_68060)
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
-                    hw_info.cpu_type = CPU_68060;
-                }
-                else if (cpuBits == ASM_CPU_68LC060)
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
-                    hw_info.cpu_type = CPU_68LC060;
-                }
-                else
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), get_string(MSG_UNKNOWN));
-                    hw_info.cpu_type = CPU_UNKNOWN;
-                }
+            else
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), get_string(MSG_UNKNOWN));
+                hw_info.cpu_type = CPU_UNKNOWN;
             }
         }
     }
@@ -241,15 +243,20 @@ void detect_cpu(void)
 
 UWORD detect_cpu_rev(void)
 {
-    ULONG cpuReg = GetCPUReg();
-    cpuReg = cpuReg>>8;
-    cpuReg &= 0xFF;
-    return (UWORD) cpuReg;
+    if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_type <= CPU_68080) {
+        ULONG cpuReg = GetCPUReg();
+        cpuReg = cpuReg>>8;
+        cpuReg &= 0xFF;
+        return (UWORD) cpuReg;
+    }
+    else {
+        return 0L;
+    }
 }
 
 BOOL get_super_scalar_mode(void)
 {
-    if (hw_info.cpu_type >= CPU_68060) {
+    if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_type <= CPU_68080) {
         ULONG cpuReg = GetCPUReg();
         cpuReg &= 1L; //lowest bit is super scalar bit
         return cpuReg > 0;
@@ -260,7 +267,7 @@ BOOL get_super_scalar_mode(void)
 
 BOOL set_super_scalar_mode(BOOL value)
 {
-    if (hw_info.cpu_type >= CPU_68060) {
+    if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_type <= CPU_68080) {
         ULONG cpuReg = value ? 1L : 0L;
         cpuReg = SetCPUReg(cpuReg);
         cpuReg &= 1L; //lowest bit is super scalar bit
@@ -285,6 +292,7 @@ void detect_fpu(void)
     if ((attnFlags & (UWORD)AFF_68080) > 0) { //68080 always has a fpu
         snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68080");
         hw_info.fpu_type = FPU_68080;
+        hw_info.fpu_enabled = TRUE;
         return;
     }
 
@@ -299,19 +307,22 @@ void detect_fpu(void)
         }
         //the 68060 is distinguished from the 68LC/EC060 by the cpu-id reg from the cpu-detect-function
         if (hw_info.cpu_type == CPU_68060) {
-            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060 (%s)", get_string(MSG_OFF));
+            hw_info.fpu_type = FPU_68060;
+            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060");
         }
         return;
     }
 
     //kick 1.3 does not know any better fpu than 68881!
     if ((attnFlags & (UWORD)AFF_68881) > 0) { //68881
-        if ((attnFlags & (UWORD)AFF_68882) > 0) { //68881
+        if ((attnFlags & (UWORD)AFF_68882) > 0) { //68882
             hw_info.fpu_type = FPU_68882;
+            hw_info.fpu_enabled = TRUE;
             snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68882");
         }
         else {
             hw_info.fpu_type = FPU_68881;
+            hw_info.fpu_enabled = TRUE;
             snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68881");
         }
     }
@@ -346,10 +357,8 @@ void detect_mmu(void)
     strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
 
     // first: try mmu.lib
-    if ((DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L)))
-    {
-        if ((MMUBase = OpenLibrary((CONST_STRPTR)"mmu.library", 40L)))
-        { // check for mmu.lib
+    if ((MMUBase = (struct Library *)OpenLibrary((CONST_STRPTR)"mmu.library", 40L)))
+    { // check for mmu.lib
             fallBack = FALSE;
             switch (GetMMUType())
             {
@@ -405,11 +414,8 @@ void detect_mmu(void)
             }
             CloseLibrary((struct Library *)MMUBase);
         }
-        CloseLibrary((struct Library *)DOSBase);
-    }
 
-
-    if (fallBack) //mmu.library or dos.library didn't open
+    if (fallBack) //mmu.library didn't open
     {
         // GetMMU has to determine if we have a 68020, 030, 040 or 060-MMU (different opcodes)
         switch (hw_info.cpu_type)
@@ -615,22 +621,22 @@ void detect_chipset(void)
                     hw_info.agnus_type = AGNUS_OCS_FAT_NTSC;
                 hw_info.max_chip_ram = 512 * 1024;  /* 512K */
                 break;
-            case 0x20: //ECS PAL
+            case 0x20: //ECS PAL rev 4
+            case 0x21: //ECS PAL rev 5
                 hw_info.agnus_type = AGNUS_ECS_PAL;
                 hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
                 break;
-            case 0x30: //ECS NTSC
+            case 0x30: //ECS NTSC rev 4
+            case 0x31: //ECS NTSC rev 5
                 hw_info.agnus_type = AGNUS_ECS_NTSC;
                 hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
                 break;
-            case 0x21: //ALICE PAL
             case 0x22: //ALICE PAL
             case 0x23: //ALICE PAL
             case 0x24: //ALICE PAL
                 hw_info.agnus_type = AGNUS_ALICE_PAL;
                 hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
                 break;
-            case 0x31: //ALICE NTSC
             case 0x32: //ALICE NTSC
             case 0x33: //ALICE NTSC
             case 0x34: //ALICE NTSC
@@ -725,6 +731,7 @@ void detect_batt_mem(void)
         && openBattMem() //batt mem ressource is open
         ) {
         hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
+        hw_info.battMemData.valid_data = TRUE;
     }
 
 }
@@ -755,7 +762,7 @@ void detect_ramsey(void)
         hw_info.ramsey_wrap_enabled = hw_info.ramsey_ctl & RAMSEY_WRAP_MODE;
         hw_info.ramsey_size_1M = hw_info.ramsey_ctl & RAMSEY_SIZE;
         hw_info.ramsey_skip_enabled = hw_info.ramsey_ctl & RAMSEY_SKIP_MODE;
-        hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFRESH_MODE)>>4;
+        hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFRESH_MODE)>>5;
     }
 }
 
@@ -766,13 +773,12 @@ void detect_ramsey(void)
 void detect_sdmac(void)
 {
     unsigned char sdmac_rev;
-    uint32_t ovalue, rvalue, wvalue;
+    uint32_t ovalue, rvalue;
     uint8_t sdmac_version = 0;
     uint8_t istr;
     int pass;
     hw_info.sdmac_rev = 0;
     hw_info.is_A4000T = FALSE;
-    *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
 
     if (hw_info.gary_type == FAT_GARY)
     { // you need fat gary to access ncr!
@@ -786,11 +792,12 @@ void detect_sdmac(void)
         }
     }
 
-    if (hw_info.ramsey_rev>0 && hw_info.gary_type == FAT_GARY && !hw_info.is_A4000T) { //you need fat gary and ramsey to access sdmac!
-        //Switch to DSACK-Timeout to avoid bus erros on a A4000!
+    if (hw_info.ramsey_rev > 0 && hw_info.gary_type == FAT_GARY && !hw_info.is_A4000T) { //you need fat gary and ramsey to access sdmac!
+        //Switch to DSACK-Timeout to avoid bus errors on a A4000!
         sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
         if (sdmac_rev != 0 && sdmac_rev <= 0xF0) { //realistic values!
             hw_info.sdmac_rev = sdmac_rev;
+            return;
         }
         if (hw_info.sdmac_rev == 0) {
             /* Quick check: ISTR bits - FIFO cannot be both empty and full */
@@ -801,7 +808,8 @@ void detect_sdmac(void)
                 return;
             sdmac_version = 2; //default version
             /* Probe WTC registers to distinguish SDMAC-02 from SDMAC-04 */
-            for (pass = 0; pass < 6 && sdmac_version > 0; pass++) {
+            for (pass = 0; pass < 6; pass++) {
+                uint32_t wvalue;
                 switch (pass) {
                     case 0: wvalue = 0x00000000; break;
                     case 1: wvalue = 0xffffffff; break;
@@ -810,38 +818,33 @@ void detect_sdmac(void)
                     case 4: wvalue = 0xc2c2c3c3; break;
                     case 5: wvalue = 0x3c3c3c3c; break;
                 }
-
-                ovalue = *SDMAC_WTC_ALT;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-                *SDMAC_WTC_ALT = wvalue;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-                rvalue = *SDMAC_WTC;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-                *SDMAC_WTC_ALT = ovalue;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-
+                Disable();
+                ovalue = *(volatile uint32_t *)SDMAC_WTC;
+                *(volatile uint32_t *)SDMAC_WTC = wvalue;
+                (void) *(volatile uint32_t *)RAMSEY_VER; /* Push write to bus */
+                rvalue = *(volatile uint32_t *)SDMAC_WTC;
+                *(volatile uint32_t *)SDMAC_WTC = ovalue;
+                Enable();
                 if (rvalue == wvalue) {
                     if ((wvalue != 0x00000000) && (wvalue != 0xffffffff)) {
                         sdmac_version = 0; /* Detection failed */
+                        return;
                     }
                 } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
                     /* SDMAC-02: only upper byte differs */
-                    hw_info.sdmac_rev = 2;
-                    return;
-                } else if ((rvalue & (1 << 2)) == 0) {
+                } else if ((rvalue & (1U << (2))) == 0) {
                     /* SDMAC-04: bit 2 is always 0 */
-                    if ((wvalue & (1 << 2)) > 0)
+                    if (wvalue & (1U << (2)))
                         sdmac_version = 4;
                 }
                 else {
                     sdmac_version = 0; /* Detection failed */
+                    return;
                 }
             }
             hw_info.sdmac_rev = sdmac_version;
         }
     }
-    //switch back berr-timeout
-    *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_BERR;
 }
 
 
@@ -892,6 +895,13 @@ void detect_gary(void)
         tmp &= FAT_GARY_POWER_CYCLE; //mask bus rubbish
         if (tmp == FAT_GARY_POWER_GOOD) {
             hw_info.gary_type = FAT_GARY;
+            //correct agnus type if necessary
+            if (hw_info.agnus_type == AGNUS_ECS_NTSC) { //A3000(T)
+                hw_info.agnus_type = AGNUS_ECS_B_NTSC;
+            }
+            if (hw_info.agnus_type == AGNUS_ECS_PAL) { //A3000(T)
+                hw_info.agnus_type = AGNUS_ECS_B_PAL;
+            }
             //restore old value
             *((volatile unsigned char *)FAT_GARY_POWER_REG) = val;
             return;
@@ -1046,32 +1056,29 @@ void detect_frequencies(void)
  */
 void refresh_cache_status(void)
 {
-    ULONG cacr_bits;
+    ULONG cacr_bits = 0;
 
     /* Determine available cache features based on CPU type */
-    hw_info.has_icache = (hw_info.cpu_type >= CPU_68020 &&
-                          hw_info.cpu_type <= CPU_68080);
-    hw_info.has_dcache = (hw_info.cpu_type >= CPU_68030 &&
-                          hw_info.cpu_type <= CPU_68080);
-    hw_info.has_iburst = (hw_info.cpu_type >= CPU_68030 &&
-                          hw_info.cpu_type <= CPU_68080);
-    hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030 &&
-                          hw_info.cpu_type <= CPU_68080);
+    hw_info.has_icache = (hw_info.cpu_type >= CPU_68020);
+    hw_info.has_dcache = (hw_info.cpu_type >= CPU_68030);
+    hw_info.has_iburst = (hw_info.cpu_type >= CPU_68030);
+    hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030);
     hw_info.has_copyback = (hw_info.cpu_type >= CPU_68040 &&
-                            hw_info.cpu_type <= CPU_68080 &&
-                            hw_info.cpu_type != CPU_68LC040);
+                            hw_info.cpu_type <= CPU_68080);
     hw_info.has_super_scalar = (hw_info.cpu_type >= CPU_68060 &&
                                 hw_info.cpu_type <= CPU_68080);
 
     /* Get current cache state */
-    cacr_bits = CacheControl(0, 0);
+    if (hw_info.cpu_type >= CPU_68020) {
+        cacr_bits = GetCacheBits();
+    }
 
     hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) ? TRUE : FALSE;
     hw_info.dcache_enabled = (cacr_bits & CACRF_EnableD) ? TRUE : FALSE;
     hw_info.iburst_enabled = (cacr_bits & CACRF_IBE) ? TRUE : FALSE;
     hw_info.dburst_enabled = (cacr_bits & CACRF_DBE) ? TRUE : FALSE;
     hw_info.copyback_enabled = (cacr_bits & CACRF_CopyBack) ? TRUE : FALSE;
-    hw_info.super_scalar_enabled = get_super_scalar_mode();
+    hw_info.super_scalar_enabled = get_super_scalar_mode() ? TRUE : FALSE;
 }
 
 /*

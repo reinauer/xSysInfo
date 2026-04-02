@@ -50,8 +50,7 @@
 #define FAT_GARY_TIME_OUT_DSACK 0x0
 #define FAT_GARY_TIME_OUT_BERR 0x80
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
-#define SDMAC_WTC       ((volatile uint32_t *)0xDD0024)
-#define SDMAC_WTC_ALT   ((volatile uint32_t *)0xDD0028)
+#define SDMAC_WTC       ((volatile uint32_t *)0xDD0004)
 #define NCR_CTEST8_REG 0x00DD0061
 
 #ifndef AFB_68080
@@ -117,6 +116,10 @@ typedef enum {
     AGNUS_OCS_PAL,
     AGNUS_OCS_FAT_NTSC,
     AGNUS_OCS_FAT_PAL,
+    AGNUS_ECS_2MB_NTSC,
+    AGNUS_ECS_2MB_PAL,
+    AGNUS_ECS_B_NTSC,
+    AGNUS_ECS_B_PAL,
     AGNUS_ECS_NTSC,
     AGNUS_ECS_PAL,
     AGNUS_ALICE_NTSC,
@@ -171,6 +174,7 @@ typedef struct {
 
     /* FPU */
     FPUType fpu_type;
+    BOOL fpu_enabled;
     ULONG fpu_mhz;          /* FPU MHz * 100 */
     char fpu_string[32];
 
