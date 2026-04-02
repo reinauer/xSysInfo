@@ -66,7 +66,7 @@ static int compare_entries(const void *a, const void *b)
 {
     const SoftwareEntry *ea = (const SoftwareEntry *)a;
     const SoftwareEntry *eb = (const SoftwareEntry *)b;
-    return stricmp(ea->name, eb->name);
+    return strcmp(ea->name, eb->name);
 }
 
 /*
@@ -107,18 +107,31 @@ void enumerate_libraries(void)
          (struct Node *)lib != (struct Node *)&SysBase->LibList.lh_Tail;
          lib = (struct Library *)lib->lib_Node.ln_Succ) {
 
-        if (libraries_list.count >= MAX_SOFTWARE_ENTRIES) break;
+        /* Detect FPU library presence (outside entry limit check) */
+        if (lib->lib_Node.ln_Name) {
+            if (strcmp(lib->lib_Node.ln_Name, "68040.library") == 0) {
+                if (hw_info.fpu_type == FPU_68040)
+                    hw_info.fpu_enabled = TRUE;
+            }
+            if (strcmp(lib->lib_Node.ln_Name, "68060.library") == 0) {
+                if (hw_info.fpu_type == FPU_68060)
+                    hw_info.fpu_enabled = TRUE;
+            }
+            if (strcmp(lib->lib_Node.ln_Name, "mmu.library") == 0) {
+                mmuLoaded = TRUE;
+            }
+        }
+
+        if (libraries_list.count >= MAX_SOFTWARE_ENTRIES)
+            continue;
 
         entry = &libraries_list.entries[libraries_list.count];
 
         if (lib->lib_Node.ln_Name) {
             if (strstr(lib->lib_Node.ln_Name, ".library") != NULL) {
                 copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
-            } else { //not a ".library"
+            } else { /* not a ".library" */
                 strncpy(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
-            }
-            if (strcmp(lib->lib_Node.ln_Name,"mmu.library") == 0) {
-                mmuLoaded = TRUE;
             }
         } else {
             strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
@@ -139,11 +152,11 @@ void enumerate_libraries(void)
     /* Insert artificial "kickstart" entry at the beginning */
     /* Insert artificial "kickstart (soft)" entry at the beginning */
     if ((libraries_list.count+1) < MAX_SOFTWARE_ENTRIES) {
-        if ((hw_info.kickstart_version != hw_info.kickstart_patch_version ||
-            hw_info.kickstart_revision != hw_info.kickstart_patch_revision) &&
+        if (hw_info.kickstart_version != hw_info.kickstart_patch_version &&
+            hw_info.kickstart_revision != hw_info.kickstart_patch_revision &&
             0 != hw_info.kickstart_patch_version &&
             0 != hw_info.kickstart_patch_revision &&
-            hw_info.kickstart_version >= 40 //softkick is possible from Kick 3.1 (v40) and newer
+            hw_info.kickstart_version >= 40 /* softkick from Kick 3.1 (v40)+ */
         ) {
             /* Shift all entries by 1 position */
             for (i = libraries_list.count; i > 0; i--) {
@@ -287,17 +300,17 @@ void enumerate_mmu_entries(void)
             if ((MMUBase = OpenLibrary((CONST_STRPTR)"mmu.library", 40L))) {
 
                 entry = &mmu_list.entries[mmu_list.count];
-                snprintf(entry->name, sizeof(entry->name), "%s: %lukB.", get_string(MSG_MMU_SIZE), (unsigned long)(GetPageSize(NULL)/1024));
-                mmu_list.count++;
-                entry = &mmu_list.entries[mmu_list.count];
-                snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_ADDRESS_HINT));
+                snprintf(entry->name, sizeof(entry->name), "%s: %lukB.",
+                         get_string(MSG_MMU_SIZE),
+                         (unsigned long)(GetPageSize(NULL) / 1024));
                 mmu_list.count++;
                 /* Get the mapping of the default context */
-                list=GetMapping(NULL);
-                for (mn = (struct MappingNode *)(list->mlh_Head); mn->map_succ; mn = mn->map_succ)
+                list = GetMapping(NULL);
+                for (mn = (struct MappingNode *)(list->mlh_Head);
+                     mn->map_succ && mmu_list.count < 256;
+                     mn = mn->map_succ)
                 {
                     size_t pos;
-                    if (mmu_list.count >= MAX_SOFTWARE_ENTRIES) break;
                     memset(buffer, 0, sizeof(buffer));
                     pos = snprintf(buffer, sizeof(buffer), "%08lx-%08lx", mn->map_Lower, mn->map_Higher);
                     if (mn->map_Properties & MAPP_WINDOW)
@@ -418,12 +431,47 @@ void enumerate_mmu_entries(void)
                     snprintf(entry->name, sizeof(entry->name), "%s", buffer);
                     mmu_list.count++;
                 }
+                /* Append hint entries at end of list */
+                if (mmu_list.count < 256 - 8) {
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_ADDRESS_HINT));
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS1_HINT));
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS2_HINT));
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS3_HINT));
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS4_HINT));
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS5_HINT));
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS6_HINT));
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS7_HINT));
+                    mmu_list.count++;
+                }
+
                 CloseLibrary((struct Library *)MMUBase);
             }
             CloseLibrary((struct Library *)DOSBase);
         }
-    }
-    else {
+    } else {
         SoftwareEntry *entry = &mmu_list.entries[0];
         strncpy(entry->name, "mmu.library not loaded", sizeof(entry->name) - 1);
         mmu_list.count++;
