@@ -431,6 +431,8 @@ static BOOL open_display(void)
             newWindow->Flags = WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
                     WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
                     WFLG_REPORTMOUSE;
+            if (hw_info.kickstart_patch_version < 36)
+                newWindow->BlockPen = 1;
 
             app->window = OpenWindow(newWindow);
             FreeMem(newWindow, sizeof(struct NewWindow));
@@ -516,6 +518,43 @@ static BOOL open_display(void)
 }
 
 /*
+ * Strip and reply all pending IntuiMessages for a window on a port.
+ *
+ * We must not rely on ln_Succ after replying a message, so we
+ * capture the successor before each ReplyMsg.
+ */
+static void StripIntuiMessages(struct MsgPort *mp, struct Window *win)
+{
+    struct IntuiMessage *msg;
+    struct Node *succ;
+
+    msg = (struct IntuiMessage *)mp->mp_MsgList.lh_Head;
+    while ((succ = msg->ExecMessage.mn_Node.ln_Succ)) {
+        if (msg->IDCMPWindow == win) {
+            Remove((struct Node *)msg);
+            ReplyMsg((struct Message *)msg);
+        }
+        msg = (struct IntuiMessage *)succ;
+    }
+}
+
+/*
+ * Safely close a window by first draining any unreplied IntuiMessages.
+ *
+ * Without this, closing a window that still has pending messages on its
+ * UserPort causes Intuition to access freed memory.
+ */
+static void CloseWindowSafely(struct Window *win)
+{
+    Forbid();
+    StripIntuiMessages(win->UserPort, win);
+    win->UserPort = NULL;
+    ModifyIDCMP(win, 0L);
+    Permit();
+    CloseWindow(win);
+}
+
+/*
  * Close display
  */
 static void close_display(void)
@@ -529,8 +568,12 @@ static void close_display(void)
     }
 
     if (app->window) {
-        CloseWindow(app->window);
+        CloseWindowSafely(app->window);
         app->window = NULL;
+        if (!app->use_custom_screen) {
+            app->screen = NULL;
+            app->screen_height = 0;
+        }
     }
 
     if (app->use_custom_screen && app->screen) {
