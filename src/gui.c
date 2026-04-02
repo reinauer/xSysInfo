@@ -2064,7 +2064,7 @@ BOOL show_filename_requester(const char *title, char *filename, ULONG filename_s
         WaitPort(app->window->UserPort);
 
         while ((msg = (struct IntuiMessage *)
-                GetMsg(app->window->UserPort)) != NULL) {
+                GetMsg(app->window->UserPort)) != NULL && running) {
 
             ULONG class = msg->Class;
             UWORD code = msg->Code;
