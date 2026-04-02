@@ -1475,7 +1475,7 @@ static void draw_hardware_panel(void)
             draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
                              get_string(MSG_CBACK), NULL, 56);
             cache_y += 11;
-            draw_label_value(HARDWARE_PANEL_X + 170, cache_y,
+            draw_label_value(HARDWARE_PANEL_X + 50, cache_y,
                              get_string(MSG_SUPER_SCALAR), NULL, 56);
         }
         y += 8;
