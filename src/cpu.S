@@ -167,8 +167,16 @@ _read060fpu
 	moveq	#ASM_CPU_68020,d0       ;default result is: ASM_CPU_68020
 	movec.l	vbr,a0                  ;saveback VBR
 	lea	illegal060(pc),a1       ;entry for Illegal/LineF
-	move.l	a1,$10(a7)              ;set it
-	move.l	a1,$2c(a7)              ;ditto
+	move.l	a1,$08(a7)              ;Bus Error
+	move.l	a1,$0c(a7)              ;Address Error
+	move.l	a1,$10(a7)              ;Illegal Instruction
+	move.l	a1,$14(a7)              ;Zero Divide
+	move.l	a1,$18(a7)              ;CHK
+	move.l	a1,$1c(a7)              ;TRAPcc
+	move.l	a1,$20(a7)              ;Privilege Violation
+	move.l	a1,$24(a7)              ;Trace
+	move.l	a1,$28(a7)              ;Line 1010
+	move.l	a1,$2c(a7)              ;Line 1111
 	move.l	a1,$34(a7)
 	move.l	a1,$e0(a7)
 	move.l	a1,$e4(a7)
@@ -234,32 +242,55 @@ _readvbr:
 	rte
 
 
+AFB_68020		EQU	1
+
 _GetCacheBits:
-	movem.l	a5/a6,-(sp)
-	lea.l	_readCacheBits,a5
+	movem.l	d4/a5/a6,-(sp)
 	move.l	$4.w,a6
+	move.w	AttnFlags(a6),d4
+	btst	#AFB_68020,d4
+	beq.s	gcb_exit
+	lea.l	_readCacheBits,a5
 	jsr	_LVOSupervisor(a6)
-	movem.l	(sp)+,a5/a6
+gcb_exit:
+	movem.l	(sp)+,d4/a5/a6
 	rts
 
 _readCacheBits:
-	movec	CACR,d0				; this will crash on 68000/010
+	movec	CACR,d0
+	nop
 	rte
 
+AFB_68040		EQU	3
+
 _SetCacheBits:				; d1: flags, d2: mask
-	movem.l	d1/d2/a5/a6,-(sp)
-	lea.l	_writeCacheBits,a5
+	movem.l	d1-d4/a5/a6,-(sp)
 	move.l	$4.w,a6
+	move.w	AttnFlags(a6),d4
+	btst	#AFB_68020,d4
+	beq.s	scb_exit
+	lea.l	_writeCacheBits,a5
 	jsr	_LVOSupervisor(a6)
-	movem.l	(sp)+,d1/d2/a5/a6
+scb_exit:
+	movem.l	(sp)+,d1-d4/a5/a6
 	rts
 
 _writeCacheBits:
+	ori.w	#$0700,sr			; disable interrupts
 	movec	CACR,d0				; save old value
+	nop
+	btst	#AFB_68040,d4
+	beq.s	.noflush
+	CPUSHA	IC				; flush instruction cache
+	nop
+	CPUSHA	DC				; flush data cache
+	nop
+.noflush:
 	not.l	d2				; invert mask
 	and.l	d0,d2				; keep unaffected values
 	or.l	d2,d1
-	movec	d1,CACR				; this will crash on 68000/010
+	movec	d1,CACR
+	nop
 	rte
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
@@ -310,8 +341,16 @@ m68020_mmu:
         moveq #ASM_MMU,d0               ;default result is: YES
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-        move.l a1,$10(a7)               ;set it
-        move.l a1,$2c(a7)               ;ditto
+        move.l a1,$08(a7)               ;Bus Error
+        move.l a1,$0c(a7)               ;Address Error
+        move.l a1,$10(a7)               ;Illegal Instruction
+        move.l a1,$14(a7)               ;Zero Divide
+        move.l a1,$18(a7)               ;CHK
+        move.l a1,$1c(a7)               ;TRAPcc
+        move.l a1,$20(a7)               ;Privilege Violation
+        move.l a1,$24(a7)               ;Trace
+        move.l a1,$28(a7)               ;Line 1010
+        move.l a1,$2c(a7)               ;Line 1111
         move.l a1,$34(a7)
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
@@ -380,8 +419,16 @@ m68030_mmu:
         moveq #ASM_MMU,d0               ;default result is: YES
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-        move.l a1,$10(a7)               ;set it
-        move.l a1,$2c(a7)               ;ditto
+        move.l a1,$08(a7)               ;Bus Error
+        move.l a1,$0c(a7)               ;Address Error
+        move.l a1,$10(a7)               ;Illegal Instruction
+        move.l a1,$14(a7)               ;Zero Divide
+        move.l a1,$18(a7)               ;CHK
+        move.l a1,$1c(a7)               ;TRAPcc
+        move.l a1,$20(a7)               ;Privilege Violation
+        move.l a1,$24(a7)               ;Trace
+        move.l a1,$28(a7)               ;Line 1010
+        move.l a1,$2c(a7)               ;Line 1111
         move.l a1,$34(a7)
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
@@ -493,8 +540,16 @@ m68040_mmu:
                                         ;exception vectors
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-        move.l a1,$10(a7)               ;set it
-        move.l a1,$2c(a7)               ;ditto
+        move.l a1,$08(a7)               ;Bus Error
+        move.l a1,$0c(a7)               ;Address Error
+        move.l a1,$10(a7)               ;Illegal Instruction
+        move.l a1,$14(a7)               ;Zero Divide
+        move.l a1,$18(a7)               ;CHK
+        move.l a1,$1c(a7)               ;TRAPcc
+        move.l a1,$20(a7)               ;Privilege Violation
+        move.l a1,$24(a7)               ;Trace
+        move.l a1,$28(a7)               ;Line 1010
+        move.l a1,$2c(a7)               ;Line 1111
         lea .nmi(pc),a1
         move.l a1,$7c(a7)               ;NMI disable
         movec.l a7,vbr                  ;VBR temporary on stack
