@@ -16,19 +16,95 @@
 extern HardwareInfo hw_info;
 
 /*
- * Helper to toggle a cache flag
+ * Convert 68030-style CACR flags to 68040/060 format.
+ *
+ * The 68040 uses bit 31 (CACRF_CopyBack) for data cache enable and
+ * bit 15 (CACRF_ICACHE040) for instruction cache enable, while the
+ * 68030 uses CACRF_EnableD/CACRF_DBE and CACRF_EnableI/CACRF_IBE.
+ */
+ULONG convert68030to68040(ULONG input)
+{
+	ULONG output, keeper;
+
+	if (hw_info.cpu_type < CPU_68040 || hw_info.cpu_type > CPU_68080)
+		return input;
+
+	output = 0;
+	if (input & (CACRF_CopyBack | CACRF_EnableD | CACRF_DBE))
+		output = CACRF_CopyBack;
+	if (input & (CACRF_EnableI | CACRF_IBE))
+		output |= CACRF_ICACHE040;
+
+	/* Preserve all unrelated flags */
+	keeper = input & ~(CACRF_CopyBack | CACRF_EnableD | CACRF_DBE |
+			   CACRF_EnableI | CACRF_IBE | CACRF_ICACHE040);
+	return output | keeper;
+}
+
+/*
+ * Convert 68040/060 CACR bits back to 68030-style flags.
+ *
+ * This allows the toggle logic to test and manipulate cache state
+ * using the 68030-style flag names uniformly.
+ */
+ULONG convert68040to68030(ULONG input)
+{
+	ULONG output, keeper;
+
+	if (hw_info.cpu_type < CPU_68040 || hw_info.cpu_type > CPU_68080)
+		return input;
+
+	output = 0;
+	if (input & CACRF_CopyBack)
+		output = CACRF_CopyBack | CACRF_EnableD | CACRF_DBE;
+	if (input & CACRF_ICACHE040)
+		output |= CACRF_EnableI | CACRF_IBE;
+
+	keeper = input & ~(CACRF_CopyBack | CACRF_EnableD | CACRF_DBE |
+			   CACRF_EnableI | CACRF_IBE | CACRF_ICACHE040);
+	return output | keeper;
+}
+
+/*
+ * Expand a single 68030-style flag to the full group needed on 68040.
+ *
+ * The 68040 has no separate burst mode -- any data cache flag change
+ * must set/clear all D-cache bits together, and likewise for I-cache.
+ */
+ULONG convertFlagsFor68040(ULONG input)
+{
+	ULONG output;
+
+	if (hw_info.cpu_type < CPU_68040 || hw_info.cpu_type > CPU_68080)
+		return input;
+
+	output = 0;
+	if (input & (CACRF_CopyBack | CACRF_EnableD | CACRF_DBE))
+		output = CACRF_CopyBack | CACRF_EnableD | CACRF_DBE;
+	if (input & (CACRF_EnableI | CACRF_IBE))
+		output |= CACRF_EnableI | CACRF_IBE;
+
+	return output;
+}
+
+/*
+ * Toggle a cache flag, handling 68040/060 CACR bit layout differences.
+ *
+ * Read current CACR, convert to 68030-style, modify the requested flag
+ * (expanding it for 68040 if needed), convert back and write.
  */
 static void toggle_cache_flag(ULONG flag)
 {
-    ULONG current = GetCacheBits();
+	ULONG current = convert68040to68030(GetCacheBits());
+	ULONG expanded = convertFlagsFor68040(flag);
+	ULONG new_val;
 
-    if (current & flag) {
-        /* Disable */
-        SetCacheBits(0, flag);
-    } else {
-        /* Enable */
-        SetCacheBits(flag, flag);
-    }
+	if (current & flag)
+		new_val = current & ~expanded;
+	else
+		new_val = current | expanded;
+
+	SetCacheBits(convert68030to68040(new_val), 0xFFFFFFFF);
 }
 
 /*

@@ -10,7 +10,15 @@
 
 #include "xsysinfo.h"
 
-/* Function prototypes */
+/* 68040/060 CACR bit definitions not in the standard headers */
+#define CACRF_ICACHE040	0x8000
+#define CACRF_EBC060	(1 << 29)
+#define CACRF_ESB060	(1 << 23)
+
+/* CACR bit format conversion between 68030 and 68040/060 */
+ULONG convert68030to68040(ULONG input);
+ULONG convert68040to68030(ULONG input);
+ULONG convertFlagsFor68040(ULONG input);
 
 /* Toggle cache settings */
 void toggle_icache(void);

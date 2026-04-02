@@ -267,14 +267,24 @@ BOOL get_super_scalar_mode(void)
 
 BOOL set_super_scalar_mode(BOOL value)
 {
-    if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_type <= CPU_68080) {
-        ULONG cpuReg = value ? 1L : 0L;
-        cpuReg = SetCPUReg(cpuReg);
-        cpuReg &= 1L; //lowest bit is super scalar bit
-        return cpuReg > 0;
-    } else {
+    ULONG cpuReg, cache_bits;
+
+    if (hw_info.cpu_type < CPU_68060 || hw_info.cpu_type > CPU_68080)
         return FALSE;
-    }
+
+    cpuReg = value ? 1L : 0L;
+    cpuReg = SetCPUReg(cpuReg);
+    cpuReg &= 1L;
+
+    /* Also toggle enhanced branch cache and store buffer */
+    cache_bits = GetCacheBits();
+    if (value)
+        cache_bits |= CACRF_EBC060 | CACRF_ESB060;
+    else
+        cache_bits &= ~(CACRF_EBC060 | CACRF_ESB060);
+    SetCacheBits(cache_bits, cache_bits | CACRF_EBC060 | CACRF_ESB060);
+
+    return cpuReg > 0;
 }
 
 /*
@@ -1060,24 +1070,32 @@ void refresh_cache_status(void)
 
     /* Determine available cache features based on CPU type */
     hw_info.has_icache = (hw_info.cpu_type >= CPU_68020);
-    hw_info.has_dcache = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_iburst = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030);
+    hw_info.has_dcache = (hw_info.cpu_type == CPU_68030 ||
+                          hw_info.cpu_type == CPU_68EC030);
+    hw_info.has_iburst = (hw_info.cpu_type == CPU_68030 ||
+                          hw_info.cpu_type == CPU_68EC030);
+    hw_info.has_dburst = (hw_info.cpu_type == CPU_68030 ||
+                          hw_info.cpu_type == CPU_68EC030);
     hw_info.has_copyback = (hw_info.cpu_type >= CPU_68040 &&
                             hw_info.cpu_type <= CPU_68080);
     hw_info.has_super_scalar = (hw_info.cpu_type >= CPU_68060 &&
                                 hw_info.cpu_type <= CPU_68080);
 
-    /* Get current cache state */
+    /* Get current cache state, converting 68040 bit layout to 68030 */
     if (hw_info.cpu_type >= CPU_68020) {
-        cacr_bits = GetCacheBits();
+        cacr_bits = convert68040to68030(GetCacheBits());
     }
 
-    hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) ? TRUE : FALSE;
-    hw_info.dcache_enabled = (cacr_bits & CACRF_EnableD) ? TRUE : FALSE;
-    hw_info.iburst_enabled = (cacr_bits & CACRF_IBE) ? TRUE : FALSE;
-    hw_info.dburst_enabled = (cacr_bits & CACRF_DBE) ? TRUE : FALSE;
-    hw_info.copyback_enabled = (cacr_bits & CACRF_CopyBack) ? TRUE : FALSE;
+    hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) &&
+                             hw_info.has_icache ? TRUE : FALSE;
+    hw_info.dcache_enabled = (cacr_bits & CACRF_EnableD) &&
+                             hw_info.has_dcache ? TRUE : FALSE;
+    hw_info.iburst_enabled = (cacr_bits & CACRF_IBE) &&
+                             hw_info.has_iburst ? TRUE : FALSE;
+    hw_info.dburst_enabled = (cacr_bits & CACRF_DBE) &&
+                             hw_info.has_dburst ? TRUE : FALSE;
+    hw_info.copyback_enabled = (cacr_bits & CACRF_CopyBack) &&
+                               hw_info.has_copyback ? TRUE : FALSE;
     hw_info.super_scalar_enabled = get_super_scalar_mode() ? TRUE : FALSE;
 }
 
