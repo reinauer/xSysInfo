@@ -1188,41 +1188,37 @@ static void draw_speed_panel(void)
     y += 8;
 
     SetAPen(rp, COLOR_TEXT);
-    snprintf(buffer, sizeof(buffer), "%s %s", get_string(MSG_MEM_SPEED_HEADER),
-        get_string(MSG_MEM_SPEED_UNIT));
+    snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_MEM_SPEED_HEADER));
     TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
 
     /* Memory speed values */
     y += 8;
-    if (bench_results.benchmarks_valid) {
+    {
         char chip_str[8], fast_str[8], rom_str[8];
 
         /* Format CHIP speed in MB/s */
-        if (bench_results.chip_speed > 0) {
+        if (bench_results.benchmarks_valid && bench_results.chip_speed > 0) {
             format_scaled(chip_str, sizeof(chip_str), bench_results.chip_speed / 10000, TRUE);
         } else {
             snprintf(chip_str, sizeof(chip_str), "%s", get_string(MSG_NA));
         }
 
         /* Format FAST speed in MB/s or N/A */
-        if (bench_results.fast_speed > 0) {
+        if (bench_results.benchmarks_valid && bench_results.fast_speed > 0) {
             format_scaled(fast_str, sizeof(fast_str), bench_results.fast_speed / 10000, TRUE);
         } else {
             snprintf(fast_str, sizeof(fast_str), "%s", get_string(MSG_NA));
         }
 
         /* Format ROM speed in MB/s */
-        if (bench_results.rom_speed > 0) {
+        if (bench_results.benchmarks_valid && bench_results.rom_speed > 0) {
             format_scaled(rom_str, sizeof(rom_str), bench_results.rom_speed / 10000, TRUE);
         } else {
             snprintf(rom_str, sizeof(rom_str), "%s", get_string(MSG_NA));
         }
 
-        snprintf(buffer, sizeof(buffer), "%-6s %-6s %-6s",
-                 chip_str, fast_str, rom_str);
-    } else {
-        snprintf(buffer, sizeof(buffer), "%-6s %-6s %-6s",
-                 get_string(MSG_NA), get_string(MSG_NA), get_string(MSG_NA));
+        snprintf(buffer, sizeof(buffer), "%-6s %-6s %-6s  %s",
+                 chip_str, fast_str, rom_str, get_string(MSG_MEM_SPEED_UNIT));
     }
     SetAPen(rp, COLOR_HIGHLIGHT);
     TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
