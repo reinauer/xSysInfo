@@ -52,8 +52,32 @@ int num_buttons = 0;
 static char icache_label[16], dcache_label[16], iburst_label[16];
 static char dburst_label[16], cback_label[16], super_scalar_label[16];
 
+#define XSYSINFO_LOGO_W     104
+#define XSYSINFO_LOGO_H     16
+#define XSYSINFO_LOGO_BPR   14
+
+static const UWORD xsysinfo_logo_template[XSYSINFO_LOGO_H][XSYSINFO_LOGO_BPR / 2] = {
+    { 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 },
+    { 0x0C0C, 0x3FCC, 0x0C3F, 0xCFFC, 0x0000, 0xFC00, 0x0000 },
+    { 0x0C0C, 0x3FCC, 0x0C3F, 0xCFFC, 0x0000, 0xFC00, 0x0000 },
+    { 0x0661, 0x8018, 0x1980, 0x0181, 0xFE06, 0x007E, 0x0000 },
+    { 0x0661, 0x8018, 0x1980, 0x0181, 0xFE06, 0x007E, 0x0000 },
+    { 0x0181, 0x8018, 0x1980, 0x0181, 0x8186, 0x0181, 0x8000 },
+    { 0x0303, 0x0030, 0x3300, 0x0303, 0x030C, 0x0303, 0x0000 },
+    { 0x0300, 0xFC0F, 0xF0FC, 0x0303, 0x033F, 0x0303, 0x0000 },
+    { 0x0300, 0xFC0F, 0xF0FC, 0x0303, 0x033F, 0x0303, 0x0000 },
+    { 0x1980, 0x0600, 0x6006, 0x0606, 0x0618, 0x0606, 0x0000 },
+    { 0x1980, 0x0600, 0x6006, 0x0606, 0x0618, 0x0606, 0x0000 },
+    { 0x6060, 0x0660, 0x6006, 0x0606, 0x0618, 0x0606, 0x0000 },
+    { 0xC0C0, 0x0CC0, 0xC00C, 0x0C0C, 0x0C30, 0x0C0C, 0x0000 },
+    { 0x000F, 0xF03F, 0x0FF0, 0xFFCC, 0x0C30, 0x03F0, 0x0000 },
+    { 0x000F, 0xF03F, 0x0FF0, 0xFFCC, 0x0C30, 0x03F0, 0x0000 },
+    { 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000 }
+};
+
 /* Forward declarations */
 static void draw_header(void);
+static void draw_xsysinfo_logo(WORD x, WORD y);
 static void draw_software_panel(void);
 static void draw_speed_panel(void);
 static void refresh_speed_bars(void);
@@ -495,34 +519,120 @@ void draw_main_view(void)
     draw_bottom_buttons();
 }
 
+static BOOL xsysinfo_logo_pixel(WORD x, WORD y)
+{
+    return (xsysinfo_logo_template[y][x >> 4] & (0x8000 >> (x & 15))) != 0;
+}
+
+static BOOL decorative_dots_available(void)
+{
+    return app->screen && app->screen->BitMap.Depth >= 3;
+}
+
+static void draw_xsysinfo_logo_mask(struct RastPort *rp, WORD x, WORD y, WORD color)
+{
+    WORD row, col, start;
+
+    SetAPen(rp, color);
+    for (row = 0; row < XSYSINFO_LOGO_H; row++) {
+        start = -1;
+        for (col = 0; col <= XSYSINFO_LOGO_W; col++) {
+            BOOL on = (col < XSYSINFO_LOGO_W) && xsysinfo_logo_pixel(col, row);
+
+            if (on && start < 0) {
+                start = col;
+            } else if (!on && start >= 0) {
+                if (start == col - 1) {
+                    WritePixel(rp, x + start, y + row);
+                } else {
+                    Move(rp, x + start, y + row);
+                    Draw(rp, x + col - 1, y + row);
+                }
+                start = -1;
+            }
+        }
+    }
+}
+
+static void draw_xsysinfo_logo(WORD x, WORD y)
+{
+    struct RastPort *rp = app->rp;
+
+    SetDrMd(rp, JAM1);
+    draw_xsysinfo_logo_mask(rp, x + 1, y + 1, COLOR_TEXT);
+    draw_xsysinfo_logo_mask(rp, x, y, COLOR_HIGHLIGHT);
+}
+
 /*
  * Draw header area
  */
 static void draw_header(void)
 {
     struct RastPort *rp = app->rp;
-    char buffer[128];
+    char title[128];
+    char subtitle[128];
+    WORD title_area_x = 120;
+    WORD title_area_w = SCREEN_WIDTH - title_area_x - 8;
+    WORD title_x;
+    WORD subtitle_x;
+    WORD title_width;
+    WORD subtitle_width;
+    UWORD title_len;
+    UWORD subtitle_len;
+    WORD x, y;
 
     draw_panel(0, 0, 640, HEADER_HEIGHT, NULL);
 
-    /* Title bar background */
-    SetAPen(rp, COLOR_PANEL_BG);
+    /* Title bar background with a low-color stipple, SysInfo-style */
+    SetAPen(rp, COLOR_BAR_FILL);
     RectFill(rp, 1, 1, SCREEN_WIDTH - 2, HEADER_HEIGHT - 2);
+    if (decorative_dots_available()) {
+        SetAPen(rp, COLOR_BACKGROUND);
+        for (y = 3; y < HEADER_HEIGHT - 2; y += 4) {
+            for (x = 3 + ((y & 4) ? 2 : 0); x < SCREEN_WIDTH - 2; x += 4) {
+                WritePixel(rp, x, y);
+            }
+        }
+    }
+
+    draw_xsysinfo_logo(7, 3);
+
+    SetDrMd(rp, JAM1);
 
     /* Title text */
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    snprintf(buffer, sizeof(buffer), XSYSINFO_NAME " %s - %s",
-             XSYSINFO_VERSION, get_string(MSG_TAGLINE));
-    Move(rp, (80 - strlen(buffer)) * 8 / 2, 9);
-    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+    snprintf(title, sizeof(title), "%s - %s", XSYSINFO_VERSION, get_string(MSG_TAGLINE));
+    title_len = strlen(title);
+    title_width = title_len * 8;
+    title_x = title_area_x;
+    if (title_width < title_area_w) {
+        title_x += (title_area_w - title_width) / 2;
+    }
 
-    /* Subtitle */
-    SetAPen(rp, COLOR_TEXT);
-    snprintf(buffer, sizeof(buffer), "%s https://github.com/reinauer/xsysinfo",
+    /* Subtitle, centered in the same remaining title-bar space */
+    snprintf(subtitle, sizeof(subtitle), "%s https://github.com/reinauer/xsysinfo",
              get_string(MSG_CONTACT_LABEL));
-    Move(rp, (80 - strlen(buffer)) * 8 / 2, 19);
-    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+    subtitle_len = strlen(subtitle);
+    subtitle_width = subtitle_len * 8;
+    subtitle_x = title_area_x;
+    if (subtitle_width < title_area_w) {
+        subtitle_x += (title_area_w - subtitle_width) / 2;
+    }
+
+    SetAPen(rp, COLOR_TEXT);
+    Move(rp, title_x + 1, 10);
+    Text(rp, (CONST_STRPTR)title, title_len);
+    SetAPen(rp, COLOR_HIGHLIGHT);
+    Move(rp, title_x, 9);
+    Text(rp, (CONST_STRPTR)title, title_len);
+
+    SetAPen(rp, COLOR_TEXT);
+    Move(rp, subtitle_x + 1, 20);
+    Text(rp, (CONST_STRPTR)subtitle, subtitle_len);
+    SetAPen(rp, COLOR_HIGHLIGHT);
+    Move(rp, subtitle_x, 19);
+    Text(rp, (CONST_STRPTR)subtitle, subtitle_len);
+
+    SetDrMd(rp, JAM2);
 }
 
 /*
@@ -531,6 +641,8 @@ static void draw_header(void)
 void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title)
 {
     struct RastPort *rp = app->rp;
+    WORD px, py, dot_start;
+    UWORD title_len;
 
     /* Panel background */
     SetAPen(rp, COLOR_PANEL_BG);
@@ -550,10 +662,29 @@ void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title)
 
     /* Title if provided */
     if (title) {
+        title_len = strlen(title);
+
+        SetAPen(rp, COLOR_TITLE_BG);
+        RectFill(rp, x + 1, y + 1, x + w - 2, y + h - 2);
+
+        if (decorative_dots_available()) {
+            dot_start = x + 4 + title_len * 8 + 8;
+            SetAPen(rp, COLOR_BACKGROUND);
+            for (py = y + 3; py <= y + h - 3; py += 4) {
+                for (px = dot_start + ((py & 4) ? 4 : 0); px < x + w - 3; px += 8) {
+                    WritePixel(rp, px, py);
+                }
+            }
+        }
+
+        SetDrMd(rp, JAM1);
         SetAPen(rp, COLOR_TEXT);
-        SetBPen(rp, COLOR_PANEL_BG);
+        Move(rp, x + 5, y + 11);
+        Text(rp, (CONST_STRPTR)title, title_len);
+        SetAPen(rp, COLOR_HIGHLIGHT);
         Move(rp, x + 4, y + 10);
-        Text(rp, (CONST_STRPTR)title, strlen(title));
+        Text(rp, (CONST_STRPTR)title, title_len);
+        SetDrMd(rp, JAM2);
     }
 }
 
@@ -609,7 +740,7 @@ void draw_button(Button *btn)
 }
 
 /*
- * Draw a cycle button (recessed with curly arrow icon)
+ * Draw a cycle button
  * Used for Libraries/Devices/Resources and Shrink/Expand toggles
  */
 void draw_cycle_button(Button *btn)
@@ -617,56 +748,44 @@ void draw_cycle_button(Button *btn)
     struct RastPort *rp = app->rp;
     WORD text_x, text_y;
     WORD text_len;
-    WORD icon_x, icon_y;
+    WORD icon_x;
 
     if (!btn) return;
 
-    /* Button background - darker like an input field */
-    SetAPen(rp, COLOR_BACKGROUND);
+    /* Match the dark section-title strips, without the stipple. */
+    SetAPen(rp, COLOR_TITLE_BG);
     RectFill(rp, btn->x, btn->y, btn->x + btn->width - 1, btn->y + btn->height - 1);
 
     /* Recessed 3D border */
     draw_3d_box(btn->x, btn->y, btn->width, btn->height, TRUE);
 
-    /* Draw curly arrow icon (circular arrow) on the left */
-    icon_x = btn->x + 5;
-    icon_y = btn->y + btn->height / 2;
+    SetDrMd(rp, JAM1);
+
+    /* Draw the cycle marker as a crisp '>' glyph. */
+    icon_x = btn->x + 4;
+    text_y = btn->y + (btn->height + 6) / 2;
 
     SetAPen(rp, COLOR_TEXT);
+    Move(rp, icon_x + 1, text_y + 1);
+    Text(rp, (CONST_STRPTR)">", 1);
+    SetAPen(rp, btn->enabled ? COLOR_HIGHLIGHT : COLOR_BACKGROUND);
+    Move(rp, icon_x, text_y);
+    Text(rp, (CONST_STRPTR)">", 1);
 
-    /* Draw a small circular arrow (clockwise refresh icon) */
-    /* Arc part - draw as connected pixels forming a 3/4 circle */
-    WritePixel(rp, icon_x + 2, icon_y - 3);  /* Top */
-    WritePixel(rp, icon_x + 3, icon_y - 3);
-    WritePixel(rp, icon_x + 4, icon_y - 2);  /* Top-right curve */
-    WritePixel(rp, icon_x + 5, icon_y - 1);
-    WritePixel(rp, icon_x + 5, icon_y);      /* Right side */
-    WritePixel(rp, icon_x + 5, icon_y + 1);
-    WritePixel(rp, icon_x + 4, icon_y + 2);  /* Bottom-right curve */
-    WritePixel(rp, icon_x + 3, icon_y + 3);
-    WritePixel(rp, icon_x + 2, icon_y + 3);  /* Bottom */
-    WritePixel(rp, icon_x + 1, icon_y + 3);
-    WritePixel(rp, icon_x, icon_y + 2);      /* Bottom-left curve */
-    WritePixel(rp, icon_x - 1, icon_y + 1);
-    WritePixel(rp, icon_x - 1, icon_y);      /* Left side */
-
-    /* Arrow head pointing right at the gap (top-left area) */
-    WritePixel(rp, icon_x + 1, icon_y - 3);  /* Arrow head */
-    WritePixel(rp, icon_x, icon_y - 4);
-    WritePixel(rp, icon_x + 1, icon_y - 4);
-    WritePixel(rp, icon_x, icon_y - 2);
-
-    /* Label - left-aligned after the icon */
+    /* Label - left-aligned after the marker */
     if (btn->label) {
         text_len = strlen(btn->label);
         text_x = btn->x + 14;  /* After icon */
-        text_y = btn->y + (btn->height + 6) / 2;
 
-        SetAPen(rp, btn->enabled ? COLOR_TEXT : COLOR_BUTTON_DARK);
-        SetBPen(rp, COLOR_BACKGROUND);
+        SetAPen(rp, COLOR_TEXT);
+        Move(rp, text_x + 1, text_y + 1);
+        Text(rp, (CONST_STRPTR)btn->label, text_len);
+        SetAPen(rp, btn->enabled ? COLOR_HIGHLIGHT : COLOR_BACKGROUND);
         Move(rp, text_x, text_y);
         Text(rp, (CONST_STRPTR)btn->label, text_len);
     }
+
+    SetDrMd(rp, JAM2);
 }
 
 /*

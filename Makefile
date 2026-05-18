@@ -102,7 +102,7 @@ mmu: $(FLEXCAT_BIN)
 CATALOG_DESC = catalogs/xSysInfo.cd
 CATALOG_DIR = catalogs/build
 CATALOG_LANGS = german:deutsch french:français italian:italiano \
-		turkish:türkçe polish:polski hungarian:magyar
+		turkish:türkçe polish:polski portuguese:português hungarian:magyar
 
 # Build all catalogs
 catalogs: $(FLEXCAT_BIN)
@@ -190,7 +190,7 @@ MU_MANUAL_LHA = $(DOWNLOAD_DIR)/MuManual.lha
 # MD5 checksums for verification
 IDENTIFY_USR_MD5 = f8bd9feb9fa595bea979755224d08c5c
 IDENTIFY_PCI_MD5 = 7771426e5c7a5e3dc882a973029099d1
-OPENPCI_MD5 = b0bdadfdcec7d9aa86722124263a5b78
+OPENPCI_MD5 = d13549ab7f294a1d6bdd71de0d5644d0
 MMULIB_MD5 = 5d07a2dc0f495a9c6790fa7d1df43f1d
 MU_MANUAL_MD5 = 98ce060266ec1ac2dece921f431253b1
 

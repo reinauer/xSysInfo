@@ -77,7 +77,8 @@ extern struct TextAttr Topaz8Font;
 
 /* Color definitions - use PEN() to map through allocated pens */
 #define COLOR_BACKGROUND    PEN(0)
-#define COLOR_PANEL_BG      PEN(1)
+#define COLOR_PANEL_BG      PEN(0)
+#define COLOR_TITLE_BG      PEN(1)
 #define COLOR_TEXT          PEN(2)
 #define COLOR_HIGHLIGHT     PEN(3)
 #define COLOR_BAR_FILL      PEN(4)

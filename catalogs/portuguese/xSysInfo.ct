@@ -1,76 +1,68 @@
-## version $VER: xSysInfo.catalog 1.0 (02.05.2026) By David Lo Buglio
-## language italiano
+## version $VER: xSysInfo.catalog 1.0 (13.05.2026)
+## language português
 ## codeset 4
 ;
-; Italian translation for xSysInfo
-; Translator: David Lo Buglio
+; Portuguese translation for xSysInfo
+; Translator:
 ;
 ; Header strings
 ;
 MSG_TAGLINE
-Programma di informazioni di sistema per Amiga
+Um Programa de Informação do Sistema Amiga
 ;
 MSG_CONTACT_LABEL
-Contatti:
-;
-; Section headers
+Contacto:
 ;
 MSG_SYSTEM_SOFTWARE
-SOFTWARE DI SISTEMA INSTALLATO
+SOFTWARE DO SISTEMA INSTALADO
 ;
 MSG_INTERNAL_HARDWARE
-INFORMAZIONI HARDWARE
+INFORMAÇÃO DE HARDWARE
 ;
 MSG_SPEED_COMPARISONS
-CONFRONTI DI VELOCITA'
+COMPARAÇÕES DE VELOCIDADE
 ;
 MSG_MEMORY_INFO
-INFORMAZIONI SULLA MEMORIA
+INFORMAÇÃO DE MEMÓRIA
 ;
 MSG_BOARDS_INFO
-INFORMAZIONI SULLE SCHEDE AUTOCONFIG PRESENTI
+INFORMAÇÃO DE PLACAS AUTOCONFIG
 ;
 MSG_DRIVES_INFO
-INFORMAZIONI SULLE UNITA' DISCO
+INFORMAÇÃO DE UNIDADES
 ;
 MSG_SCSI_INFO
-INFORMAZIONI SUI DISPOSITIVI SCSI
-;
-; Software type cycle
+INFORMAÇÃO DE DISPOSITIVOS SCSI
 ;
 MSG_LIBRARIES
-LIBRERIE
+BIBLIOTECAS
 ;
 MSG_DEVICES
-DISPOSITIVI
+DISPOSITIVOS
 ;
 MSG_RESOURCES
-RISORSE
+RECURSOS
 ;
 MSG_MMU_ENTRIES
-MMU SCAN
-;
-; Scale toggle
+PESQUISA MMU
 ;
 MSG_EXPAND
-ESPANDI
+EXPANDIR
 ;
 MSG_SHRINK
-RIDUCI
-;
-; Hardware labels
+REDUZIR
 ;
 MSG_CLOCK
-Orologio
+Relógio
 ;
 MSG_DMA_GFX
 DMA/Gfx
 ;
 MSG_MODE
-Modalità
+Modo
 ;
 MSG_DISPLAY
-Visualizzazione
+Ecrã
 ;
 MSG_CPU_MHZ
 CPU/MHz
@@ -85,30 +77,28 @@ MSG_VBR
 VBR
 ;
 MSG_COMMENT
-Commento
+Comentário
 ;
 MSG_HORIZ_KHZ
-KHz oriz
+Horiz KHz
 ;
 MSG_ECLOCK_HZ
-Hz EClock
+EClock Hz
 ;
 MSG_RAMSEY_REV
-Rev Ramsey
+Rev. Ramsey
 ;
 MSG_GARY_REV
-Rev Gary
+Rev. Gary
 ;
 MSG_CARD_SLOT
-Slot scheda
+Slot de Cartão
 ;
 MSG_VERT_HZ
-Hz verti
+Vert Hz
 ;
 MSG_SUPPLY_HZ
-Hz alimen
-;
-; Cache labels
+Supply Hz
 ;
 MSG_ICACHE
 ICache
@@ -128,8 +118,6 @@ CBack
 MSG_SUPER_SCALAR
 SuperS/BranchC/StoreB
 ;
-; Speed comparison labels
-;
 MSG_DHRYSTONES
 Dhrystones
 ;
@@ -141,8 +129,6 @@ MFlops
 ;
 MSG_MEM_SPEED_UNIT
 MB/s
-;
-; Reference system names
 ;
 MSG_REF_A600
 A600  68000  7MHz
@@ -163,159 +149,151 @@ MSG_REF_A4000
 A4000 68040 25MHz
 ;
 MSG_REF_YOU
-Tuo
-;
-; Memory view labels
+Você
 ;
 MSG_START_ADDRESS
-INDIRIZZO INIZIALE
+ENDEREÇO INICIAL
 ;
 MSG_END_ADDRESS
-INDIRIZZO FINALE
+ENDEREÇO FINAL
 ;
 MSG_TOTAL_SIZE
-DIMENSIONE TOTALE
+TAMANHO TOTAL
 ;
 MSG_MEMORY_TYPE
-TIPO DI MEMORIA
+TIPO DE MEMÓRIA
 ;
 MSG_PRIORITY
-PRIORITA'
+PRIORIDADE
 ;
 MSG_LOWER_BOUND
-LIMITE INFERIORE
+LIMITE INFERIOR
 ;
 MSG_UPPER_BOUND
-LIMITE SUPERIORE
+LIMITE SUPERIOR
 ;
 MSG_FIRST_ADDRESS
-PRIMO INDIRIZZO
+PRIMEIRO ENDEREÇO
 ;
 MSG_AMOUNT_FREE
-SPAZIO LIBERO
+QUANTIDADE LIVRE
 ;
 MSG_LARGEST_BLOCK
-BLOCCO PIU' GRANDE
+MAIOR BLOCO
 ;
 MSG_NUM_CHUNKS
-NUMERO DI BLOCCHI
+NÚMERO DE BLOCOS
 ;
 MSG_NODE_NAME
-NOME DEL NODO
+NOME DO NÓ
 ;
 MSG_MEMORY_SPEED
-VELOCITA' MEMORIA
-;
-; Drives view labels
+VELOCIDADE DA MEMÓRIA
 ;
 MSG_DISK_ERRORS
-NUMERO DI ERRORI DISCO
+NÚMERO DE ERROS DE DISCO
 ;
 MSG_UNIT_NUMBER
-NUMERO UNITA'
+NÚMERO DE UNIDADE
 ;
 MSG_DISK_STATE
-STATO DEL DISCO
+ESTADO DO DISCO
 ;
 MSG_TOTAL_BLOCKS
-NUMERO TOTALE DI BLOCCHI
+NÚMERO TOTAL DE BLOCOS
 ;
 MSG_BLOCKS_USED
-BLOCCHI UTILIZZATI
+TOTAL DE BLOCOS UTILIZADOS
 ;
 MSG_BYTES_PER_BLOCK
-BYTE PER BLOCCO
+BYTES POR BLOCO
 ;
 MSG_DISK_TYPE
-TIPO DI DISCO/UNITA'
+TIPO DE UNIDADE/DISCO
 ;
 MSG_VOLUME_NAME
-NOME DEL VOLUME
+NOME DO VOLUME
 ;
 MSG_DEVICE_NAME
-NOME DEL DISPOSITIVO
+NOME DO DISPOSITIVO
 ;
 MSG_SURFACES
-SUPERFICI
+SUPERFÍCIES
 ;
 MSG_SECTORS_PER_SIDE
-SETTORI PER LATO
+SECTORES POR LADO
 ;
 MSG_RESERVED_BLOCKS
-BLOCCHI RISERVATI
+BLOCOS RESERVADOS
 ;
 MSG_LOWEST_CYLINDER
-CILINDRO INIZIALE
+CILINDRO MAIS BAIXO
 ;
 MSG_HIGHEST_CYLINDER
-CILINDRO FINALE
+CILINDRO MAIS ALTO
 ;
 MSG_NUM_BUFFERS
-NUMERO DI BUFFER
+NÚMERO DE BUFFERS
 ;
 MSG_SPEED
-VELOCITA' UNITA'
+VELOCIDADE DA UNIDADE
 ;
 MSG_DRIVES_NO_DRIVES_FOUND
-Nessuna unità trovata.
+Nenhuma unidade encontrada.
 ;
 MSG_DASH_PLACEHOLDER
 ---
 ;
 MSG_DISK_NO_DISK_INSERTED
-Nessun disco inserito
-;
-; Boards view labels
+Sem Disco Inserido
 ;
 MSG_BOARD_ADDRESS
-Indirizzo
+Endereço da Placa
 ;
 MSG_BOARD_SIZE
-Dimensioni
+Tamanho da Placa
 ;
 MSG_BOARD_TYPE
-Tipo
+Tipo de Placa
 ;
 MSG_PRODUCT
-Nome prodotto
+Produto
 ;
 MSG_MANUFACTURER
-Produttore
+Fabricante
 ;
 MSG_SERIAL_NO
-N. di serie
+Nº de Série
 ;
 MSG_BOARDS_NO_BOARDS_FOUND
-Nessuna scheda di espansione trovata
-;
-; Button labels
+Nenhuma placa de expansão encontrada
 ;
 MSG_BTN_QUIT
-ESCI
+SAIR
 ;
 MSG_BTN_MEMORY
-MEMORIA
+MEMÓRIA
 ;
 MSG_BTN_DRIVES
-DISCHI
+UNIDADES
 ;
 MSG_BTN_BOARDS
-SCHEDE
+PLACAS
 ;
 MSG_BTN_SPEED
-VELOCITA
+VELOCIDADE
 ;
 MSG_BTN_PRINT
-STAMPA
+IMPRIMIR
 ;
 MSG_BTN_PREV
-PREC
+ANTERIOR
 ;
 MSG_BTN_NEXT
-SUCC
+SEGUINTE
 ;
 MSG_BTN_EXIT
-ESCI
+SAIR
 ;
 MSG_BTN_SCSI
 SCSI
@@ -324,53 +302,49 @@ MSG_BTN_OK
 OK
 ;
 MSG_BTN_CANCEL
-ANNULLA
+CANCELAR
 ;
 MSG_BTN_ALL
-TUTTI
-;
-; Status and values
+TODOS
 ;
 MSG_NA
-N/A
+N/D
 ;
 MSG_NONE
-NESSUNO
+NENHUM
 ;
 MSG_UNKNOWN
-NESSUNO
+DESCONHECIDO
 ;
 MSG_YES
-SI
+SIM
 ;
 MSG_NO
-NO
+NÃO
 ;
 MSG_ON
-ON
+LIGADO
 ;
 MSG_OFF
-OFF
+DESLIGADO
 ;
 MSG_IN_USE
-IN USO
+EM USO
 ;
 MSG_CLOCK_FOUND
-OROLOGIO TROVATO
+RELÓGIO ENCONTRADO
 ;
 MSG_CLOCK_NOT_FOUND
-NON TROVATO
+NÃO ENCONTRADO
 ;
 MSG_DISK_OK
-Disco OK, Lettura/Scrittura
+Disco OK, Leitura/Escrita
 ;
 MSG_DISK_WRITE_PROTECTED
-Disco OK, sola lettura
+Disco OK, Protegido contra Escrita
 ;
 MSG_DISK_NO_DISK
-Nessun disco inserito
-;
-; Hardware modes
+Sem Disco Presente
 ;
 MSG_MODE_PAL
 PAL
@@ -381,15 +355,11 @@ NTSC
 MSG_SLOT_PCMCIA
 PCMCIA
 ;
-; Zorro types
-;
 MSG_ZORRO_II
 ZORRO II
 ;
 MSG_ZORRO_III
 ZORRO III
-;
-; Memory types
 ;
 MSG_CHIP_RAM
 CHIP RAM
@@ -404,27 +374,25 @@ MSG_ROM
 ROM
 ;
 MSG_24BIT_RAM
-RAM a 24 bit
+RAM 24BIT
 ;
 MSG_32BIT_RAM
-RAM a 24 bit
+RAM 32BIT
 ;
 MSG_MEM_SPEED_HEADER
-CHIP   FAST   ROM
-;
-; SCSI Types
+CHIP  FAST  ROM
 ;
 MSG_SCSI_TYPE_DISK
 DISCO
 ;
 MSG_SCSI_TYPE_TAPE
-NASTRO
+FITA
 ;
 MSG_SCSI_TYPE_PRINTER
-STAMPANTE
+IMPRESSORA
 ;
 MSG_SCSI_TYPE_PROCESSOR
-PROCESSORE
+PROCESSADOR
 ;
 MSG_SCSI_TYPE_WORM
 WORM
@@ -436,15 +404,13 @@ MSG_SCSI_TYPE_SCANNER
 SCANNER
 ;
 MSG_SCSI_TYPE_OPTICAL
-OTTICO
+OPTICAL
 ;
 MSG_SCSI_TYPE_CHANGER
-CAMBIO
+CHANGER
 ;
 MSG_SCSI_TYPE_COMM
 COMM
-;
-; SCSI Versions
 ;
 MSG_SCSI_VER_1
 SCSI-1
@@ -455,8 +421,6 @@ SCSI-2
 MSG_SCSI_VER_3
 SCSI-3
 ;
-; SCSI View Headers
-;
 MSG_SCSI_ID
 ID
 ;
@@ -464,131 +428,121 @@ MSG_SCSI_TYPE
 Tipo
 ;
 MSG_SCSI_MANUF
-Produttore
+Fabric.
 ;
 MSG_SCSI_MODEL
-Modello
+Modelo
 ;
 MSG_SCSI_REV
 Rev
 ;
 MSG_SCSI_MAXBLOCKS
-MaxBlocchi
+MaxBlocos
 ;
 MSG_SCSI_ANSI
 ANSI
 ;
 MSG_SCSI_REAL
-Reale
+Real
 ;
 MSG_SCSI_FORMAT
 Formato
 ;
 MSG_SCSI_NO_DEVICES
-Nessun dispositivo SCSI trovato
-;
-; Filesystem types
+Nenhum dispositivo SCSI encontrado
 ;
 MSG_OFS
-Vecchio (OLD) file system
+Sistema de Ficheiros Antigo
 ;
 MSG_FFS
-Fast File System
+Sistema de Ficheiros Rápido
 ;
 MSG_INTL_OFS
-Intl Old File System
+SFA Antigo Internacional
 ;
 MSG_INTL_FFS
-Intl Fast File System
+SFA Rápido Internacional
 ;
 MSG_DCACHE_OFS
-DC Old File System
+SFA Antigo DC
 ;
 MSG_DCACHE_FFS
-DC Fast File System
+SFA Rápido DC
 ;
 MSG_LNFS_OFS
-LNFS Old File System
+SFA Antigo LNFS
 ;
 MSG_LNFS_FFS
-LNFS Fast File System
+SFA Rápido LNFS
 ;
 MSG_SFS
-Smart File System
+Sistema de Ficheiros Inteligente
 ;
 MSG_PFS
-Professional File System
+Sistema de Ficheiros Profissional
 ;
 MSG_UNKNOWN_FS
-File System sconosciuto
-;
-; Requester dialogs
+Sistema de Ficheiros Desconhecido
 ;
 MSG_ENTER_FILENAME
-Inserisci nome file o INVIO
+Introduza o Nome do Ficheiro ou RETURN
 ;
 MSG_MEASURING_SPEED
-Misurazione della velocità
-;
-; Error messages
+A medir velocidade
 ;
 MSG_ERR_NO_IDENTIFY
-Impossibile aprire identify.library v13+
+Não foi possível abrir identify.library v13+
 ;
 MSG_ERR_NO_MEMORY
-Memoria insufficiente
+Memória insuficiente
 ;
 MSG_ERR_NO_SCREEN
-Impossibile aprire la schermata
+Não foi possível abrir o ecrã
 ;
 MSG_ERR_NO_WINDOW
-Impossibile aprire la finestra
-;
-; Comments based on system speed
+Não foi possível abrir a janela
 ;
 MSG_COMMENT_WARP11
 WARP 11!
 ;
 MSG_COMMENT_LUDICROUS
-Velocità assurda!
+Velocidade absurda!
 ;
 MSG_COMMENT_RIDICULUS
-Velocità ridicola!
+Velocidade ridícula!
 ;
 MSG_COMMENT_BLAZING
-Incredibilmente veloce!
+Incrivelmente rápido!
 ;
 MSG_COMMENT_VERY_FAST
-Molto veloce!
+Muito rápido!
 ;
 MSG_COMMENT_FAST
-Sistema veloce
+Sistema rápido
 ;
 MSG_COMMENT_GOOD
-Buona velocità
+Boa velocidade
 ;
 MSG_COMMENT_CLASSIC
-Amiga classico
+Amiga clássico
 ;
 MSG_COMMENT_DEFAULT
-Che dire!
-;
-; Hardware toggle
+O que posso dizer!
 ;
 MSG_HARDWARE_STD
-NORMALE
+NORMAL
 ;
 MSG_HARDWARE_EXT
-ESTESO
+EXPANDIDO
 ;
 MSG_RAMSEY_CTRL
-Controllo Ramsey
+Controlo Ramsey
 ;
 MSG_SDMAC_REV
 Chip SCSI
 ;
 MSG_RAMSEY_PAGE
-Modalità pagina
+Modo de página
 ;
 MSG_RAMSEY_BURST
 Burst
@@ -597,19 +551,19 @@ MSG_RAMSEY_WRAP
 Wrap
 ;
 MSG_RAMSEY_SIZE
-Dimensione RAM
+Tamanho RAM
 ;
 MSG_RAMSEY_SKIP
-Salta
+Skip
 ;
 MSG_RAMSEY_REFRESH
-Aggiorna
+Refresh
 ;
 MSG_1M
-1M-chips
+Chips 1M
 ;
 MSG_256K
-256K-chips
+Chips 256K
 ;
 MSG_GARY_A1000
 A1000
@@ -624,43 +578,43 @@ MSG_FAT_GARY
 FAT GARY
 ;
 MSG_GARY_UNKNOWN
-SCONOSCIUTO
+DESCONHECIDO
 ;
 MSG_EXT_INFO
-Informazioni estese A3000/4000
+Informação adicional para A3000/4000
 ;
 MSG_NV_RAM
 NV-RAM (BattMem):
 ;
 MSG_AMNESIA
-Amnesia
+Amnésia
 ;
 MSG_SHARED_AMNESIA
-Amnesia condivisa
+Amn. partilhada
 ;
 MSG_TIMEOUT
 Timeout
 ;
 MSG_SCAN_LUN
-Scansione LUN
+Pesquisar LUNs
 ;
 MSG_SYNC_TRANS
-Sync
+Síncrono
 ;
 MSG_FAST_SYNC
-Fast Sync
+Sync Rápido
 ;
 MSG_QUEUING
-Accodamento
+Fila de espera
 ;
 MSG_SCSI_HOST_ID
 SCSI_ID
 ;
 MSG_LONG
-LONG
+LONGO
 ;
 MSG_SHORT
-SHORT
+CURTO
 ;
 MSG_NCR_53C710
 NCR 53C710
@@ -669,7 +623,7 @@ MSG_SDMAC
 SDMAC
 ;
 MSG_MSM6242B
-SDMAC
+OKI MSM6242B
 ;
 MSG_RP5C01A
 RICOH RP5C01A
@@ -678,10 +632,10 @@ MSG_MK48T02
 ST MK48T02
 ;
 MSG_SOUND_SYSTEM
-Audio
+Som
 ;
 MSG_PAULA_UNKNOWN
-Paula sconosciuta
+Paula desconhecida
 ;
 MSG_PAULA_ORIG
 Paula 8364
@@ -702,10 +656,10 @@ MSG_DENISE_SAGA
 SAGA
 ;
 MSG_DENISE_UNKNOWN
-Denise sconosciuta
+Denise desconhecida
 ;
 MSG_AGNUS_ALICE_PAL
-Denise sconosciuta
+Alice 8374
 ;
 MSG_AGNUS_ALICE_NTSC
 Alice 8374
@@ -744,35 +698,35 @@ MSG_AGNUS_SAGA
 Agnus SAGA
 ;
 MSG_AGNUS_UNKNOWN
-Agnus sconosciuto
+Agnus desconhecido
 ;
 MSG_UNCERTAIN
 incerto
 ;
 MSG_MMU_SIZE
-Dimensione pagina MMU
+Tamanho de página MMU
 ;
 MSG_MMU_ADDRESS_HINT
-Indirizzi in esadecimale!
+Endereços em hexadecimal!
 ;
 MSG_MMU_FLAGS1_HINT
-WP=Prot.Scrit U=Usato M=Modificato G=Globale
+WP=Prot.Escrita U=Usado M=Modificado G=Global
 ;
 MSG_MMU_FLAGS2_HINT
-TT=Translated UPx=User-pageX CI=CacheInhibit
+TT=Traduzido UPx=Página-UtilX CI=InibCache
 ;
 MSG_MMU_FLAGS3_HINT
-IM=Impreciso NS=non-seriale CB=CopyBack
+IM=Impreciso NS=não-serie CB=CopyBack
 ;
 MSG_MMU_FLAGS4_HINT
-SO=Supervisore BL=Vuoto SH=Condiviso INV=Invalido
+SO=Supervisor BL=Vazio SH=Partilhado INV=Inválido
 ;
 MSG_MMU_FLAGS5_HINT
-SNG=Pagina Singola RP=Riparabile IO=SpazioIO
+SNG=Página Única RP=Reparável IO=EspaçoIO
 ;
 MSG_MMU_FLAGS6_HINT
-Ux=UserX SW=Scambiato MAP=Rimappato BN=Bundled
+Ux=UtilX SW=Trocado MAP=Remapeado BN=Agrupado
 ;
 MSG_MMU_FLAGS7_HINT
-IND=Indiretto +=altri flag
+IND=Indireto +=mais flags
 ;

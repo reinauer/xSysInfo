@@ -81,7 +81,7 @@ enum {
 /* Color palette matching original SysInfo */
 static const UWORD palette[8] = {
     0x0AAA,     /* 0: Gray screen background */
-    0x0AAA,     /* 1: Gray panel background */
+    0x0666,     /* 1: Dark title-strip background */
     0x0000,     /* 2: Black text */
     0x0FFF,     /* 3: White highlight */
     0x0068,     /* 4: Blue bar fill */
