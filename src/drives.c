@@ -51,7 +51,14 @@ extern struct DosLibrary *DOSBase;
 #define ID_LNFS_DOS     0x444F5306  /* 'DOS\6' */
 #define ID_LNFS_FFS     0x444F5307  /* 'DOS\7' */
 #define ID_SFS_BE       0x53465300  /* 'SFS\0' */
-#define ID_PFS          0x50465300  /* 'PFS\0' */
+#define ID_PFS0         0x50465300  /* 'PFS\0' */
+#define ID_PFS1         0x50465301  /* 'PFS\1' */
+#define ID_PFS2         0x50465302  /* 'PFS\2' */
+#define ID_PFS3         0x50465303  /* 'PFS\3' */
+#define ID_PDS0         0x50445300  /* 'PDS\0' */
+#define ID_PDS1         0x50445301  /* 'PDS\1' */
+#define ID_PDS2         0x50445302  /* 'PDS\2' */
+#define ID_PDS3         0x50445303  /* 'PDS\3' */
 
 /*
  * Identify filesystem from DOS type
@@ -77,7 +84,14 @@ FilesystemType identify_filesystem(ULONG dos_type)
             return FS_LNFS_FFS;
         case ID_SFS_BE:
             return FS_SFS;
-        case ID_PFS:
+        case ID_PFS0:
+        case ID_PFS1:
+        case ID_PFS2:
+        case ID_PFS3:
+        case ID_PDS0:
+        case ID_PDS1:
+        case ID_PDS2:
+        case ID_PDS3:
             return FS_PFS;
         default:
             return FS_UNKNOWN;
@@ -263,6 +277,7 @@ static void scan_dos_list(void)
                     if (de->de_TableSize >= 16) {
                         drive->dos_type = de->de_DosType;
                         drive->fs_type = identify_filesystem(de->de_DosType);
+                        drive->has_dos_type = TRUE;
                     }
 
                     /* Calculate total blocks */
@@ -384,8 +399,11 @@ static void query_drive_details(void)
             if (drive->bytes_per_block == 0) {
                 drive->bytes_per_block = info->id_BytesPerBlock;
             }
-            drive->dos_type = info->id_DiskType;
-            drive->fs_type = identify_filesystem(info->id_DiskType);
+            if (!drive->has_dos_type) {
+                drive->dos_type = info->id_DiskType;
+                drive->fs_type = identify_filesystem(info->id_DiskType);
+                drive->has_dos_type = TRUE;
+            }
             drive->disk_errors = info->id_NumSoftErrors;
 
             /* Disk state */

@@ -49,6 +49,7 @@ typedef struct {
     ULONG bytes_per_block;
     FilesystemType fs_type;
     ULONG dos_type;             /* Raw DOS type */
+    BOOL has_dos_type;          /* TRUE if dos_type came from DosEnvec/Info */
     ULONG surfaces;
     ULONG sectors_per_track;
     ULONG reserved_blocks;
