@@ -46,10 +46,16 @@ typedef struct {
     DiskState disk_state;
     ULONG total_blocks;
     ULONG blocks_used;
-    ULONG bytes_per_block;
+    ULONG bytes_per_block;      /* Device/geometry block size */
+    ULONG geometry_total_blocks;
+    ULONG info_total_blocks;
+    ULONG info_blocks_used;
+    ULONG info_bytes_per_block;
+    ULONG info_disk_type;
     FilesystemType fs_type;
     ULONG dos_type;             /* Raw DOS type */
     BOOL has_dos_type;          /* TRUE if dos_type came from DosEnvec/Info */
+    BOOL has_info;              /* TRUE if Info() populated volume stats */
     ULONG surfaces;
     ULONG sectors_per_track;
     ULONG reserved_blocks;

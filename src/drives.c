@@ -140,12 +140,23 @@ ULONG get_display_block_size(const DriveInfo *drive)
 
     if (!drive) return 0;
 
+    if (drive->has_info && drive->info_bytes_per_block) {
+        return drive->info_bytes_per_block;
+    }
+
     block_size = drive->bytes_per_block;
     if (drive->fs_type == FS_OFS && block_size >= 24) {
         block_size -= 24;
     }
 
     return block_size;
+}
+
+static ULONG get_geometry_total_blocks(const DriveInfo *drive)
+{
+    if (!drive) return 0;
+    if (drive->geometry_total_blocks) return drive->geometry_total_blocks;
+    return drive->total_blocks;
 }
 
 /*
@@ -280,9 +291,17 @@ static void scan_dos_list(void)
                         drive->has_dos_type = TRUE;
                     }
 
-                    /* Calculate total blocks */
-                    drive->total_blocks = (drive->high_cylinder - drive->low_cylinder + 1) *
-                                          drive->surfaces * drive->sectors_per_track;
+                    /* Calculate geometry blocks */
+                    drive->geometry_total_blocks =
+                        (drive->high_cylinder - drive->low_cylinder + 1) *
+                        drive->surfaces * drive->sectors_per_track;
+                    drive->total_blocks = drive->geometry_total_blocks;
+
+                    debug("  drives: %s DosEnvec type=$%08lX block=%lu total=%lu\n",
+                          (LONG)drive->device_name,
+                          (LONG)drive->dos_type,
+                          (LONG)drive->bytes_per_block,
+                          (LONG)drive->geometry_total_blocks);
 
                     drive->is_valid = TRUE;
                 }
@@ -373,7 +392,7 @@ static void query_drive_details(void)
 
     for (i = 0; i < drive_list.count; i++) {
         DriveInfo *drive = &drive_list.drives[i];
-        BOOL is_floppy = is_floppy_device(drive->total_blocks);
+        BOOL is_floppy = is_floppy_device(get_geometry_total_blocks(drive));
         BOOL has_volume = drive->volume_name[0] != '\0';
         BPTR lock;
 
@@ -393,18 +412,31 @@ static void query_drive_details(void)
         }
 
         if (Info(lock, info)) {
-            drive->total_blocks = info->id_NumBlocks;
-            drive->blocks_used = info->id_NumBlocksUsed;
-            /* Only update block size if not set by DosEnvec (which gives physical size) */
+            drive->info_total_blocks = info->id_NumBlocks;
+            drive->info_blocks_used = info->id_NumBlocksUsed;
+            drive->info_bytes_per_block = info->id_BytesPerBlock;
+            drive->info_disk_type = info->id_DiskType;
+            drive->has_info = TRUE;
+
+            drive->total_blocks = drive->info_total_blocks;
+            drive->blocks_used = drive->info_blocks_used;
+            /* Preserve DosEnvec geometry size for raw device I/O if present. */
             if (drive->bytes_per_block == 0) {
-                drive->bytes_per_block = info->id_BytesPerBlock;
+                drive->bytes_per_block = drive->info_bytes_per_block;
             }
             if (!drive->has_dos_type) {
-                drive->dos_type = info->id_DiskType;
-                drive->fs_type = identify_filesystem(info->id_DiskType);
+                drive->dos_type = drive->info_disk_type;
+                drive->fs_type = identify_filesystem(drive->info_disk_type);
                 drive->has_dos_type = TRUE;
             }
             drive->disk_errors = info->id_NumSoftErrors;
+
+            debug("  drives: %s Info type=$%08lX block=%lu total=%lu used=%lu\n",
+                  (LONG)drive->device_name,
+                  (LONG)drive->info_disk_type,
+                  (LONG)drive->info_bytes_per_block,
+                  (LONG)drive->info_total_blocks,
+                  (LONG)drive->info_blocks_used);
 
             /* Disk state */
             switch (info->id_DiskState) {
@@ -553,7 +585,7 @@ BOOL check_disk_present(ULONG index)
     }
 
     /* Only check floppy-type devices */
-    if (!is_floppy_device(drive->total_blocks)) {
+    if (!is_floppy_device(get_geometry_total_blocks(drive))) {
         /* Non-floppy devices are assumed to have media present */
         return TRUE;
     }
@@ -654,7 +686,7 @@ ULONG measure_drive_speed(ULONG index)
 
     /* Determine block size and buffer size based on device type */
     block_size = drive->bytes_per_block ? drive->bytes_per_block : 512;
-    is_floppy = is_floppy_device(drive->total_blocks);
+    is_floppy = is_floppy_device(get_geometry_total_blocks(drive));
     if (is_floppy) {
         /* Floppy: read small amount (one track worth) */
         buffer_size = 11 * 512;  /* 11 sectors * 512 bytes */
@@ -858,7 +890,7 @@ static void draw_drives_data(BOOL full_redraw)
         }
         y += 9;
 
-        /* Total blocks - always show since it's a drive geometry property */
+        /* Total blocks */
         snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)drive->total_blocks);
         draw_label_value(120, y, get_string(MSG_TOTAL_BLOCKS), buffer, 224);
         y += 9;
