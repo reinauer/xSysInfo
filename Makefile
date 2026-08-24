@@ -85,7 +85,11 @@ $(FLEXCAT_BIN):
 	@$(MAKE) -s -C 3rdparty/flexcat
 
 # Identify library build (requires FlexCat)
-identify: $(FLEXCAT_BIN)
+IDENTIFY_HEADER = $(IDENTIFY_INC)/proto/identify.h
+
+identify: $(IDENTIFY_HEADER)
+
+$(IDENTIFY_HEADER): $(FLEXCAT_BIN) | download-libs
 	@{ if [ ! -f $(HOME)/.fd2pragma.types ]; then \
 	     echo '$$(HOME)/.fd2pragma.types not found. Downloading.'; \
 	     curl -sL 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' \
@@ -95,7 +99,11 @@ identify: $(FLEXCAT_BIN)
 	$(MAKE) -s -C 3rdparty/identify reference/proto/identify.h reference/inline/identify.h
 
 # MMU library convert (requires FlexCat)
-mmu: $(FLEXCAT_BIN)
+MMU_HEADER = $(MMU_INC)/proto/mmu.h
+
+mmu: $(MMU_HEADER)
+
+$(MMU_HEADER): $(FLEXCAT_BIN) | download-libs
 	@{ if [ ! -f $(HOME)/.fd2pragma.types ]; then \
 	     echo '$$(HOME)/.fd2pragma.types not found. Downloading.'; \
 	     curl -sL 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' \
@@ -163,7 +171,7 @@ $(STACK_OBJ): $(STACK_SRC)
 	@echo "  CC    $@"
 	@$(CC) $(STACK_CFLAGS) -c -o $@ $<
 
-$(OBJS): src/%.o: src/%.c src/xsysinfo.h
+$(OBJS): src/%.o: src/%.c src/xsysinfo.h $(IDENTIFY_HEADER) $(MMU_HEADER)
 	@echo "  CC    $@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
