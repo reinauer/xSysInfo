@@ -642,7 +642,7 @@ static void draw_dotted_row(WORD x, WORD y, WORD max_x, UWORD pattern)
 }
 
 
-/* A somewhat fast dithered gradient dither fill using a patterned RectFill() with 257 dither levels. */
+/* A somewhat fast dithered gradient fill using a patterned RectFill() with 257 pre-generated dither levels. */
 
 #include "bayer-16x16.c"
 
@@ -650,7 +650,6 @@ void draw_gradient(WORD left, WORD top, WORD width, WORD height, WORD start_colo
 {
 	struct RastPort *rp = app->rp;
 
-//	SetDrPt(rp, 0xFFFF);	// Is this necessary?
 	SetDrMd(rp, JAM2);
 
 	SetBPen(rp, start_color);
@@ -677,9 +676,8 @@ void draw_gradient(WORD left, WORD top, WORD width, WORD height, WORD start_colo
 	SetAfPt(rp, NULL, 0);	// Restore solid fill pattern
 }
 
-// Convenience wrapper for drawing a three-colour gradient:
+/* Convenience wrapper for drawing a three-colour gradient (two gradients meeting in the middle) */
 void draw_gradient_3(WORD left, WORD top, WORD width, WORD height, WORD start_color, WORD middle_color, WORD end_color) {
-	// Do we assume the screen width is always an even number?
 	draw_gradient(left, top, width/2, height, start_color, middle_color);
 	draw_gradient(left+width/2, top, width/2, height, middle_color, end_color);
 }
