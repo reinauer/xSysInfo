@@ -641,6 +641,48 @@ static void draw_dotted_row(WORD x, WORD y, WORD max_x, UWORD pattern)
     SetDrPt(rp, 0xffff);
 }
 
+
+/* A somewhat fast dithered gradient fill using a patterned RectFill() with 257 pre-generated dither levels. */
+
+#include "bayer-16x16.c"
+
+void draw_gradient(WORD left, WORD top, WORD width, WORD height, WORD start_color, WORD end_color)
+{
+	struct RastPort *rp = app->rp;
+
+	SetDrMd(rp, JAM2);
+
+	SetBPen(rp, start_color);
+	SetAPen(rp, end_color);
+
+	WORD right = left+width;
+	WORD bottom = top+height;
+
+	// We fill in 16-pixel-wide vertical bands so we can use RectFill().
+	// Currently the fill patterns are 16x16. Taller might be falter for larger regions.
+
+    for (WORD x = left; x < right; x+=16) {
+		// The final band could be narrower than 16 pixels.
+		WORD fill_width = right - x;
+		if (fill_width > 16) {
+			fill_width = 16;
+		}
+
+		WORD level = ((x-left) * 257) / (width - 1);
+		SetAfPt(rp, bayer16x16[level], 4);	// 4 -> 2^4 = 16 rows in each dither pattern
+		RectFill(rp, x, top, x+fill_width-1, bottom);
+	}
+
+	SetAfPt(rp, NULL, 0);	// Restore solid fill pattern
+}
+
+/* Convenience wrapper for drawing a three-colour gradient (two gradients meeting in the middle) */
+void draw_gradient_3(WORD left, WORD top, WORD width, WORD height, WORD start_color, WORD middle_color, WORD end_color) {
+	draw_gradient(left, top, width/2, height, start_color, middle_color);
+	draw_gradient(left+width/2, top, width/2, height, middle_color, end_color);
+}
+
+
 static WORD shadow_text_color(void)
 {
     return app->dark_mode ? COLOR_BACKGROUND : COLOR_TEXT;
@@ -701,14 +743,19 @@ static void draw_header(void)
     draw_panel(0, 0, 640, HEADER_HEIGHT, NULL);
 
     /* Title bar background with a low-color stipple, SysInfo-style */
-    SetAPen(rp, COLOR_BAR_FILL);
-    RectFill(rp, 1, 1, SCREEN_WIDTH - 2, HEADER_HEIGHT - 2);
     if (decorative_dots_available()) {
+		// Gradient fill instead:
+		draw_gradient_3(1, 1, 640-2, HEADER_HEIGHT-2, COLOR_BAR_FILL, COLOR_BUTTON_DARK, COLOR_BAR_YOU);
+	/*
         for (y = 3; y < HEADER_HEIGHT - 2; y += 4) {
             x = 3 + ((y & 4) ? 2 : 0);
             draw_dotted_row(x, y, SCREEN_WIDTH - 2, 0x8888);
         }
-    }
+    */
+    } else {
+		SetAPen(rp, COLOR_BAR_FILL);
+		RectFill(rp, 1, 1, SCREEN_WIDTH - 2, HEADER_HEIGHT - 2);
+	}
 
     draw_xsysinfo_logo(7, 3);
 
@@ -783,11 +830,14 @@ void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title)
         RectFill(rp, x + 1, y + 1, x + w - 2, y + h - 2);
 
         if (decorative_dots_available()) {
+			draw_gradient_3(x+2, y+2, w-4, h-4, COLOR_BUTTON_DARK, COLOR_TITLE_BG, COLOR_BACKGROUND);
+		/*
             dot_start = x + 4 + title_len * 8 + 8;
             for (py = y + 3; py <= y + h - 3; py += 4) {
                 px = dot_start + ((py & 4) ? 4 : 0);
                 draw_dotted_row(px, py, x + w - 3, 0x8080);
             }
+        */
         }
 
         SetDrMd(rp, JAM1);
