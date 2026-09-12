@@ -40,29 +40,34 @@ extern struct Library *MMUBase;
 extern struct DosLibrary *DOSBase;
 
 /*
- * Copy name, stripping everything after the last dot
- * e.g. "exec.library" -> "exec", "a4092.device" -> "a4092"
+ * Copy a module name, omitting a recognized file-type suffix.
+ * Preserve other dots, for example in names containing version numbers.
  */
 static void copy_base_name(char *dest, const char *src, size_t destsize)
 {
+    static const char *const suffixes[] = {
+        ".library", ".device", ".resource", ".datatype",
+        ".gadget", ".image", ".class", ".mcc", ".mcp"
+    };
     const char *dot;
-    size_t len;
+    size_t len, i;
 
-    if (!src || !dest || destsize == 0) return;
+    if (!dest || destsize == 0) return;
+    if (!src) src = "(unknown)";
 
-    /* Find last dot */
+    len = strlen(src);
     dot = strrchr(src, '.');
-
     if (dot && dot > src) {
-        /* Copy only up to the dot */
-        len = (size_t)(dot - src);
-        if (len >= destsize) len = destsize - 1;
-        strncpy(dest, src, len);
-        dest[len] = '\0';
-    } else {
-        /* No dot found, copy entire string */
-        copy_string(dest, src, destsize);
+        for (i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
+            if (strcmp(dot, suffixes[i]) == 0) {
+                len = (size_t)(dot - src);
+                break;
+            }
+        }
     }
+    if (len >= destsize) len = destsize - 1;
+    memcpy(dest, src, len);
+    dest[len] = '\0';
 }
 
 static size_t append_format(char *buffer, size_t buffer_size, size_t pos,
@@ -158,16 +163,7 @@ void enumerate_libraries(void)
 
         entry = &libraries_list.entries[libraries_list.count];
 
-        if (lib->lib_Node.ln_Name) {
-            if (strstr(lib->lib_Node.ln_Name, ".library") != NULL) {
-                copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
-            } else { /* not a ".library" */
-                copy_string(entry->name, lib->lib_Node.ln_Name,
-                            sizeof(entry->name));
-            }
-        } else {
-            copy_string(entry->name, "(unknown)", sizeof(entry->name));
-        }
+        copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
 
         entry->address = (APTR)lib;
         entry->version = lib->lib_Version;
@@ -248,17 +244,8 @@ void enumerate_devices(void)
 
         SoftwareEntry *entry = &devices_list.entries[devices_list.count];
 
-        if (dev->dd_Library.lib_Node.ln_Name) {
-            if (strstr(dev->dd_Library.lib_Node.ln_Name, ".device") != NULL) {
-                copy_base_name(entry->name, dev->dd_Library.lib_Node.ln_Name,
-                               sizeof(entry->name));
-            } else { //not a ".device"
-                copy_string(entry->name, dev->dd_Library.lib_Node.ln_Name,
-                            sizeof(entry->name));
-            }
-        } else {
-            copy_string(entry->name, "(unknown)", sizeof(entry->name));
-        }
+        copy_base_name(entry->name, dev->dd_Library.lib_Node.ln_Name,
+                       sizeof(entry->name));
 
         entry->address = (APTR)dev;
         entry->version = dev->dd_Library.lib_Version;
@@ -327,17 +314,7 @@ void enumerate_resources(void)
 
         SoftwareEntry *entry = &resources_list.entries[resources_list.count];
 
-        if (res->lib_Node.ln_Name) {
-            if (strstr(res->lib_Node.ln_Name, ".resource") != NULL) {
-                copy_base_name(entry->name, res->lib_Node.ln_Name,
-                               sizeof(entry->name));
-            } else { //not a ".resource"
-                copy_string(entry->name, res->lib_Node.ln_Name,
-                            sizeof(entry->name));
-            }
-        } else {
-            copy_string(entry->name, "(unknown)", sizeof(entry->name));
-        }
+        copy_base_name(entry->name, res->lib_Node.ln_Name, sizeof(entry->name));
 
         entry->address = (APTR)res;
 
