@@ -899,6 +899,14 @@ void run_memory_speed_tests(void)
         (volatile ULONG *)0xF80000, buffer_size, iterations);
 }
 
+void measure_processor_frequencies(void)
+{
+    debug("  bench: calc cpu frequency...\n");
+    hw_info.cpu_mhz = get_mhz_cpu();
+    debug("  bench: calc fpu frequency...\n");
+    hw_info.fpu_mhz = hw_info.fpu_enabled ? get_mhz_fpu() : 0;
+}
+
 /*
  * Run all benchmarks
  */
@@ -931,10 +939,7 @@ void run_benchmarks(void)
     debug("  bench: run ram/rom speed...\n");
     run_memory_speed_tests();
 
-    debug("  bench: calc cpu frequency...\n");
-    hw_info.cpu_mhz = get_mhz_cpu();
-    debug("  bench: calc fpu frequency...\n");
-    hw_info.fpu_mhz = get_mhz_fpu();
+    measure_processor_frequencies();
 
     bench_results.benchmarks_valid = TRUE;
     generate_comment();

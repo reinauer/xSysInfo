@@ -67,6 +67,7 @@ void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSys
 
 /* Run all benchmarks */
 void run_benchmarks(void);
+void measure_processor_frequencies(void);
 
 /* Individual benchmarks */
 ULONG run_dhrystone(void);

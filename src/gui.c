@@ -236,6 +236,17 @@ Button *find_button(ButtonID id)
     return NULL;
 }
 
+static const char *get_software_page_label(void)
+{
+    switch (app->software_type) {
+        case SOFTWARE_LIBRARIES: return get_string(MSG_LIBRARIES);
+        case SOFTWARE_DEVICES:   return get_string(MSG_DEVICES);
+        case SOFTWARE_RESOURCES: return get_string(MSG_RESOURCES);
+        case SOFTWARE_MMU:       return get_string(MSG_MMU_ENTRIES);
+        default:                return get_string(MSG_SOFTWARE_OVERVIEW);
+    }
+}
+
 static const char *get_hardware_page_label(void)
 {
     switch (app->hardware_type) {
@@ -325,25 +336,22 @@ void main_view_update_buttons(void)
     /* Software type cycle button */
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 98,
                SOFTWARE_PANEL_Y + 2, 92, 12,
-               app->software_type == SOFTWARE_LIBRARIES ?
-                   get_string(MSG_LIBRARIES) :
-               app->software_type == SOFTWARE_DEVICES ?
-                   get_string(MSG_DEVICES) :
-               app->software_type == SOFTWARE_RESOURCES ?
-                   get_string(MSG_RESOURCES):
-                   get_string(MSG_MMU_ENTRIES),
+               get_software_page_label(),
                BTN_SOFTWARE_CYCLE, TRUE);
 
     /* Software scroll buttons (arrows on right side) */
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
                SOFTWARE_PANEL_Y + 15, 12, 10,
-               NULL, BTN_SOFTWARE_UP, TRUE);   /* Up arrow */
+               NULL, BTN_SOFTWARE_UP,
+               app->software_type != SOFTWARE_OVERVIEW);
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
                SOFTWARE_PANEL_Y + 15 + 10, 12, SOFTWARE_PANEL_H - 15 - 10 - 12,
-               NULL, BTN_SOFTWARE_SCROLLBAR, TRUE);  /* Scroll bar */
+               NULL, BTN_SOFTWARE_SCROLLBAR,
+               app->software_type != SOFTWARE_OVERVIEW);
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
                SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 12, 12, 10,
-               NULL, BTN_SOFTWARE_DOWN, TRUE); /* Down arrow */
+               NULL, BTN_SOFTWARE_DOWN,
+               app->software_type != SOFTWARE_OVERVIEW);
 
     /* Scale toggle button */
     add_button(SPEED_PANEL_X + SPEED_PANEL_W - 68,
@@ -465,7 +473,7 @@ void main_view_handle_button(ButtonID id)
             break;
 
         case BTN_SOFTWARE_CYCLE:
-            app->software_type = (app->software_type + 1) % 4;
+            app->software_type = (app->software_type + 1) % SOFTWARE_COUNT;
             app->software_scroll = 0;
             update_software_list();
             break;
@@ -520,13 +528,8 @@ void main_view_handle_button(ButtonID id)
 
         case BTN_SOFTWARE_DOWN:
             {
-                SoftwareList *list = app->software_type == SOFTWARE_LIBRARIES ?
-                                         &libraries_list :
-                                     app->software_type == SOFTWARE_DEVICES ?
-                                         &devices_list :
-                                     app->software_type == SOFTWARE_RESOURCES ?
-                                         &resources_list : &mmu_list;
-                if (app->software_scroll < (LONG)list->count - SOFTWARE_LIST_LINES) {
+                SoftwareList *list = get_software_list(app->software_type);
+                if (list && app->software_scroll < (LONG)list->count - SOFTWARE_LIST_LINES) {
                     app->software_scroll++;
                     update_software_list();
                 }
@@ -1192,7 +1195,7 @@ static void format_mmu_address(char *buffer, size_t size, ULONG address)
 static void update_software_list(void);
 
 /*
- * Draw software panel (libraries/devices/resources)
+ * Draw software panel (overview/libraries/devices/resources/MMU)
  */
 static void draw_software_panel(void)
 {
@@ -1233,6 +1236,60 @@ static void update_hardware_text(void)
     draw_bottom_buttons();
 }
 
+static void draw_software_overview(void)
+{
+    static const LocaleStringID labels[] = {
+        MSG_OPERATING_SYSTEM, MSG_ROM, MSG_ACTIVE_ROM,
+        MSG_WORKBENCH, MSG_SETPATCH, MSG_GRAPHICS_SYSTEM
+    };
+    char buffer[80];
+    const char *value;
+    ULONG row;
+    WORD y = SOFTWARE_PANEL_Y + 22;
+
+    for (row = 0; row < sizeof(labels) / sizeof(labels[0]); row++) {
+        value = buffer;
+        switch (row) {
+        case 0:
+            value = system_software.os_name[0] ? system_software.os_name :
+                    get_string(MSG_UNKNOWN);
+            break;
+        case 1:
+            snprintf(buffer, sizeof(buffer), "%u.%u (%lu KB)",
+                     hw_info.kickstart_version, hw_info.kickstart_revision,
+                     (unsigned long)hw_info.kickstart_size);
+            break;
+        case 2:
+            snprintf(buffer, sizeof(buffer), "%u.%u",
+                     hw_info.kickstart_patch_version,
+                     hw_info.kickstart_patch_revision);
+            break;
+        case 3:
+            if (system_software.has_workbench_version)
+                snprintf(buffer, sizeof(buffer), "%u.%u",
+                         system_software.workbench_version,
+                         system_software.workbench_revision);
+            else
+                value = get_string(MSG_NA);
+            break;
+        case 4:
+            if (system_software.has_setpatch_version)
+                snprintf(buffer, sizeof(buffer), "%u.%u",
+                         system_software.setpatch_version,
+                         system_software.setpatch_revision);
+            else
+                value = get_string(MSG_NA);
+            break;
+        default:
+            value = system_software.graphics_system;
+            break;
+        }
+        draw_label_value_max(SOFTWARE_PANEL_X + 4, y, get_string(labels[row]),
+                             value, 100, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4);
+        y += TEXT_LINE_HEIGHT;
+    }
+}
+
 /*
  * Update software list content only (no panel redraw)
  * Used for partial refresh when cycling through types
@@ -1240,52 +1297,37 @@ static void update_hardware_text(void)
 static void update_software_list(void)
 {
     struct RastPort *rp = app->rp;
-    SoftwareList *list;
+    SoftwareList *list = get_software_list(app->software_type);
     ULONG i;
     WORD y;
     WORD list_top = SOFTWARE_PANEL_Y + 22;
     char buffer[128];
 
-    /* Get current list */
-    switch (app->software_type) {
-        case SOFTWARE_LIBRARIES:
-            list = &libraries_list;
-            break;
-        case SOFTWARE_DEVICES:
-            list = &devices_list;
-            break;
-        case SOFTWARE_RESOURCES:
-            list = &resources_list;
-            break;
-        case SOFTWARE_MMU:
-            list = &mmu_list;
-            break;
-        default:
-            return;
-    }
-
-    /* Clear list area (stop before scroll bar at -14) */
+    /* Clear the content and any scroll controls from the previous page. */
     SetAPen(rp, COLOR_PANEL_BG);
     RectFill(rp, SOFTWARE_PANEL_X + 2, list_top - 7,
-             SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 16,
+             SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 3,
              SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 2);
 
     /* Update cycle button only if label changed */
     Button *cycle_btn = find_button(BTN_SOFTWARE_CYCLE);
     if (cycle_btn) {
-        const char *new_label = app->software_type == SOFTWARE_LIBRARIES ?
-                                    get_string(MSG_LIBRARIES) :
-                                app->software_type == SOFTWARE_DEVICES ?
-                                    get_string(MSG_DEVICES) :
-                                app->software_type == SOFTWARE_RESOURCES ?
-                                    get_string(MSG_RESOURCES):
-                                    get_string(MSG_MMU_ENTRIES);
+        const char *new_label = get_software_page_label();
         if (cycle_btn->label != new_label) {
             cycle_btn->label = new_label;
             draw_cycle_button(cycle_btn);
         }
     }
 
+    set_button_enabled(BTN_SOFTWARE_UP, list != NULL);
+    set_button_enabled(BTN_SOFTWARE_DOWN, list != NULL);
+    set_button_enabled(BTN_SOFTWARE_SCROLLBAR, list != NULL);
+    if (app->software_type == SOFTWARE_OVERVIEW) {
+        draw_software_overview();
+        return;
+    }
+    if (!list)
+        return;
 
     /* Draw scroll arrows with triangles */
     Button *up_btn = find_button(BTN_SOFTWARE_UP);
@@ -2022,6 +2064,18 @@ static void draw_hardware_panel(void)
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
         y += 8;
 
+        format_size(memory_regions.total_chip_size, buffer, sizeof(buffer));
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_CHIP_RAM), buffer,
+                         HARDWARE_OVERVIEW_VALUE_OFFSET);
+        y += 8;
+
+        format_size(memory_regions.total_fast_size, buffer, sizeof(buffer));
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_FAST_RAM), buffer,
+                         HARDWARE_OVERVIEW_VALUE_OFFSET);
+        y += 8;
+
         if (strcmp(hw_info.amiga_model_string, get_string(MSG_NA)) != 0) {
             draw_label_value(HARDWARE_PANEL_X + 4, y,
                              "Amiga", hw_info.amiga_model_string,
@@ -2364,30 +2418,12 @@ void handle_button_press(ButtonID btn_id)
 void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
 {
     Button *scrollbar_btn = find_button(BTN_SOFTWARE_SCROLLBAR);
-    SoftwareList *list;
+    SoftwareList *list = get_software_list(app->software_type);
     WORD knob_h;
     WORD track_h;
     LONG max_scroll;
 
-    if (!scrollbar_btn) return;
-
-    /* Get current list */
-    switch (app->software_type) {
-        case SOFTWARE_LIBRARIES:
-            list = &libraries_list;
-            break;
-        case SOFTWARE_DEVICES:
-            list = &devices_list;
-            break;
-        case SOFTWARE_RESOURCES:
-            list = &resources_list;
-            break;
-        case SOFTWARE_MMU:
-            list = &mmu_list;
-            break;
-        default:
-            return;
-    }
+    if (!scrollbar_btn || !scrollbar_btn->enabled || !list) return;
 
     max_scroll = (LONG)list->count - SOFTWARE_LIST_LINES;
     if (max_scroll <= 0) return;

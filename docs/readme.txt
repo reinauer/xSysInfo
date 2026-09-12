@@ -22,6 +22,11 @@ Usage:
 Start xSysInfo from Workbench, or run xSysInfo from the Shell.  With no
 arguments it opens the graphical interface.
 
+The System Software Installed tile defaults to an overview of the OS,
+physical ROM, active ROM, Workbench, SetPatch, and graphics system. Use its
+cycle button for the library, device, resource, and MMU lists. Total Chip
+and Fast RAM are shown in the hardware overview.
+
 Shell options:
   xSysInfo BRIEF
         Writes a compact benchmark summary to Shell output and does not open
@@ -30,12 +35,16 @@ Shell options:
         Runs the full benchmark/report pass and writes the complete text report
         to Shell output.  For example:
         xSysInfo FULL >RAM:xSysInfo.txt
+  xSysInfo WHICH
+        Writes a system report compatible with the WhichAmiga text format
+        and does not open the graphical interface.
   xSysInfo DARK
         Opens the graphical interface with the dark blue palette.
   xSysInfo DEBUG
         Enables debug output.
 
-If FULL and BRIEF are both supplied, FULL takes precedence.
+If FULL is supplied with another output mode, FULL takes precedence. WHICH
+takes precedence over BRIEF.
 
 Workbench ToolTypes:
 The supplied icon contains DISPLAY=auto.  Edit this ToolType to select where

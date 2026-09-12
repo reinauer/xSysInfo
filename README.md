@@ -48,7 +48,13 @@ You can also run the ADF on an Amiga emulator (like WinUAE or FS-UAE).
 Additionally, the `xsysinfo` binary itself can be executed directly from the shell on a real Amiga or emulator.
 Run `xSysInfo BRIEF` from the shell to write a compact benchmark summary to the
 CLI output. Run `xSysInfo FULL` to write the full report format to the CLI
-output.
+output. Run `xSysInfo WHICH` for output compatible with the column-aligned
+WhichAmiga style report format.
+
+The System Software Installed tile opens on an overview of the OS, physical
+ROM, active ROM, Workbench, SetPatch, and graphics system. Its cycle button
+opens the library, device, resource, and MMU lists. Total Chip and Fast RAM
+are shown in the hardware overview.
 
 ## Configuration
 

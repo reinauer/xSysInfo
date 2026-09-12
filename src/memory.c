@@ -173,13 +173,23 @@ void enumerate_memory_regions(void)
          (struct Node *)mh != (struct Node *)&SysBase->MemList.lh_Tail;
          mh = (struct MemHeader *)mh->mh_Node.ln_Succ) {
 
-        if (memory_regions.count >= MAX_MEMORY_REGIONS) break;
+        ULONG start = (ULONG)mh->mh_Lower & 0xffff8000;
+        ULONG size = (ULONG)mh->mh_Upper - start;
+
+        /* Use the same region capacities as the memory view. Exec's
+         * MEMF_TOTAL excludes reserved bytes at the start of each region. */
+        if (mh->mh_Attributes & MEMF_CHIP)
+            memory_regions.total_chip_size += size;
+        else if (mh->mh_Attributes & MEMF_FAST)
+            memory_regions.total_fast_size += size;
+
+        if (memory_regions.count >= MAX_MEMORY_REGIONS) continue;
 
         MemoryRegion *region = &memory_regions.regions[memory_regions.count];
 
-        region->start_address = (APTR)((ULONG)mh->mh_Lower & 0xffff8000);
+        region->start_address = (APTR)start;
         region->end_address = mh->mh_Upper - 1;
-        region->total_size = (ULONG)(mh->mh_Upper - region->start_address);
+        region->total_size = size;
         region->mem_type = mh->mh_Attributes;
         region->priority = mh->mh_Node.ln_Pri;
         region->lower_bound = mh->mh_Lower;

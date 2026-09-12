@@ -48,6 +48,7 @@ SRCS = src/main.c \
        src/software.c \
        src/cache.c \
        src/print.c \
+       src/which.c \
        src/locale.c
 
 ASM_SRCS = src/cpu.S src/berr_trap.S
@@ -191,17 +192,18 @@ clean:
 	@$(MAKE) -s -C 3rdparty/mmu clean
 
 # Dependencies
-src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/locale_str.h
-src/gui.o: src/gui.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/locale_str.h
-src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h
-src/benchmark.o: src/benchmark.c src/xsysinfo.h src/benchmark.h
-src/memory.o: src/memory.c src/xsysinfo.h src/memory.h src/locale_str.h
-src/drives.o: src/drives.c src/xsysinfo.h src/drives.h src/scsi.h src/locale_str.h
+src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/locale_str.h
+src/gui.o: src/gui.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
+src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
+src/benchmark.o: src/benchmark.c src/xsysinfo.h src/benchmark.h src/hardware.h
+src/memory.o: src/memory.c src/xsysinfo.h src/memory.h src/hardware.h src/locale_str.h
+src/drives.o: src/drives.c src/xsysinfo.h src/drives.h src/scsi.h src/hardware.h src/locale_str.h
 src/scsi.o: src/scsi.c src/xsysinfo.h src/scsi.h src/gui.h src/locale_str.h
 src/boards.o: src/boards.c src/xsysinfo.h src/boards.h src/locale_str.h
-src/software.o: src/software.c src/xsysinfo.h src/software.h
-src/cache.o: src/cache.c src/xsysinfo.h src/cache.h
-src/print.o: src/print.c src/xsysinfo.h src/print.h src/hardware.h src/software.h
+src/software.o: src/software.c src/xsysinfo.h src/software.h src/hardware.h src/locale_str.h
+src/cache.o: src/cache.c src/xsysinfo.h src/cache.h src/hardware.h
+src/print.o: src/print.c src/xsysinfo.h src/print.h src/hardware.h src/software.h src/memory.h
+src/which.o: src/which.c src/xsysinfo.h src/which.h src/hardware.h src/boards.h src/software.h src/memory.h
 src/locale.o: src/locale.c src/xsysinfo.h src/locale_str.h
 src/dhry_1.o: src/dhry_1.c src/dhry.h
 src/dhry_2.o: src/dhry_2.c src/dhry.h

@@ -314,6 +314,13 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_MMU_FLAGS7_HINT */        "IND=Indirect +=more flags",
     /* MSG_SLOT_ZORRO */             "ZORRO",
 
+    /* MSG_SOFTWARE_OVERVIEW */      "OVERVIEW",
+    /* MSG_OPERATING_SYSTEM */       "OS",
+    /* MSG_ACTIVE_ROM */             "Active ROM",
+    /* MSG_WORKBENCH */              "Workbench",
+    /* MSG_SETPATCH */               "SetPatch",
+    /* MSG_GRAPHICS_SYSTEM */        "Graphics",
+    /* MSG_NATIVE_GRAPHICS */        "AmigaOS (native)",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

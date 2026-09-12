@@ -37,6 +37,8 @@ typedef struct {
 typedef struct {
     MemoryRegion regions[MAX_MEMORY_REGIONS];
     ULONG count;
+    ULONG total_chip_size;    /* Detected region capacities, including reserved bytes */
+    ULONG total_fast_size;
 } MemoryRegionList;
 
 /* Global memory region list */

@@ -13,9 +13,11 @@
 #include <exec/libraries.h>
 #include <exec/devices.h>
 #include <exec/resident.h>
+#include <libraries/identify.h>
 
 #include <proto/exec.h>
 #include <proto/mmu.h>
+#include <proto/identify.h>
 
 #include "xsysinfo.h"
 #include "software.h"
@@ -27,6 +29,7 @@ SoftwareList libraries_list;
 SoftwareList devices_list;
 SoftwareList resources_list;
 SoftwareList mmu_list;
+SystemSoftwareInfo system_software;
 
 /* External references */
 extern struct ExecBase *SysBase;
@@ -588,11 +591,69 @@ void enumerate_mmu_entries(void)
     Permit();
 }
 
+static void detect_graphics_system(void)
+{
+    const char *name;
+
+    system_software.graphics_system_id = IdentifyBase ?
+        IdHardwareNumTags(IDHW_GFXSYS, TAG_DONE) : IDGOS_AMIGAOS;
+    switch (system_software.graphics_system_id) {
+    case IDGOS_EGS:       name = "EGS"; break;
+    case IDGOS_RETINA:    name = "Retina"; break;
+    case IDGOS_GRAFFITI:  name = "Graffiti"; break;
+    case IDGOS_TIGA:      name = "TIGA"; break;
+    case IDGOS_PROBENCH:  name = "ProBench"; break;
+    case IDGOS_PICASSO:
+    case IDGOS_PICASSO96: name = "Picasso96"; break;
+    case IDGOS_CGX:       name = "CyberGraphX V2"; break;
+    case IDGOS_CGX3:      name = "CyberGraphX V3"; break;
+    case IDGOS_CGX4:      name = "CyberGraphX V4"; break;
+    default:
+        system_software.graphics_system_id = IDGOS_AMIGAOS;
+        name = get_string(MSG_NATIVE_GRAPHICS);
+        break;
+    }
+    copy_string(system_software.graphics_system, name,
+                sizeof(system_software.graphics_system));
+}
+
+void detect_system_software(void)
+{
+    struct Library *version_base;
+    ULONG setpatch = 0;
+    STRPTR os_name;
+
+    memset(&system_software, 0, sizeof(system_software));
+    version_base = OpenLibrary((CONST_STRPTR)"version.library", 0);
+    if (version_base) {
+        system_software.has_workbench_version = TRUE;
+        system_software.workbench_version = version_base->lib_Version;
+        system_software.workbench_revision = version_base->lib_Revision;
+        CloseLibrary(version_base);
+    }
+
+    if (IdentifyBase) {
+        system_software.os_id = IdHardwareNumTags(IDHW_OSNR, TAG_DONE);
+        os_name = IdHardwareTags(IDHW_OSNR, TAG_DONE);
+        if (os_name)
+            copy_string(system_software.os_name, (const char *)os_name,
+                        sizeof(system_software.os_name));
+        setpatch = IdHardwareNumTags(IDHW_SETPATCHVER, TAG_DONE);
+    }
+    if (setpatch) {
+        system_software.has_setpatch_version = TRUE;
+        system_software.setpatch_version = setpatch & 0xffff;
+        system_software.setpatch_revision = setpatch >> 16;
+    }
+    detect_graphics_system();
+}
+
 /*
  * Enumerate all software types
  */
 void enumerate_all_software(void)
 {
+    detect_system_software();
     enumerate_libraries();
     enumerate_devices();
     enumerate_resources();

@@ -164,6 +164,13 @@ typedef enum{
     FAT_GARY
 }GaryType;
 
+/* Native graphics capabilities enabled by graphics.library */
+typedef enum {
+    NATIVE_GRAPHICS_OCS,
+    NATIVE_GRAPHICS_ECS,
+    NATIVE_GRAPHICS_AGA
+} NativeGraphicsType;
+
 /* Hardware information structure */
 typedef struct {
     /* CPU */
@@ -237,7 +244,9 @@ typedef struct {
     BattMemData battMemData;
 
     /* System info */
+    ULONG amiga_model_id;       /* IDSYS_*; ~0UL when Identify is unavailable */
     char amiga_model_string[64];
+    NativeGraphicsType native_graphics;
     BOOL has_zorro_slots;
     BOOL has_pcmcia;
     char card_slot_string[32];
@@ -282,6 +291,7 @@ APTR mmu_physical_address(APTR addr);
 void read_vbr(void);
 void read_ssp(void);
 void detect_chipset(void);
+void detect_native_graphics(void);
 void detect_clock(void);
 void detect_batt_mem(void);
 void detect_gary(void);

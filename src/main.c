@@ -37,6 +37,7 @@
 #include "drives.h"
 #include "benchmark.h"
 #include "print.h"
+#include "which.h"
 #include "locale_str.h"
 #include "debug.h"
 
@@ -64,6 +65,9 @@ static BOOL g_brief_mode = FALSE;
 /* Full mode (no GUI, export full report to CLI output) */
 static BOOL g_full_mode = FALSE;
 
+/* WhichAmiga 1.3.3 compatible CLI report */
+static BOOL g_which_mode = FALSE;
+
 /* Dark palette mode */
 static BOOL g_dark_mode = FALSE;
 
@@ -78,13 +82,14 @@ struct TextAttr Topaz8Font = {
 AppContext *app = &app_context;
 
 /* Command line argument template */
-#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,DARK/S"
+#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,WHICH/S,DARK/S"
 
 /* Argument array indices */
 enum {
     ARG_DEBUG,
     ARG_BRIEF,
     ARG_FULL,
+    ARG_WHICH,
     ARG_DARK,
     ARG_COUNT
 };
@@ -198,6 +203,8 @@ static BOOL parse_args(int argc, char **argv)
                 g_brief_mode = TRUE;
             else if (xstricmp(argv[i], "full") == 0)
                 g_full_mode = TRUE;
+            else if (xstricmp(argv[i], "which") == 0)
+                g_which_mode = TRUE;
             else if (xstricmp(argv[i], "dark") == 0)
                 g_dark_mode = TRUE;
         }
@@ -306,7 +313,7 @@ int main(int argc, char **argv)
     /* Initialize application context */
     memset(app, 0, sizeof(AppContext));
     app->current_view = VIEW_MAIN;
-    app->software_type = SOFTWARE_LIBRARIES;
+    app->software_type = SOFTWARE_OVERVIEW;
     app->bar_scale = SCALE_SHRINK;
     app->running = TRUE;
     app->pressed_button = -1;
@@ -375,6 +382,15 @@ int main(int argc, char **argv)
         debug(XSYSINFO_NAME ": Exporting full report to CLI output...\n");
         if (!output || !export_to_handle(output)) {
             Printf((CONST_STRPTR)"Failed to export report\n");
+            ret = RETURN_FAIL;
+        }
+    } else if (g_which_mode) {
+        BPTR output = Output();
+
+        measure_processor_frequencies();
+        debug(XSYSINFO_NAME ": Exporting WhichAmiga-compatible report...\n");
+        if (!output || !export_which_compatible(output)) {
+            Printf((CONST_STRPTR)"Failed to export WhichAmiga report\n");
             ret = RETURN_FAIL;
         }
     } else if (!g_brief_mode) {

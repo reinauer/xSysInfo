@@ -94,6 +94,7 @@ BOOL detect_hardware(void)
     read_ssp();
     debug("  hw: Detecting chipset...\n");
     detect_chipset();
+    detect_native_graphics();
     debug("  hw: Detecting system chips...\n");
     detect_system_chips();
     debug("  hw: Detecting clock...\n");
@@ -107,11 +108,26 @@ BOOL detect_hardware(void)
     debug("  hw: Generating comment...\n");
     generate_comment();
 
-    /* Get Kickstart info */
-    UWORD kick_version = *((volatile UWORD *)KICK_VERSION);
-    UWORD kick_revision = *((volatile UWORD *)KICK_REVISION);
-    hw_info.kickstart_version = kick_version;
-    hw_info.kickstart_revision = kick_revision;
+    detect_kickstart();
+
+    debug("  hw: Hardware detection complete.\n");
+    return TRUE;
+}
+
+void detect_kickstart(void)
+{
+    ULONG physical_rom = 0;
+
+    if (IdentifyBase && IdentifyBase->lib_Version >= 38)
+        physical_rom = IdHardwareNumTags(IDHW_ROMVER, TAG_DONE);
+
+    if (physical_rom) {
+        hw_info.kickstart_version = physical_rom & 0xffff;
+        hw_info.kickstart_revision = physical_rom >> 16;
+    } else {
+        hw_info.kickstart_version = *((volatile UWORD *)KICK_VERSION);
+        hw_info.kickstart_revision = *((volatile UWORD *)KICK_REVISION);
+    }
 
     /* Fallback to exec version if above didn't provide ROM version */
     if (hw_info.kickstart_version == 0) {
@@ -132,15 +148,13 @@ BOOL detect_hardware(void)
     //save SysBase-Version in case we are softkicking
     hw_info.kickstart_patch_version = SysBase->LibNode.lib_Version;
     hw_info.kickstart_patch_revision = SysBase->SoftVer;
-
-    debug("  hw: Hardware detection complete.\n");
-    return TRUE;
 }
 
 void detect_amiga_model(void)
 {
     STRPTR model = NULL;
 
+    hw_info.amiga_model_id = ~0UL;
     copy_string(hw_info.amiga_model_string, get_string(MSG_NA),
                 sizeof(hw_info.amiga_model_string));
 
@@ -151,11 +165,21 @@ void detect_amiga_model(void)
     copy_string(hw_info.amiga_model_string, get_string(MSG_UNKNOWN),
                 sizeof(hw_info.amiga_model_string));
 
+    hw_info.amiga_model_id = IdHardwareNumTags(IDHW_SYSTEM, TAG_DONE);
     model = IdHardwareTags(IDHW_SYSTEM, TAG_DONE);
     if (model && model[0]) {
         copy_string(hw_info.amiga_model_string, (const char *)model,
                     sizeof(hw_info.amiga_model_string));
     }
+}
+
+void detect_native_graphics(void)
+{
+    hw_info.native_graphics = NATIVE_GRAPHICS_OCS;
+    if ((GfxBase->ChipRevBits0 & SETCHIPREV_AA) == SETCHIPREV_AA)
+        hw_info.native_graphics = NATIVE_GRAPHICS_AGA;
+    else if ((GfxBase->ChipRevBits0 & SETCHIPREV_ECS) == SETCHIPREV_ECS)
+        hw_info.native_graphics = NATIVE_GRAPHICS_ECS;
 }
 
 static BOOL dt_name_matches(const char *want, const char *name)
@@ -564,8 +588,10 @@ void detect_mmu(void)
                 hw_info.mmu_enabled = TRUE;
                 break;
             case MUTYPE_68060:
-                hw_info.mmu_type = MMU_68060;
-                copy_string(hw_info.mmu_string, "68060",
+                hw_info.mmu_type = hw_info.cpu_type == CPU_68080 ?
+                    MMU_68080 : MMU_68060;
+                copy_string(hw_info.mmu_string,
+                            hw_info.cpu_type == CPU_68080 ? "68080" : "68060",
                             sizeof(hw_info.mmu_string));
                 hw_info.mmu_enabled = TRUE;
                 break;
@@ -587,7 +613,7 @@ void detect_mmu(void)
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC060");
                     break;
                 case CPU_68080:
-                    hw_info.mmu_type = MMU_68060;
+                    hw_info.mmu_type = MMU_68080;
                     snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68080");
                     break;
                 default:
@@ -670,7 +696,7 @@ void detect_mmu(void)
                 break;
             case CPU_68080:
                 snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68080 (%s)", get_string(MSG_UNCERTAIN));
-                hw_info.mmu_type = MMU_68060;
+                hw_info.mmu_type = MMU_68080;
                 break;
             default:
                 copy_string(hw_info.mmu_string, get_string(MSG_UNKNOWN),

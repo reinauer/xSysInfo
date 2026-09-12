@@ -95,12 +95,14 @@ typedef enum {
     VIEW_SCSI
 } ViewMode;
 
-/* Software list types */
+/* Software pages */
 typedef enum {
+    SOFTWARE_OVERVIEW,
     SOFTWARE_LIBRARIES,
     SOFTWARE_DEVICES,
     SOFTWARE_RESOURCES,
-    SOFTWARE_MMU
+    SOFTWARE_MMU,
+    SOFTWARE_COUNT
 } SoftwareType;
 
 /* Software list types */
@@ -158,7 +160,7 @@ typedef struct {
     ViewMode current_view;
 
     /* Main view state */
-    SoftwareType software_type;     /* Which list is shown */
+    SoftwareType software_type;     /* Which software page is shown */
     HardwareType hardware_type;     /* Which list is shown */
     LONG software_scroll;           /* Scroll offset */
     BarScale bar_scale;             /* Current bar graph scale */
