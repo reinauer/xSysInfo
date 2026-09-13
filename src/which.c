@@ -495,8 +495,14 @@ void which_compat_emit(const HardwareInfo *hardware,
     }
 
     if (versions->has_setpatch_version) {
-        snprintf(line, sizeof(line), "       SetPatch version: %u.%u",
-                 versions->setpatch_version, versions->setpatch_revision);
+        if (versions->is_tinysetpatch)
+            snprintf(line, sizeof(line),
+                     "       SetPatch version: %u.%u (TinySetPatch %u.%u)",
+                     versions->setpatch_version, versions->setpatch_revision,
+                     versions->tinysetpatch_version, versions->tinysetpatch_revision);
+        else
+            snprintf(line, sizeof(line), "       SetPatch version: %u.%u",
+                     versions->setpatch_version, versions->setpatch_revision);
         emit_line(context, line);
     } else {
         emit_line(context,

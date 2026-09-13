@@ -40,6 +40,9 @@ typedef struct {
     BOOL has_setpatch_version;
     UWORD setpatch_version;
     UWORD setpatch_revision;
+    BOOL is_tinysetpatch;      /* TinySetPatch's persistent marker is present */
+    UWORD tinysetpatch_version;
+    UWORD tinysetpatch_revision;
 } SystemSoftwareInfo;
 
 extern SystemSoftwareInfo system_software;

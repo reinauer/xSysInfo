@@ -1315,11 +1315,18 @@ static void draw_software_overview(void)
                 value = get_string(MSG_NA);
             break;
         case 4:
-            if (system_software.has_setpatch_version)
-                snprintf(buffer, sizeof(buffer), "%u.%u",
-                         system_software.setpatch_version,
-                         system_software.setpatch_revision);
-            else
+            if (system_software.has_setpatch_version) {
+                if (system_software.is_tinysetpatch)
+                    snprintf(buffer, sizeof(buffer), "%u.%u (TinySetPatch %u.%u)",
+                             system_software.setpatch_version,
+                             system_software.setpatch_revision,
+                             system_software.tinysetpatch_version,
+                             system_software.tinysetpatch_revision);
+                else
+                    snprintf(buffer, sizeof(buffer), "%u.%u",
+                             system_software.setpatch_version,
+                             system_software.setpatch_revision);
+            } else
                 value = get_string(MSG_NA);
             break;
         default:
