@@ -337,7 +337,7 @@ m68020_mmu:
 	MACHINE 68851
         ori.w #$0700,sr                 ;disable interrupts
         movem.l	 d2-d5/a2-a3,-(sp)
-        lea -$14c(a7),a7				;reserve room for termporary
+        lea -$14c(a7),a7				;reserve room for temporary
                                         ;exception vectors
 		;structure as follows:
         ;defvar
@@ -370,7 +370,7 @@ m68020_mmu:
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
         move.l a1,$e8(a7)
-        lea $114(a7),a3           		;place here the new root pointer (temporarely)
+        lea $114(a7),a3           		;place here the new root pointer (temporarily)
         move.l a3,d2
         addq.l #$8,d2
         addq.l #$7,d2
@@ -415,7 +415,7 @@ m68030_mmu:
 	MACHINE 68020 pmmu
         ori.w #$0700,sr                 ;disable interrupts
         movem.l	 d2-d5/a2-a3,-(sp)
-        lea -$14c(a7),a7					;reserve room for termporary
+        lea -$14c(a7),a7					;reserve room for temporary
                                         ;exception vectors
 		;structure as follows:
         ;defvar
@@ -448,7 +448,7 @@ m68030_mmu:
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
         move.l a1,$e8(a7)
-        lea $114(a7),a3           		;place here the new root pointer (temporarely)
+        lea $114(a7),a3           		;place here the new root pointer (temporarily)
         move.l a3,d2
         addq.l #$8,d2
         addq.l #$7,d2
@@ -551,7 +551,7 @@ m68040_mmu:
 ;*************************************************
         MACHINE mc68040
         ori.w #$0700,sr                 ;disable interrupts
-        lea -$80(a7),a7                 ;reserve room for termporary
+        lea -$80(a7),a7                 ;reserve room for temporary
                                         ;exception vectors
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF

@@ -224,7 +224,7 @@ typedef enum {
     /* Comments based on system speed */
     MSG_COMMENT_WARP11,
     MSG_COMMENT_LUDICROUS,
-    MSG_COMMENT_RIDICULUS,
+    MSG_COMMENT_RIDICULOUS,
     MSG_COMMENT_BLAZING,
     MSG_COMMENT_VERY_FAST,
     MSG_COMMENT_FAST,

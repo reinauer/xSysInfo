@@ -365,7 +365,7 @@ void enumerate_mmu_entries(void)
 
     //is mmu.library loaded?
     if (mmuLoaded && hw_info.mmu_enabled) {
-        //no else: iff mmu.library is in the libraries lsit, it can load!
+        //no else: iff mmu.library is in the libraries list, it can load!
         if (DOSBase && DOSBase->dl_lib.lib_Version >= 37) {
             if ((MMUBase = OpenLibrary((CONST_STRPTR)"mmu.library", 40L))) {
 

@@ -162,10 +162,10 @@ BOOL writeBattMem(BattMemData* src) //returns false on error
             }
         }
         else {
-            /*What should we doo if a wrong ID is provided?*/
+            /*What should we do if a wrong ID is provided?*/
         }
 
-        /* If write was successfull: reset amnesia on the both sides */
+        /* If write was successful: reset amnesia on the both sides */
         if (result) {
             Data = 1;
             if (WriteBattMem (&Data, BATTMEM_AMIGA_AMNESIA_ADDR, BATTMEM_AMIGA_AMNESIA_LEN)) {

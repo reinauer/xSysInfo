@@ -240,7 +240,7 @@ typedef struct {
     BOOL ramsey_skip_enabled;
     ULONG ramsey_refresh_rate;     /* 0 = ???, 1 = ???, 2 = ???, 3 = ??? */
 
-    /* BattMemRessources (if available)*/
+    /* BattMem resources (if available)*/
     BattMemData battMemData;
 
     /* System info */

@@ -99,7 +99,7 @@ BOOL detect_hardware(void)
     detect_system_chips();
     debug("  hw: Detecting clock...\n");
     detect_clock();
-    debug("  hw: Detecting batt mem ressources...\n");
+    debug("  hw: Detecting batt mem resources...\n");
     detect_batt_mem();
     debug("  hw: Detecting frequencies...\n");
     detect_frequencies();
@@ -825,7 +825,7 @@ void detect_chipset(void)
 
     /*Get Paula revision*/
     hw_info.paula_rev = *((volatile UWORD *)(CUSTOM_PAULA_ID));
-    hw_info.paula_rev &= 0x00FE; //mask irelevant bits
+    hw_info.paula_rev &= 0x00FE; //mask irrelevant bits
     switch (hw_info.paula_rev) {
         case 0:
             hw_info.paula_type = PAULA_ORIG;
@@ -990,7 +990,7 @@ void detect_clock(void)
             *((volatile unsigned char *)(RTC_BASE+RTC_REG_C)) = 5;
             val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_C));
             val &= RTC_MASK;
-            if (val == 0) { // comming closer: now read register A, which should be '0001!
+            if (val == 0) { // coming closer: now read register A, which should be '0001!
                 val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_A));
                 val &= RTC_MASK;
                 if (val ==1 ) { // bingo! RP5C01A
@@ -1052,7 +1052,7 @@ void detect_batt_mem(void)
 
     if ( hw_info.clock_type == CLOCK_RP5C01 //clock with NV-ram
         && hw_info.ramsey_rev > 0 //we have a ramsey (and might be a A3000
-        && openBattMem() //batt mem ressource is open
+        && openBattMem() //batt mem resource is open
         ) {
         hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
     }
@@ -1092,13 +1092,13 @@ void detect_ramsey(void)
         return;
     }
 
-    hw_info.ramsey_rev = GetRamseyRev(); //In A4000: must be done in supervisore mode!
+    hw_info.ramsey_rev = GetRamseyRev(); //In A4000: must be done in supervisor mode!
     if ( hw_info.ramsey_rev == 0xFF ||  // unlikely!
         hw_info.ramsey_rev == 0x00 ) // unlikely!
     {
         hw_info.ramsey_rev = 0;
     }else {
-        hw_info.ramsey_ctl = GetRamseyCtrl(); //In A4000: must be done in supervisore mode!
+        hw_info.ramsey_ctl = GetRamseyCtrl(); //In A4000: must be done in supervisor mode!
 
         hw_info.ramsey_page_enabled = hw_info.ramsey_ctl & RAMSEY_PAGE_MODE;
         hw_info.ramsey_burst_enabled = hw_info.ramsey_ctl & RAMSEY_BURST_MODE;
@@ -1219,7 +1219,7 @@ void detect_gary(void)
         If the value changes with the writes, it's a FatGary
 
         A1000 mirrors the chipregisters.
-        A save register to read is DMACONR. If this register is mirrored A1000 is there.
+        A safe register to read is DMACONR. If this register is mirrored A1000 is there.
 
         A600/A1200 have an undocumented revision register at DE1000, but the 8-bit code is
         "morsed" only via the highest byte
@@ -1232,7 +1232,7 @@ void detect_gary(void)
     A3000(T/+), A4000(T)
     We have to do this first, because a A3000 with a 67040 crashes on the A1000-tests due to mmu-restrictions
     Test, if we have the Power-Up-Register (A3000/4000).
-    This writes a 0x80 and a zero to DMACONR on a A1000, which should be save
+    This writes a 0x80 and a zero to DMACONR on a A1000, which should be safe
     */
     val =  *((volatile unsigned char *)(FAT_GARY_POWER_REG)); //save old value
     //write a value
@@ -1268,12 +1268,12 @@ void detect_gary(void)
 
     //test for mirroring (A1000/ A2000BSW)
     testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
-    testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT)); //avoid bus stickyness (A3000)
+    testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT)); //avoid bus stickiness (A3000)
     testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT_MIRR));
     if (testVal1 == testVal2) {
-        //do another test to be save
+        //do another test to be safe
         testVal1 = *((volatile UWORD *)(CUSTOM_JOY1DAT));
-        testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT)); //avoid bus stickyness (A3000)
+        testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT)); //avoid bus stickiness (A3000)
         testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT_MIRR));
         if (testVal1 == testVal2) {
             hw_info.gary_type = GARY_A1000;

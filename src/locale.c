@@ -234,7 +234,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* Comments based on system speed */
     /* MSG_COMMENT_WARP11 */         "WARP 11!",
     /* MSG_COMMENT_LUDICROUS */      "Ludicrous speed!",
-    /* MSG_COMMENT_RIDICULUS */      "Ridiculus speed!",
+    /* MSG_COMMENT_RIDICULOUS */     "Ridiculous speed!",
     /* MSG_COMMENT_BLAZING */        "Blazingly fast!",
     /* MSG_COMMENT_VERY_FAST */      "Very fast!",
     /* MSG_COMMENT_FAST */           "Fast system",
@@ -269,7 +269,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_SCAN_LUN */               "Scan LUNs",
     /* MSG_SYNC_TRANS */             "Sync",
     /* MSG_FAST_SYNC */              "Fast Sync",
-    /* MSG_QUEUING */                "Queing",
+    /* MSG_QUEUING */                "Queuing",
     /* MSG_SCSI_HOST_ID */           "SCSI_ID",
     /* MSG_LONG */                   "LONG",
     /* MSG_SHORT */                  "SHORT",

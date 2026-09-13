@@ -997,7 +997,7 @@ void generate_comment(void)
             comment = get_string(MSG_COMMENT_BLAZING);
         }
         if (bench_results.dhrystones > 80000) { // 68060@ 50 MHz should be here
-            comment = get_string(MSG_COMMENT_RIDICULUS);
+            comment = get_string(MSG_COMMENT_RIDICULOUS);
         }
         if (bench_results.dhrystones > 130000) { // 68060>75Mhz should be here
             comment = get_string(MSG_COMMENT_LUDICROUS);

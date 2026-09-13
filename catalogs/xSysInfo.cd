@@ -553,8 +553,8 @@ WARP 11!
 MSG_COMMENT_LUDICROUS (//)
 Ludicrous speed!
 ;
-MSG_COMMENT_RIDICULUS (//)
-Ridiculus speed!
+MSG_COMMENT_RIDICULOUS (//)
+Ridiculous speed!
 ;
 MSG_COMMENT_BLAZING (//)
 Blazingly fast!
@@ -655,7 +655,7 @@ MSG_FAST_SYNC (//)
 Fast Sync
 ;
 MSG_QUEUING (//)
-Queing
+Queuing
 ;
 MSG_SCSI_HOST_ID (//)
 SCSI_ID
