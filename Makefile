@@ -193,7 +193,7 @@ clean:
 
 # Dependencies
 src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/locale_str.h
-src/gui.o: src/gui.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
+src/gui.o: src/gui.c src/bayer-16x16.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
 src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
 src/benchmark.o: src/benchmark.c src/xsysinfo.h src/benchmark.h src/hardware.h
 src/memory.o: src/memory.c src/xsysinfo.h src/memory.h src/hardware.h src/locale_str.h
