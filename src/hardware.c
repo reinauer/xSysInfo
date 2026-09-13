@@ -1413,7 +1413,7 @@ void detect_system_chips(void)
 }
 
 /*
- * Detect screen frequencies
+ * Detect display and system timing frequencies
  */
 void detect_frequencies(void)
 {
@@ -1422,17 +1422,22 @@ void detect_frequencies(void)
 
     if (hw_info.is_pal) {
         hw_info.horiz_freq = 15625;     /* 15.625 kHz */
-        hw_info.vert_freq = 50;
-        hw_info.supply_freq = 50;
         copy_string(hw_info.mode_string, get_string(MSG_MODE_PAL),
                     sizeof(hw_info.mode_string));
     } else {
         hw_info.horiz_freq = 15734;     /* 15.734 kHz */
-        hw_info.vert_freq = 60;
-        hw_info.supply_freq = 60;
         copy_string(hw_info.mode_string, get_string(MSG_MODE_NTSC),
                     sizeof(hw_info.mode_string));
     }
+
+    /* Exec reports these independently: a PAL display can coexist with
+     * a 60 Hz supply tick (issue #57). Both fields exist on Kickstart 1.3. */
+    hw_info.vert_freq = SysBase->VBlankFrequency;
+    hw_info.supply_freq = SysBase->PowerSupplyFrequency;
+
+    debug("    frequencies: DisplayFlags=$%04lx VBlankFrequency=%lu "
+          "PowerSupplyFrequency=%lu\n",
+          (ULONG)GfxBase->DisplayFlags, hw_info.vert_freq, hw_info.supply_freq);
 
     /* EClock frequency from exec */
     hw_info.eclock_freq = SysBase->ex_EClockFrequency;
