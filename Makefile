@@ -16,9 +16,19 @@ VASM    := vasmm68k_mot
 # NDK include path (override with: make NDK_PATH=/your/path)
 NDK_PATH ?= $(shell realpath $$(dirname $$(which $(CC)))/../m68k-amigaos/ndk-include)
 
-# Include paths: our includes + identify.library reference includes
+# Cached MMU runtime libraries and developer files
+DOWNLOAD_DIR = downloads
+MMULIB_LHA = $(DOWNLOAD_DIR)/MMULib.lha
+MU_MANUAL_LHA = $(DOWNLOAD_DIR)/MuManual.lha
+MMU_DIR = $(DOWNLOAD_DIR)/MuManual
+MMU_LIB_DIR = $(DOWNLOAD_DIR)/MMULib/Libs
+MMU_LIB_NAMES = mmu 68020 68030 68040 68060
+MMU_LIBS = $(addprefix $(MMU_LIB_DIR)/,$(addsuffix .library,$(MMU_LIB_NAMES)))
+FD2PRAGMA_TYPES = $(HOME)/.fd2pragma.types
+
+# Include paths for the downloaded developer files
 IDENTIFY_INC = 3rdparty/identify/reference
-MMU_INC = 3rdparty/mmu/reference
+MMU_INC = $(MMU_DIR)/Include
 
 #LTO ?= -flto=auto
 CFLAGS = -Os -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -Wextra \
@@ -68,7 +78,7 @@ ASM_OBJS = $(ASM_SRCS:.S=.o)
 
 TARGET = xSysInfo
 
-.PHONY: all clean identify catalogs lha
+.PHONY: all clean identify mmu catalogs lha
 
 # Detect platform for flexcat binary path
 UNAME_S := $(shell uname -s)
@@ -90,29 +100,34 @@ IDENTIFY_HEADER = $(IDENTIFY_INC)/proto/identify.h
 
 identify: $(IDENTIFY_HEADER)
 
-$(IDENTIFY_HEADER): $(FLEXCAT_BIN) | download-libs
-	@{ if [ ! -f $(HOME)/.fd2pragma.types ]; then \
-	     echo '$$(HOME)/.fd2pragma.types not found. Downloading.'; \
-	     curl -sL 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' \
-		  -o $(HOME)/.fd2pragma.types; \
-	   fi } && \
-	export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
+$(FD2PRAGMA_TYPES):
+	@echo "  DOWNLOAD $@"
+	@curl -fLsS 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' -o $@
+
+$(IDENTIFY_HEADER): $(FLEXCAT_BIN) $(FD2PRAGMA_TYPES) | download-libs
+	@export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
 	$(MAKE) -s -C 3rdparty/identify reference/proto/identify.h reference/inline/identify.h
 
-# MMU library convert (requires FlexCat)
-MMU_HEADER = $(MMU_INC)/proto/mmu.h
+# Generate compiler bindings directly beside the MuManual include files.
+MMU_HEADERS = $(MMU_INC)/proto/mmu.h $(MMU_INC)/inline/mmu.h \
+	$(MMU_INC)/inline/mmu_protos.h
+MMU_SDK_FILES = $(MMU_DIR)/fd/mmu_lib.fd $(MMU_DIR)/fd/mmu_resource.fd \
+	$(MMU_INC)/clib/mmu_protos.h $(MMU_INC)/pragmas/mmu_pragmas.h \
+	$(addprefix $(MMU_INC)/mmu/,alerts.h config.h context.h descriptor.h \
+		exceptions.h mmubase.h mmutags.h)
 
-mmu: $(MMU_HEADER)
+mmu: $(MMU_HEADERS)
 
-$(MMU_HEADER): $(FLEXCAT_BIN) | download-libs
-	@{ if [ ! -f $(HOME)/.fd2pragma.types ]; then \
-	     echo '$$(HOME)/.fd2pragma.types not found. Downloading.'; \
-	     curl -sL 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' \
-		  -o $(HOME)/.fd2pragma.types; \
-	   fi } && \
-	export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
-	$(MAKE) -s -C 3rdparty/mmu reference/proto/mmu.h reference/inline/mmu.h reference/inline/mmu_protos.h
+$(MMU_INC)/proto/mmu.h: MMU_HEADER_TYPE = 38
+$(MMU_INC)/inline/mmu.h: MMU_HEADER_TYPE = 40
+$(MMU_INC)/inline/mmu_protos.h: MMU_HEADER_TYPE = 70
 
+$(MMU_HEADERS): $(MMU_SDK_FILES) $(FD2PRAGMA_TYPES)
+	@echo "  HEADER $@"
+	@mkdir -p $(dir $@)
+	@fd2pragma --infile $(MMU_DIR)/fd/mmu_lib.fd \
+		--clib $(MMU_INC)/clib/mmu_protos.h --to $(dir $@) \
+		--special $(MMU_HEADER_TYPE) --autoheader --comment
 
 # Catalog definitions - maps source directory to AmigaOS language name
 CATALOG_DESC = catalogs/xSysInfo.cd
@@ -172,7 +187,7 @@ $(STACK_OBJ): $(STACK_SRC)
 	@echo "  CC    $@"
 	@$(CC) $(STACK_CFLAGS) -c -o $@ $<
 
-$(OBJS): src/%.o: src/%.c src/xsysinfo.h $(IDENTIFY_HEADER) $(MMU_HEADER)
+$(OBJS): src/%.o: src/%.c src/xsysinfo.h $(IDENTIFY_HEADER) $(MMU_HEADERS)
 	@echo "  CC    $@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -189,7 +204,7 @@ clean:
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
 	@$(MAKE) -s -C 3rdparty/identify clean
-	@$(MAKE) -s -C 3rdparty/mmu clean
+	@rm -rf $(MMU_DIR) $(DOWNLOAD_DIR)/MMULib
 
 # Dependencies
 src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/locale_str.h
@@ -214,12 +229,9 @@ DISK_TITLE = $(shell printf '%s' "xSysInfo-$(FULL_VERSION)" | \
 	sed 's/-dirty$$//' | cut -c1-30)
 
 # Downloads directory and files
-DOWNLOAD_DIR = downloads
 IDENTIFY_USR_LHA = $(DOWNLOAD_DIR)/IdentifyUsr.lha
 IDENTIFY_PCI_LHA = $(DOWNLOAD_DIR)/IdentifyPci.lha
 OPENPCI_LHA = $(DOWNLOAD_DIR)/openpci68k.lha
-MMULIB_LHA = $(DOWNLOAD_DIR)/MMULib.lha
-MU_MANUAL_LHA = $(DOWNLOAD_DIR)/MuManual.lha
 
 # MD5 checksums for verification
 IDENTIFY_USR_MD5 = f8bd9feb9fa595bea979755224d08c5c
@@ -320,12 +332,20 @@ $(MU_MANUAL_LHA): | $(DOWNLOAD_DIR)
 			$(call md5_fail_msg,$@,$(MU_MANUAL_MD5)); rm -f $@; exit 1; \
 		fi \
 	fi
+# Extract individual MMU files once, retaining the archives' directory layout.
+# Refresh timestamps because archive members predate the downloaded archive.
+$(MMU_LIBS): $(MMULIB_LHA)
+	@echo "  UNPACK $@"
+	@lha xqfw=$(DOWNLOAD_DIR) $< $(patsubst $(DOWNLOAD_DIR)/%,%,$@)
+	@touch $@
 
+$(MMU_SDK_FILES): $(MU_MANUAL_LHA)
+	@echo "  UNPACK $@"
+	@lha xqfw=$(DOWNLOAD_DIR) $< $(patsubst $(DOWNLOAD_DIR)/%,%,$@)
+	@touch $@
 
-
-
-# Download all libraries
-download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_LHA) $(MU_MANUAL_LHA)
+# Download and prepare libraries and developer files.
+download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMU_LIBS) $(MMU_SDK_FILES)
 	@mkdir -p 3rdparty/identify/build
 	# Extract Identify library (use 68000-compatible version)
 	@echo "  UNPACK $(IDENTIFY_USR_LHA)"
@@ -342,46 +362,6 @@ download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_L
 	@lha xq $(OPENPCI_LHA) Libs/openpci.library
 	@mv Libs/openpci.library 3rdparty/identify/build/
 	@rm -rf Libs
-	# Extract MMULib
-	@echo "  UNPACK $(MMULIB_LHA)"
-	@lha xq $(MMULIB_LHA) MMULib/Libs/mmu.library \
-		MMULib/Libs/68020.library \
-		MMULib/Libs/68030.library MMULib/Libs/68040.library \
-		MMULib/Libs/68060.library
-	@mv MMULib/Libs/mmu.library 3rdparty/identify/build/
-	@mv MMULib/Libs/680*.library 3rdparty/identify/build/
-	@rm -rf MMULib
-	# Extract MuManual
-	@echo "  UNPACK $(MU_MANUAL_LHA)"
-	@lha xq $(MU_MANUAL_LHA) MuManual/fd/mmu_lib.fd \
-		MuManual/fd/mmu_resource.fd \
-		MuManual/Include/clib/mmu_protos.h \
-		MuManual/Include/mmu/alerts.h \
-		MuManual/Include/mmu/config.h \
-		MuManual/Include/mmu/context.h \
-		MuManual/Include/mmu/descriptor.h \
-		MuManual/Include/mmu/exceptions.h \
-		MuManual/Include/mmu/mmubase.h \
-		MuManual/Include/mmu/mmutags.h \
-		MuManual/Include/pragmas/mmu_pragmas.h
-	@mkdir -p 3rdparty/mmu/reference
-	@mkdir -p 3rdparty/mmu/reference/fd
-	@mkdir -p 3rdparty/mmu/reference/clib
-	@mkdir -p 3rdparty/mmu/reference/mmu
-	@mkdir -p 3rdparty/mmu/reference/pragmas
-	@mkdir -p 3rdparty/mmu/reference/proto
-	@mv MuManual/fd/mmu_lib.fd 3rdparty/mmu/reference/fd/
-	@mv MuManual/fd/mmu_resource.fd 3rdparty/mmu/reference/fd/
-	@mv MuManual/Include/clib/mmu_protos.h  3rdparty/mmu/reference/clib/
-	@mv MuManual/Include/mmu/alerts.h 3rdparty/mmu/reference/mmu/
-	@mv MuManual/Include/mmu/config.h 3rdparty/mmu/reference/mmu/
-	@mv MuManual/Include/mmu/context.h 3rdparty/mmu/reference/mmu/
-	@mv MuManual/Include/mmu/descriptor.h 3rdparty/mmu/reference/mmu/
-	@mv MuManual/Include/mmu/exceptions.h 3rdparty/mmu/reference/mmu/
-	@mv MuManual/Include/mmu/mmubase.h 3rdparty/mmu/reference/mmu/
-	@mv MuManual/Include/mmu/mmutags.h 3rdparty/mmu/reference/mmu/
-	@mv MuManual/Include/pragmas/mmu_pragmas.h 3rdparty/mmu/reference/pragmas/
-	@rm -rf MuManual
 
 TinySetPatch: $(TINYSETPATCH_SRC) $(TINYSETPATCH_DIR)/Makefile Makefile
 	@$(MAKE) -s -C $(TINYSETPATCH_DIR) TinySetPatch VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
@@ -396,8 +376,8 @@ disk: $(TARGET) download-libs TinySetPatch $(STACK)
 	@xdftool $(DISK) makedir Libs
 	@xdftool $(DISK) write 3rdparty/identify/build/identify.library Libs/identify.library
 	@xdftool $(DISK) write 3rdparty/identify/build/openpci.library Libs/openpci.library
-	@for lib in mmu 68020 68030 68040 68060; do \
-		xdftool $(DISK) write 3rdparty/identify/build/$$lib.library Libs/$$lib.library; \
+	@for lib in $(MMU_LIB_NAMES); do \
+		xdftool $(DISK) write $(MMU_LIB_DIR)/$$lib.library Libs/$$lib.library; \
 	done
 	@xdftool $(DISK) makedir S
 	@xdftool $(DISK) write Startup-Sequence S/Startup-Sequence
