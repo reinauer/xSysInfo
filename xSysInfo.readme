@@ -17,48 +17,60 @@ Additional features above and beyond SysInfo include:
   6,553,600 Bytes/sec.
 
 Usage:
-Start xSysInfo from Workbench, or run xSysInfo from the Shell.  With no
-arguments it opens the graphical interface.
+Start xSysInfo from its Workbench icon or run it from the Shell. With no
+command-line options, it opens the graphical interface.
 
-The System Software Installed tile defaults to an overview of the OS,
-physical ROM, active ROM, Workbench, SetPatch, and graphics system. Use its
-cycle button for the library, device, resource, and MMU lists. Total Chip
-and Fast RAM are shown in the hardware overview.
+Command-line options:
+Use xSysInfo [options]. Options are case-insensitive keywords, entered
+without a leading dash.
 
-Shell options:
-  xSysInfo BRIEF
-        Writes a compact benchmark summary to Shell output and does not open
-        the graphical interface.
-  xSysInfo FULL
-        Runs the full benchmark/report pass and writes the complete text report
-        to Shell output.  For example:
-        xSysInfo FULL >RAM:xSysInfo.txt
-  xSysInfo WHICH
-        Writes a system report compatible with the WhichAmiga 1.3.3 text
-        format and does not open the graphical interface.
+  Option  Description
+  ------  --------------------------------------------------------------
+  BRIEF   Run benchmarks and write a compact summary to Shell output.
+  FULL    Run CPU, memory, and drive benchmarks and write the complete
+          text report to Shell output.
+  WHICH   Write a column-aligned system report compatible with the
+          WhichAmiga 1.3.3 text format to Shell output.
+  DARK    Use the dark blue palette in the graphical interface.
+          The default is the gray palette.
+  DEBUG   Enable diagnostic output. Debugging is off by default.
+
+BRIEF, FULL, and WHICH run without opening the graphical interface.
+If more than one report mode is supplied, FULL takes precedence over
+WHICH, which takes precedence over BRIEF. DEBUG can be combined with
+any mode; DARK affects only the graphical interface.
+
+Examples:
   xSysInfo DARK
-        Opens the graphical interface with the dark blue palette.
-  xSysInfo DEBUG
-        Enables debug output.
+      Open the graphical interface in dark mode.
+  xSysInfo FULL >RAM:xSysInfo.txt
+      Save the full report to a file in RAM:.
 
-If FULL is supplied with another output mode, FULL takes precedence. WHICH
-takes precedence over BRIEF.
+Graphical interface:
+The System Software Installed tile defaults to an overview of the OS,
+physical ROM, active ROM, Workbench, SetPatch, and graphics system.
+Use its cycle button for the library, device, resource, and MMU lists.
+Total Chip and Fast RAM are shown in the hardware overview.
 
-Workbench ToolTypes:
-The supplied icon contains DISPLAY=auto.  Edit this ToolType to select where
-the graphical interface opens:
+Workbench icon ToolTypes:
+These settings come from the program's icon when xSysInfo starts from
+Workbench. Edit the icon's ToolTypes, with one entry per line.
+The supplied icon contains DISPLAY=auto.
 
-  DISPLAY=auto
-        Default.  Opens a window on RTG Workbench screens and otherwise opens
-        xSysInfo on its own PAL or NTSC screen.
-  DISPLAY=window
-        Forces xSysInfo to open in a window.
-  DISPLAY=screen
-        Forces xSysInfo to open on its own screen.
-  DARK
-        Uses the dark blue palette.
-  DEBUG
-        Enables debug output.
+  ToolType        Description
+  --------------  ------------------------------------------------------
+  DISPLAY=auto    Default. Open a window if the Workbench screen
+                  is wider than 640 pixels or taller than 512 pixels;
+                  otherwise use a separate PAL or NTSC screen.
+  DISPLAY=window  Open a window on the Workbench screen.
+  DISPLAY=screen  Open a separate PAL or NTSC screen.
+  DARK            Use the dark blue palette. Omit this entry to use the
+                  default gray palette.
+  DEBUG           Enable diagnostic output. Omit this entry to leave
+                  debugging off.
+
+Use one DISPLAY entry to select the display mode. Add DARK or DEBUG
+as separate entries to enable either option.
 
 Web page:
         https://github.com/reinauer/xSysInfo/blob/main/README.md

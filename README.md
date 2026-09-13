@@ -45,28 +45,58 @@ The primary way to run `xSysInfo` on a real Amiga is via a GOTEK drive using the
 
 You can also run the ADF on an Amiga emulator (like WinUAE or FS-UAE).
 
-Additionally, the `xsysinfo` binary itself can be executed directly from the shell on a real Amiga or emulator.
-Run `xSysInfo BRIEF` from the shell to write a compact benchmark summary to the
-CLI output. Run `xSysInfo FULL` to write the full report format to the CLI
-output. Run `xSysInfo WHICH` for output compatible with the column-aligned
-WhichAmiga style report format.
+Start `xSysInfo` from its Workbench icon or run it from the Shell on a real
+Amiga or emulator. With no command-line options, it opens the graphical
+interface.
+
+### Command-line options
+
+Use `xSysInfo [options]`. Options are case-insensitive keywords, entered
+without a leading dash.
+
+| Option | Description |
+| --- | --- |
+| `BRIEF` | Run benchmarks and write a compact summary to Shell output. |
+| `FULL` | Run CPU, memory, and drive benchmarks and write the complete text report to Shell output. |
+| `WHICH` | Write a column-aligned system report compatible with the WhichAmiga 1.3.3 text format to Shell output. |
+| `DARK` | Use the dark blue palette in the graphical interface. The default is the gray palette. |
+| `DEBUG` | Enable diagnostic output. Debugging is off by default. |
+
+`BRIEF`, `FULL`, and `WHICH` run without opening the graphical interface.
+If more than one report mode is supplied, `FULL` takes precedence over
+`WHICH`, which takes precedence over `BRIEF`. `DEBUG` can be combined with
+any mode; `DARK` affects only the graphical interface.
+
+For example, open the interface in dark mode or save a full report to RAM:
+
+```text
+xSysInfo DARK
+xSysInfo FULL >RAM:xSysInfo.txt
+```
+
+### Graphical interface
 
 The System Software Installed tile opens on an overview of the OS, physical
 ROM, active ROM, Workbench, SetPatch, and graphics system. Its cycle button
 opens the library, device, resource, and MMU lists. Total Chip and Fast RAM
 are shown in the hardware overview.
 
-## Configuration
+## Workbench icon ToolTypes
 
-You can select whether xSysInfo is started in a window or on its own screen
-by specifying a DISPLAY ToolType. DISPLAY=auto is the default and will select
-window when your screen resolution is larger than 640x512, as xSysInfo is
-assuming RTG mode. For lower resolutions it will start on a PAL or NTSC screen.
-You can force either behavior with DISPLAY=window or DISPLAY=screen.
+These settings are read from the program's icon when xSysInfo starts from
+Workbench. Edit the icon's ToolTypes, with one entry per line. The supplied
+icon contains `DISPLAY=auto`.
 
-Dark mode uses a dark blue palette. Run `xSysInfo DARK` from the shell, or set
-a DARK ToolType on the icon when starting from Workbench. Without DARK,
-xSysInfo keeps the default palette.
+| ToolType | Description |
+| --- | --- |
+| `DISPLAY=auto` | Default. Open a window if the detected Workbench screen is wider than 640 pixels or taller than 512 pixels; otherwise use a separate PAL or NTSC screen. |
+| `DISPLAY=window` | Open a window on the Workbench screen. |
+| `DISPLAY=screen` | Open a separate PAL or NTSC screen. |
+| `DARK` | Use the dark blue palette. Omit this entry to use the default gray palette. |
+| `DEBUG` | Enable diagnostic output. Omit this entry to leave debugging off. |
+
+Use one `DISPLAY` entry to select the display mode. Add `DARK` or `DEBUG`
+as separate entries to enable either option.
 
 ![XSysInfo in windowed mode](docs/xsysinfo-windowed.png)
 
@@ -103,4 +133,6 @@ downloads `fd2pragma.types` to `~/.fd2pragma.types` when that file is missing.
 
 ## Contributing
 
-We welcome contributions! Please feel free to fork the repository, make your changes, and submit a pull request.
+xSysInfo is licensed under the [BSD 2-Clause License](LICENSE).
+Contributions are welcome! Fork the repository, make your changes, and
+submit a pull request.
