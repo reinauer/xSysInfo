@@ -166,6 +166,8 @@ typedef struct {
     BarScale bar_scale;             /* Current bar graph scale */
     BOOL benchmarks_run;            /* Have benchmarks been executed? */
     BOOL scrollbar_dragging;        /* TRUE while dragging scrollbar */
+    WORD scrollbar_drag_y;          /* Mouse Y when the knob was grabbed */
+    LONG scrollbar_drag_scroll;     /* Scroll offset when the knob was grabbed */
     WORD pressed_button;            /* Currently pressed button ID, or -1 */
 
     /* Memory view state */

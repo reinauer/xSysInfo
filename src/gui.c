@@ -117,7 +117,7 @@ static void draw_hardware_panel(void);
 static void draw_bottom_buttons(void);
 static void draw_cache_buttons(void);
 static void clear_buttons(void);
-static void update_software_list(void);
+static void update_software_list(BOOL clear_content);
 static void update_hardware_text(void);
 static void refresh_all_cache_buttons(void);
 static void show_timed_overlay(const char *message, ULONG ticks);
@@ -475,7 +475,8 @@ void main_view_handle_button(ButtonID id)
         case BTN_SOFTWARE_CYCLE:
             app->software_type = (app->software_type + 1) % SOFTWARE_COUNT;
             app->software_scroll = 0;
-            update_software_list();
+            app->scrollbar_dragging = FALSE;
+            update_software_list(TRUE);
             break;
         case BTN_HARDWARE_CYCLE:
             app->hardware_type =
@@ -522,7 +523,7 @@ void main_view_handle_button(ButtonID id)
         case BTN_SOFTWARE_UP:
             if (app->software_scroll > 0) {
                 app->software_scroll--;
-                update_software_list();
+                update_software_list(FALSE);
             }
             break;
 
@@ -531,7 +532,7 @@ void main_view_handle_button(ButtonID id)
                 SoftwareList *list = get_software_list(app->software_type);
                 if (list && app->software_scroll < (LONG)list->count - SOFTWARE_LIST_LINES) {
                     app->software_scroll++;
-                    update_software_list();
+                    update_software_list(FALSE);
                 }
             }
             break;
@@ -994,6 +995,24 @@ void draw_scroll_arrow(WORD x, WORD y, WORD w, WORD h, BOOL up, BOOL pressed)
     }
 }
 
+/* Shared by drawing and hit testing; offset includes the track border. */
+static void scrollbar_knob(WORD h, ULONG pos, ULONG total, ULONG visible,
+                           WORD *offset, WORD *size)
+{
+    WORD inner_h = h - 2;
+
+    *offset = 1;
+    *size = inner_h;
+    if (total <= visible) {
+        return;
+    }
+
+    *size = (visible * inner_h) / total;
+    if (*size < 8) *size = 8;
+    if (*size > inner_h) *size = inner_h;
+    *offset += (pos * (inner_h - *size)) / (total - visible);
+}
+
 /*
  * Draw a scroll bar (prop gadget style)
  */
@@ -1001,29 +1020,17 @@ void draw_scroll_bar(WORD x, WORD y, WORD w, WORD h, ULONG pos, ULONG total, ULO
 {
     struct RastPort *rp = app->rp;
     WORD knob_y, knob_h;
-    WORD track_h = h;
 
-    /* Draw recessed track background */
+    scrollbar_knob(h, pos, total, visible, &knob_y, &knob_h);
+    knob_y += y;
+
+    /* Clear only the exposed track, so the knob is never blanked first. */
     SetAPen(rp, COLOR_BUTTON_DARK);
-    RectFill(rp, x, y, x + w - 1, y + h - 1);
-
-    /* Draw 3D recessed border for track */
+    if (knob_y > y + 1)
+        RectFill(rp, x + 1, y + 1, x + w - 2, knob_y - 1);
+    if (knob_y + knob_h < y + h - 1)
+        RectFill(rp, x + 1, knob_y + knob_h, x + w - 2, y + h - 2);
     draw_3d_box(x, y, w, h, TRUE);
-
-    /* Calculate knob size and position */
-    if (total <= visible) {
-        /* Everything fits, knob fills track */
-        knob_y = y + 1;
-        knob_h = track_h - 2;
-    } else {
-        /* Calculate proportional knob size (minimum 8 pixels) */
-        knob_h = (visible * (track_h - 2)) / total;
-        if (knob_h < 8) knob_h = 8;
-
-        /* Calculate knob position */
-        WORD travel = track_h - 2 - knob_h;
-        knob_y = y + 1 + (pos * travel) / (total - visible);
-    }
 
     /* Draw knob background */
     SetAPen(rp, COLOR_PANEL_BG);
@@ -1229,9 +1236,6 @@ static void format_mmu_address(char *buffer, size_t size, ULONG address)
     }
 }
 
-/* Forward declaration */
-static void update_software_list(void);
-
 /*
  * Draw software panel (overview/libraries/devices/resources/MMU)
  */
@@ -1250,7 +1254,7 @@ static void draw_software_panel(void)
         draw_cycle_button(cycle_btn);
     }
 
-    update_software_list();
+    update_software_list(TRUE);
 }
 
 /*
@@ -1328,11 +1332,56 @@ static void draw_software_overview(void)
     }
 }
 
+/* Erase unused parts of a text field, preserving its foreground pen. */
+static void clear_software_text(WORD x, WORD y, WORD width)
+{
+    struct RastPort *rp = app->rp;
+    UBYTE pen = rp->FgPen;
+    WORD top = y - rp->TxBaseline;
+
+    if (width <= 0) return;
+    SetAPen(rp, COLOR_PANEL_BG);
+    RectFill(rp, x, top, x + width - 1, top + rp->TxHeight - 1);
+    SetAPen(rp, pen);
+}
+
 /*
- * Update software list content only (no panel redraw)
- * Used for partial refresh when cycling through types
+ * JAM2 replaces the character cells; only spaces and the unused tail need
+ * explicit erasing. The MMU page uses the same tight spacing as TightText(),
+ * but must paint its spaces too and stay inside the list's right edge.
  */
-static void update_software_list(void)
+static void draw_software_field(WORD x, WORD y, const char *text,
+                                WORD width, BOOL tight)
+{
+    struct RastPort *rp = app->rp;
+    WORD right = x + width;
+    WORD end = x;
+
+    if (tight) {
+        for (; *text; text++) {
+            WORD char_width = *text == ' ' ? 8 :
+                              TextLength(rp, (CONST_STRPTR)text, 1);
+            if (x + char_width > right) break;
+            end = x + char_width;
+            if (*text == ' ') {
+                clear_software_text(x, y, char_width);
+                x = end;
+            } else {
+                Move(rp, x, y);
+                Text(rp, (CONST_STRPTR)text, 1);
+                x += char_width > 7 ? 7 : char_width;
+            }
+        }
+    } else {
+        Move(rp, x, y);
+        draw_text_clipped(x, y, text, width);
+        end = rp->cp_x;
+    }
+    clear_software_text(end, y, right - end);
+}
+
+/* Clear on page changes; overwrite text in place while scrolling. */
+static void update_software_list(BOOL clear_content)
 {
     struct RastPort *rp = app->rp;
     SoftwareList *list = get_software_list(app->software_type);
@@ -1341,11 +1390,13 @@ static void update_software_list(void)
     WORD list_top = SOFTWARE_PANEL_Y + 22;
     char buffer[128];
 
-    /* Clear the content and any scroll controls from the previous page. */
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, SOFTWARE_PANEL_X + 2, list_top - 7,
-             SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 3,
-             SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 2);
+    if (clear_content) {
+        /* Page layouts differ, including whether scroll controls are shown. */
+        SetAPen(rp, COLOR_PANEL_BG);
+        RectFill(rp, SOFTWARE_PANEL_X + 2, list_top - 7,
+                 SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 3,
+                 SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 2);
+    }
 
     /* Update cycle button only if label changed */
     Button *cycle_btn = find_button(BTN_SOFTWARE_CYCLE);
@@ -1372,11 +1423,11 @@ static void update_software_list(void)
     Button *down_btn = find_button(BTN_SOFTWARE_DOWN);
     Button *scrollbar_btn = find_button(BTN_SOFTWARE_SCROLLBAR);
 
-    if (up_btn) {
+    if (clear_content && up_btn) {
         draw_scroll_arrow(up_btn->x, up_btn->y, up_btn->width, up_btn->height,
                           TRUE, up_btn->pressed);
     }
-    if (down_btn) {
+    if (clear_content && down_btn) {
         draw_scroll_arrow(down_btn->x, down_btn->y, down_btn->width, down_btn->height,
                           FALSE, down_btn->pressed);
     }
@@ -1389,6 +1440,7 @@ static void update_software_list(void)
     }
 
     /* Draw list entries */
+    SetDrMd(rp, JAM2);
     SetBPen(rp, COLOR_PANEL_BG);
     y = list_top;
     for (i = app->software_scroll;
@@ -1398,36 +1450,35 @@ static void update_software_list(void)
         SoftwareEntry *entry = &list->entries[i];
 
         if (app->software_type == SOFTWARE_MMU) {
+            snprintf(buffer, 50, "%.49s", entry->name);
             if (strlen(entry->name) > 49) {
-                entry->name[48] = '+';
-                entry->name[49] = '\0';
+                buffer[48] = '+';
             }
-            snprintf(buffer, 50, "%-49s", entry->name);
             SetAPen(rp, COLOR_TEXT);
-            Move(rp, SOFTWARE_PANEL_X + 4, y);
-            TightText(rp, SOFTWARE_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 8);
+            draw_software_field(SOFTWARE_PANEL_X + 4, y, buffer,
+                                SOFTWARE_PANEL_W - 20, TRUE);
         }
         else {
             /* Name */
             SetAPen(rp, COLOR_TEXT);
-            draw_text_clipped(SOFTWARE_PANEL_X + 4, y, entry->name,
-                              126 - 4);
+            draw_software_field(SOFTWARE_PANEL_X + 4, y, entry->name,
+                                126 - 4, FALSE);
 
             /* Location */
-            draw_text_clipped(SOFTWARE_PANEL_X + 126, y,
-                              get_location_string(entry->location),
-                              200 - 126);
+            draw_software_field(SOFTWARE_PANEL_X + 126, y,
+                                get_location_string(entry->location),
+                                200 - 126, FALSE);
 
             /* Address */
             snprintf(buffer, 12, "$%08lX", (unsigned long)entry->address);
             SetAPen(rp, COLOR_HIGHLIGHT);
-            draw_text_clipped(SOFTWARE_PANEL_X + 200, y, buffer,
-                              284 - 200);
+            draw_software_field(SOFTWARE_PANEL_X + 200, y, buffer,
+                                284 - 200, FALSE);
 
             /* Version */
             snprintf(buffer, sizeof(buffer), "V%d.%d", entry->version, entry->revision);
-            draw_text_clipped(SOFTWARE_PANEL_X + 284, y, buffer,
-                              (SOFTWARE_PANEL_W - 16) - 284);
+            draw_software_field(SOFTWARE_PANEL_X + 284, y, buffer,
+                                (SOFTWARE_PANEL_W - 16) - 284, FALSE);
         }
 
         y += 8;
@@ -2451,40 +2502,54 @@ void handle_button_press(ButtonID btn_id)
 }
 
 /*
- * Handle click on scrollbar - scroll based on click position
+ * Page on trough clicks; drag only when the knob itself was grabbed.
  */
 void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
 {
     Button *scrollbar_btn = find_button(BTN_SOFTWARE_SCROLLBAR);
     SoftwareList *list = get_software_list(app->software_type);
-    WORD knob_h;
-    WORD track_h;
-    LONG max_scroll;
+    WORD knob_y, knob_h, travel;
+    LONG max_scroll, new_scroll;
 
-    if (!scrollbar_btn || !scrollbar_btn->enabled || !list) return;
+    if (app->current_view != VIEW_MAIN || !scrollbar_btn ||
+        !scrollbar_btn->enabled || !list) return;
 
     max_scroll = (LONG)list->count - SOFTWARE_LIST_LINES;
     if (max_scroll <= 0) return;
 
-    track_h = scrollbar_btn->height;
+    scrollbar_knob(scrollbar_btn->height, app->software_scroll, list->count,
+                   SOFTWARE_LIST_LINES, &knob_y, &knob_h);
+    travel = scrollbar_btn->height - 2 - knob_h;
+    if (travel <= 0) return;
 
-    /* Calculate knob size */
-    knob_h = (SOFTWARE_LIST_LINES * (track_h - 2)) / list->count;
-    if (knob_h < 8) knob_h = 8;
+    if (app->scrollbar_dragging) {
+        LONG delta = (LONG)my - app->scrollbar_drag_y;
+        LONG start_y = (app->scrollbar_drag_scroll * travel) / max_scroll;
 
-    /* When dragging, directly calculate scroll position from mouse Y */
-    /* Center the knob on the mouse position */
-    WORD rel_y = my - scrollbar_btn->y - knob_h / 2;
-    WORD travel = track_h - 2 - knob_h;
-
-    if (travel > 0) {
-        LONG new_scroll = (rel_y * max_scroll) / travel;
-        if (new_scroll < 0) new_scroll = 0;
-        if (new_scroll > max_scroll) new_scroll = max_scroll;
-        if (new_scroll != app->software_scroll) {
-            app->software_scroll = new_scroll;
-            update_software_list();
+        /* Retain the original scroll offset even when several rows share a
+         * knob pixel. A click or horizontal movement must not move the list. */
+        new_scroll = app->scrollbar_drag_scroll + (delta * max_scroll) / travel;
+        if (delta < 0 && start_y + delta <= 0) new_scroll = 0;
+        if (delta > 0 && start_y + delta >= travel) new_scroll = max_scroll;
+    } else {
+        knob_y += scrollbar_btn->y;
+        if (my < knob_y) {
+            new_scroll = app->software_scroll - SOFTWARE_LIST_LINES;
+        } else if (my >= knob_y + knob_h) {
+            new_scroll = app->software_scroll + SOFTWARE_LIST_LINES;
+        } else {
+            app->scrollbar_dragging = TRUE;
+            app->scrollbar_drag_y = my;
+            app->scrollbar_drag_scroll = app->software_scroll;
+            return;
         }
+    }
+
+    if (new_scroll < 0) new_scroll = 0;
+    if (new_scroll > max_scroll) new_scroll = max_scroll;
+    if (new_scroll != app->software_scroll) {
+        app->software_scroll = new_scroll;
+        update_software_list(FALSE);
     }
 }
 
@@ -2493,6 +2558,7 @@ void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
  */
 void switch_to_view(ViewMode view)
 {
+    app->scrollbar_dragging = FALSE;
     app->current_view = view;
 
     /* Reset view-specific state */

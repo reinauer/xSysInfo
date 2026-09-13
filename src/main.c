@@ -1045,7 +1045,7 @@ static void main_loop(void)
                         ButtonID btn = handle_click(mx, my);
                         if (btn != BTN_NONE) {
                             if (btn == BTN_SOFTWARE_SCROLLBAR) {
-                                app->scrollbar_dragging = TRUE;
+                                app->scrollbar_dragging = FALSE;
                                 handle_scrollbar_click(mx, my);
                             } else {
                                 /* Set button as pressed and redraw */
