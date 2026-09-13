@@ -1198,11 +1198,22 @@ static void refresh_hardware_benchmark_rows(void)
 
 static void format_mmu_value(char *buffer, size_t size)
 {
+    char mmu_value[sizeof(hw_info.mmu_string)];
+    const char *uncertainty = strstr(hw_info.mmu_string, " (");
+
+    /* detect_mmu() adds a localized uncertainty suffix; keep it compact here. */
+    if (uncertainty) {
+        snprintf(mmu_value, sizeof(mmu_value), "%.*s?",
+                 (int)(uncertainty - hw_info.mmu_string), hw_info.mmu_string);
+    } else {
+        copy_string(mmu_value, hw_info.mmu_string, sizeof(mmu_value));
+    }
+
     if (hw_info.mmu_enabled) {
         snprintf(buffer, size, "%s (%s)",
-                 hw_info.mmu_string, get_string(MSG_IN_USE));
+                 mmu_value, get_string(MSG_IN_USE));
     } else {
-        copy_string(buffer, hw_info.mmu_string, size);
+        copy_string(buffer, mmu_value, size);
     }
 }
 
