@@ -73,11 +73,33 @@ xSysInfo keeps the default palette.
 
 ## Dependencies
 
-`xSysInfo` utilizes the following third-party projects:
-*   **FlexCat**: For catalog and localization file handling. (https://github.com/adtools/flexcat)
-*   **Identify**: For identifying various hardware components, including PCI devices. (https://codeberg.org/shred/identify)
-*   `openpci.library`: For PCI device access.
-*   **fd2pragma**: Tool to create header files with pragma statements. (https://github.com/adtools/fd2pragma)
+`xSysInfo` uses the following third-party projects and data:
+
+*   [FlexCat](https://github.com/adtools/flexcat): Builds the localization
+    catalogs from the source submodule.
+*   [Identify](http://identify.shredzone.org/): Identifies hardware and
+    software. Developer headers come from the source submodule; the runtime
+    library comes from
+    [IdentifyUsr.lha](https://aminet.net/util/libs/IdentifyUsr.lha).
+*   [IdentifyPci.lha](https://aminet.net/util/libs/IdentifyPci.lha): Supplies
+    the `pci.db` identification database included on the disk image.
+*   [openpci68k.lha](https://aminet.net/driver/other/openpci68k.lha): Supplies
+    `openpci.library` for PCI device access.
+*   [MMULib.lha](https://aminet.net/util/libs/MMULib.lha): Supplies
+    `mmu.library` and the 68020/68030/68040/68060 support libraries included
+    on the disk image.
+*   [MuManual.lha](https://aminet.net/docs/misc/MuManual.lha): Supplies MMU
+    developer headers and function descriptions used to generate compiler
+    bindings.
+*   [TinySetPatch](https://github.com/reinauer/TinySetPatch): Built from the
+    source submodule for CPU support and system initialization when booting
+    the disk image.
+*   [fd2pragma](https://github.com/AmigaPorts/fd2pragma): Generates compiler
+    bindings from library function descriptions and C prototypes. Must be
+    preinstalled and available on `PATH`; the build does not install it.
+
+The build downloads and caches the `.lha` archives in `downloads/`. It also
+downloads `fd2pragma.types` to `~/.fd2pragma.types` when that file is missing.
 
 ## Contributing
 
