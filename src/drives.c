@@ -1543,9 +1543,13 @@ static void draw_drive_speed_row(void)
 static void draw_drive_value(WORD y, const char *value)
 {
     struct RastPort *rp = app->rp;
+    WORD top = y - rp->TxBaseline;
 
+    /* Clear only this font row: a taller rectangle erases the previous
+     * row's descenders with the drive view's nine-pixel line spacing. */
     SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, DRIVE_VALUE_X, y - 8, DRIVE_VALUE_MAX_X, y + 2);
+    RectFill(rp, DRIVE_VALUE_X, top, DRIVE_VALUE_MAX_X,
+             top + rp->TxHeight - 1);
     SetAPen(rp, COLOR_HIGHLIGHT);
     SetBPen(rp, COLOR_PANEL_BG);
     draw_text_clipped(DRIVE_VALUE_X, y, value,
