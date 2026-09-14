@@ -114,6 +114,7 @@ static void draw_speed_panel(void);
 static void refresh_speed_panel_contents(void);
 static void refresh_speed_bars(BOOL redraw_scale_button);
 static void draw_hardware_panel(void);
+static void draw_hardware_panel_contents(void);
 static void draw_bottom_buttons(void);
 static void draw_cache_buttons(void);
 static void clear_buttons(void);
@@ -1258,7 +1259,7 @@ static void draw_software_panel(void)
 }
 
 /*
- * Rebuild hardware-page buttons and redraw the hardware panel.
+ * Rebuild hardware-page buttons and redraw only the changing contents.
  */
 static void update_hardware_text(void)
 {
@@ -1268,14 +1269,14 @@ static void update_hardware_text(void)
     hw_cycle_btn = find_button(BTN_HARDWARE_CYCLE);
 
     if (hw_cycle_btn) {
-        const char *new_hw_label = get_hardware_page_label();
-        if (hw_cycle_btn->label != new_hw_label) {
-            hw_cycle_btn->label = new_hw_label;
-            draw_cycle_button(hw_cycle_btn);
-        }
+        draw_cycle_button(hw_cycle_btn);
     }
-    draw_hardware_panel();
-    draw_bottom_buttons();
+
+    SetAPen(app->rp, COLOR_PANEL_BG);
+    RectFill(app->rp, HARDWARE_PANEL_X + 2, HARDWARE_PANEL_Y + 15,
+             HARDWARE_PANEL_X + HARDWARE_PANEL_W - 3,
+             HARDWARE_PANEL_Y + HARDWARE_PANEL_H - 2);
+    draw_hardware_panel_contents();
 }
 
 static void draw_software_overview(void)
@@ -1917,9 +1918,6 @@ static void draw_speed_panel(void)
 
 static void draw_hardware_panel(void)
 {
-    WORD y;
-    char buffer[74];
-
     draw_panel(HARDWARE_PANEL_X, HARDWARE_PANEL_Y,
                HARDWARE_PANEL_W, HARDWARE_PANEL_H,
            NULL);
@@ -1932,6 +1930,14 @@ static void draw_hardware_panel(void)
     if (hw_cycle_btn) {
         draw_cycle_button(hw_cycle_btn);
     }
+
+    draw_hardware_panel_contents();
+}
+
+static void draw_hardware_panel_contents(void)
+{
+    WORD y;
+    char buffer[74];
 
     y = HARDWARE_PANEL_Y + 24;
     if (app->hardware_type == HARDWARE_STD) {
