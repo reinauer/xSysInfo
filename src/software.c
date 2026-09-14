@@ -606,7 +606,6 @@ void detect_system_software(void)
     struct SignalSemaphore *semaphore;
     struct Library *version_base;
     ULONG setpatch = 0;
-    ULONG header_end, info_address, info_end;
     STRPTR os_name;
 
     memset(&system_software, 0, sizeof(system_software));
@@ -633,21 +632,15 @@ void detect_system_software(void)
         Forbid();
         semaphore = FindSemaphore((CONST_STRPTR)"\253 SetPatch \273");
         if (semaphore) {
-            header_end = (ULONG)semaphore + sizeof(*semaphore) - 1;
-            info_address = (ULONG)semaphore + 80;
-            info_end = info_address + sizeof(*tinysetpatch) - 1;
-            /* Ordinary SetPatch and older TinySetPatch have no extension.
-             * Probe only within the same 256-byte block as the known-valid
-             * header's last byte. This cannot cross even the smallest
-             * 68851/68030 MMU page; 68040/68060 pages are larger still. */
-            if ((header_end >> 8) == (info_end >> 8)) {
-                tinysetpatch = (const volatile struct TinySetPatchInfo *)info_address;
-                if (tinysetpatch->magic[0] == 0x54696e79UL &&
-                    tinysetpatch->magic[1] == 0x53657450UL) {
-                    system_software.is_tinysetpatch = TRUE;
-                    system_software.tinysetpatch_version = tinysetpatch->version;
-                    system_software.tinysetpatch_revision = tinysetpatch->revision;
-                }
+            /* Older implementations have no extension; require both magic
+             * words before interpreting the following version fields. */
+            tinysetpatch = (const volatile struct TinySetPatchInfo *)
+                ((const UBYTE *)semaphore + 80);
+            if (tinysetpatch->magic[0] == 0x54696e79UL &&
+                tinysetpatch->magic[1] == 0x53657450UL) {
+                system_software.is_tinysetpatch = TRUE;
+                system_software.tinysetpatch_version = tinysetpatch->version;
+                system_software.tinysetpatch_revision = tinysetpatch->revision;
             }
         }
         Permit();
