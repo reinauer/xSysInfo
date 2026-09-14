@@ -1,4 +1,4 @@
-## version $VER: xSysInfo.ct 1.02 (15.06.2026)
+## version $VER: xSysInfo.ct 1.03 (14.09.2026)
 ## language magyar
 ## codeset 5
 ;
@@ -579,7 +579,7 @@ Mit is mondhatnék!
 ; Hardware toggle
 ;
 MSG_HARDWARE_STD
-ÁTTEK
+ÁTTEKINT
 ;
 MSG_HARDWARE_CPU
 CPU
@@ -786,7 +786,7 @@ MSG_SLOT_ZORRO
 ZORRO
 ;
 MSG_SOFTWARE_OVERVIEW
-ÁTTEK
+ÁTTEKINT
 ;
 MSG_OPERATING_SYSTEM
 OS
