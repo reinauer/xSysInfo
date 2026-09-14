@@ -823,6 +823,22 @@ void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title)
         }
 
         SetDrMd(rp, JAM1);
+        if (title_len) {
+            WORD top = y + h - 5 - rp->Font->tf_Baseline;
+            WORD bottom = top + rp->Font->tf_YSize + 2;
+            WORD right = x + 5 + TextLength(rp, (CONST_STRPTR)title,
+                                           title_len);
+
+            /* Cover the text and shadow, leaving the gradient in place. */
+            if (top < y + 1)
+                top = y + 1;
+            if (bottom > y + h - 2)
+                bottom = y + h - 2;
+            if (right > x + w - 2)
+                right = x + w - 2;
+            SetAPen(rp, COLOR_TITLE_BG);
+            RectFill(rp, x + 3, top, right, bottom);
+        }
         SetAPen(rp, shadow_text_color());
         Move(rp, x + 5, y + h - 3);
         Text(rp, (CONST_STRPTR)title, title_len);
