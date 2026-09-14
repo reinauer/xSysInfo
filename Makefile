@@ -80,13 +80,8 @@ TARGET = xSysInfo
 
 .PHONY: all clean identify mmu catalogs lha
 
-# Detect platform for flexcat binary path
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-    FLEXCAT_BIN = 3rdparty/flexcat/src/bin_darwin/flexcat
-else
-    FLEXCAT_BIN = 3rdparty/flexcat/src/bin_unix/flexcat
-endif
+# FlexCat uses the Unix target on both Linux and macOS.
+FLEXCAT_BIN = 3rdparty/flexcat/src/bin_unix/flexcat
 
 all: download-libs identify mmu $(TARGET) disk lha
 
@@ -105,7 +100,7 @@ $(FD2PRAGMA_TYPES):
 	@curl -fLsS 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' -o $@
 
 $(IDENTIFY_HEADER): $(FLEXCAT_BIN) $(FD2PRAGMA_TYPES) | download-libs
-	@export PATH="$(CURDIR)/3rdparty/flexcat/src/bin_unix:$(CURDIR)/3rdparty/flexcat/src/bin_darwin:$(PATH)" && \
+	@export PATH="$(CURDIR)/$(dir $(FLEXCAT_BIN)):$(PATH)" && \
 	$(MAKE) -s -C 3rdparty/identify reference/proto/identify.h reference/inline/identify.h
 
 # Generate compiler bindings directly beside the MuManual include files.
