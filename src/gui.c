@@ -1860,17 +1860,15 @@ static void draw_speed_panel_contents(BOOL redraw_scale_button)
     SetAPen(rp, COLOR_HIGHLIGHT);
     TightText(rp, SPEED_PANEL_X + 132, y, (CONST_STRPTR)buffer, -1, 4);
 
-    /* Memory speeds header */
-    y += 8;
-
-    SetAPen(rp, COLOR_TEXT);
-    snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_MEM_SPEED_HEADER));
-    TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
-
-    /* Memory speed values */
+    /* Memory speeds: labels and values share fixed column positions. */
     y += 8;
     {
         char chip_str[8], fast_str[8], rom_str[8];
+        const char *values[] = { chip_str, fast_str, rom_str };
+        char *label;
+        WORD x = SPEED_PANEL_X + 4;
+        /* Five characters at seven pixels each, plus a column gap. */
+        const WORD column_width = 42;
 
         /* Format CHIP speed in MB/s */
         if (bench_results.benchmarks_valid && bench_results.chip_speed > 0) {
@@ -1893,11 +1891,26 @@ static void draw_speed_panel_contents(BOOL redraw_scale_button)
             snprintf(rom_str, sizeof(rom_str), "%s", get_string(MSG_NA));
         }
 
-        snprintf(buffer, sizeof(buffer), "%-6s %-6s %-6s  %s",
-                 chip_str, fast_str, rom_str, get_string(MSG_MEM_SPEED_UNIT));
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_MEM_SPEED_HEADER));
+        label = buffer;
+        for (i = 0; i < 3; i++) {
+            char *next;
+
+            /* Catalog headers contain three space-separated labels. */
+            label += strspn(label, " ");
+            next = label + strcspn(label, " ");
+            if (*next) *next++ = '\0';
+
+            SetAPen(rp, COLOR_TEXT);
+            TightText(rp, x, y, (CONST_STRPTR)label, -1, 4);
+            SetAPen(rp, COLOR_HIGHLIGHT);
+            TightText(rp, x, y + 8, (CONST_STRPTR)values[i], -1, 4);
+            label = next;
+            x += column_width;
+        }
+        TightText(rp, x, y + 8,
+                  (CONST_STRPTR)get_string(MSG_MEM_SPEED_UNIT), -1, 4);
     }
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
 }
 
 static void refresh_speed_panel_contents(void)
