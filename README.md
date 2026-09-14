@@ -74,12 +74,20 @@ xSysInfo DARK
 xSysInfo FULL >RAM:xSysInfo.txt
 ```
 
+Example output from `xSysInfo WHICH`:
+
+![xSysInfo WHICH system report](docs/xsysinfo-which.png)
+
 ### Graphical interface
 
 The System Software Installed tile opens on an overview of the OS, physical
 ROM, active ROM, Workbench, SetPatch, and graphics system. Its cycle button
 opens the library, device, resource, and MMU lists. Total Chip and Fast RAM
 are shown in the hardware overview.
+
+Dark mode, enabled with `xSysInfo DARK`:
+
+![xSysInfo in dark mode](docs/xsysinfo-dark.png)
 
 ## Workbench icon ToolTypes
 
