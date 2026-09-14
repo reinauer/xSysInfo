@@ -2474,7 +2474,7 @@ static void show_timed_overlay(const char *message, ULONG ticks)
 
     draw_3d_box(dialog_x, dialog_y, dialog_w, dialog_h, FALSE);
 
-    SetAPen(rp, COLOR_BUTTON_LIGHT);
+    SetAPen(rp, COLOR_HIGHLIGHT);
     SetBPen(rp, COLOR_BAR_YOU);
     Move(rp, dialog_x + (dialog_w - text_len * 8) / 2, dialog_y + 16);
     Text(rp, (CONST_STRPTR)message, text_len);
@@ -2768,7 +2768,7 @@ static void show_status_overlay_centered(const char *message,
     draw_3d_box(dialog_x, dialog_y, dialog_w, dialog_h, FALSE);
 
     /* Draw centered message */
-    SetAPen(rp, COLOR_BUTTON_LIGHT);  /* White text */
+    SetAPen(rp, COLOR_HIGHLIGHT);  /* White text in both palettes */
     SetBPen(rp, COLOR_BAR_YOU);
     TextLength(rp, (CONST_STRPTR)message, text_len);
     Move(rp, dialog_x + (dialog_w - text_len * 8) / 2, dialog_y + 16);
