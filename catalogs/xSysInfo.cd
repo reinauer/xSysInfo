@@ -817,3 +817,6 @@ DEC
 MSG_BOARD_HEX (//10)
 HEX
 ;
+MSG_UNKNOWN_OS (//)
+Unknown OS
+;

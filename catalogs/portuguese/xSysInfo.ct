@@ -771,3 +771,6 @@ DEC
 MSG_BOARD_HEX
 HEX
 ;
+MSG_UNKNOWN_OS
+SO desconhecido
+;

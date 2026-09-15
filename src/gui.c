@@ -1312,7 +1312,7 @@ static void draw_software_overview(void)
         switch (row) {
         case 0:
             value = system_software.os_name[0] ? system_software.os_name :
-                    get_string(MSG_UNKNOWN);
+                    get_string(MSG_UNKNOWN_OS);
             break;
         case 1:
             snprintf(buffer, sizeof(buffer), "%u.%u (%lu KB)",

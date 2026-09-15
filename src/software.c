@@ -620,7 +620,8 @@ void detect_system_software(void)
     if (IdentifyBase) {
         system_software.os_id = IdHardwareNumTags(IDHW_OSNR, TAG_DONE);
         os_name = IdHardwareTags(IDHW_OSNR, TAG_DONE);
-        if (os_name)
+        /* Unknown IDs are described as "Bad OS" by identify.library. */
+        if (system_software.os_id != IDOS_UNKNOWN && os_name)
             copy_string(system_software.os_name, (const char *)os_name,
                         sizeof(system_software.os_name));
         setpatch = IdHardwareNumTags(IDHW_SETPATCHVER, TAG_DONE);
