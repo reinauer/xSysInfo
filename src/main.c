@@ -146,6 +146,18 @@ static void run_full_memory_benchmarks(void);
 static void run_full_drive_benchmarks(void);
 static const UWORD *active_palette(void);
 
+/* Finish buffered diagnostics before text reports use raw Write(). */
+static void flush_report_output(BPTR output)
+{
+    fflush(stdout);
+#ifndef __KICK13__
+    if (output && DOSBase->dl_lib.lib_Version >= 36)
+        Flush(output);
+#else
+    (void)output;
+#endif
+}
+
 static UBYTE *find_icon_tooltype(STRPTR *tooltypes, IconString name)
 {
     return FindToolType(ICON_TOOLTYPES(tooltypes), name);
@@ -380,6 +392,7 @@ int main(int argc, char **argv)
         run_full_drive_benchmarks();
 
         debug(XSYSINFO_NAME ": Exporting full report to CLI output...\n");
+        flush_report_output(output);
         if (!output || !export_to_handle(output)) {
             Printf((CONST_STRPTR)"Failed to export report\n");
             ret = RETURN_FAIL;
@@ -389,6 +402,7 @@ int main(int argc, char **argv)
 
         measure_processor_frequencies();
         debug(XSYSINFO_NAME ": Exporting WhichAmiga-compatible report...\n");
+        flush_report_output(output);
         if (!output || !export_which_compatible(output)) {
             Printf((CONST_STRPTR)"Failed to export WhichAmiga report\n");
             ret = RETURN_FAIL;
