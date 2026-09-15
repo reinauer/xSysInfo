@@ -242,6 +242,125 @@ ULONG read_benchmark_clock(struct EClockVal *val)
     return hw_info.is_pal ? 50 : 60;
 }
 
+/* Use short interrupt-disabled windows for clock estimates on V36+.
+ * Forbid stays active across the samples, while Enable lets pending device
+ * interrupts run between them. The Kickstart 1.3 TOD clock is too coarse
+ * for these windows, so it keeps the existing interrupt-enabled timing.
+ */
+static BOOL frequency_eclock_available(void)
+{
+    return TimerBase && TimerBase->dd_Library.lib_Version >= 36 &&
+           SysBase->LibNode.lib_Version >= 36;
+}
+
+/* Keep the sampling support small; the timed loops are explicit assembly. */
+static ULONG __attribute__((optimize("Os")))
+frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency)
+{
+    struct EClockVal start, end;
+    ULONG first_rate, last_rate;
+
+    Disable();
+    first_rate = ReadEClock(&start);
+    if (fpu) {
+        __asm__ volatile(
+            "fmove.w #1,fp1\n\t"
+            "1: fdiv.x fp1,fp1\n\t"
+            "subq.l #1,%0\n\t"
+            "bne.s 1b\n\t"
+            /* Wait for the external FPU to finish the final division. */
+            "fmove.l fp1,d1"
+            : "+d"(loops)
+            :
+            : "cc", "d1", "fp1");
+    } else {
+        __asm__ volatile(
+            "1: subq.l #1,%0\n\t"
+            "bne.s 1b"
+            : "+d"(loops)
+            :
+            : "cc");
+    }
+    last_rate = ReadEClock(&end);
+    Enable();
+
+    if (!first_rate || first_rate != last_rate ||
+        (*frequency && first_rate != *frequency) ||
+        end.ev_hi != start.ev_hi + (end.ev_lo < start.ev_lo))
+        return 0;
+    *frequency = first_rate;
+    return end.ev_lo - start.ev_lo;
+}
+
+/* Return the equivalent runtime in microseconds for reference_loops, so
+ * the CPU/FPU calibration factors use the same units as the legacy path.
+ * Subtract a short loop to remove fixed timer/setup costs. Keep that loop
+ * small: ReadEClock can take tens of microseconds on real hardware, leaving
+ * very little useful work when subtracting two nearly equal samples.
+ * Sum E-clock ticks before conversion to avoid rounding each sample.
+ */
+static ULONG __attribute__((optimize("Os")))
+frequency_loop_time(ULONG reference_loops, BOOL fpu)
+{
+    const ULONG samples = 64;
+    const ULONG short_loops = fpu ? 2 : 16;
+    ULONG loops = short_loops;
+    ULONG frequency = 0, ticks, shorter, total = 0, result = 0, i = 0;
+    ULONG short_total = 0, long_total = 0, low = ~0UL, high = 0;
+    ULONG loop_total = 0, sample_loops;
+
+    Forbid();
+    /* Double until the measured interval reaches 100 us. Only the loop
+     * work doubles, not the fixed timer/setup cost. This targets less than
+     * 200 us including the extra timer read outside the measured interval.
+     * Start small so calibration itself also releases interrupts often. */
+    for (;;) {
+        ticks = frequency_sample(loops, fpu, &frequency);
+        if (!ticks)
+            goto done;
+        if (ticks >= frequency / 10000)
+            break;
+        if (loops >= 65536)
+            goto done;
+        loops *= 2;
+    }
+    if (loops == short_loops)
+        goto done;
+    for (i = 0; i < samples; i++) {
+        /* Vary the long count downward to avoid repeatedly sampling at
+         * the same E-clock phase. Each adjacent AB/BA pair uses the same
+         * count, and no sample exceeds the calibrated length. */
+        sample_loops = loops - ((i / 2) & 3) * (loops / 16);
+        /* Balance sample order so the long loop does not always benefit
+         * from the preceding short loop warming the timer/cache paths. */
+        if (i & 1) {
+            ticks = frequency_sample(sample_loops, fpu, &frequency);
+            shorter = frequency_sample(short_loops, fpu, &frequency);
+        } else {
+            shorter = frequency_sample(short_loops, fpu, &frequency);
+            ticks = frequency_sample(sample_loops, fpu, &frequency);
+        }
+        if (!shorter || ticks <= shorter || ticks > frequency / 5000)
+            goto done;
+        short_total += shorter;
+        long_total += ticks;
+        if (ticks - shorter < low) low = ticks - shorter;
+        if (ticks - shorter > high) high = ticks - shorter;
+        total += ticks - shorter;
+        loop_total += sample_loops - short_loops;
+    }
+    result = (uint64_t)total * reference_loops * 1000000 /
+             ((uint64_t)loop_total * frequency);
+done:
+    Permit();
+    debug("    clock %s: %lu short, %lu..%lu long, %lu pairs, EClock %lu Hz\n",
+          (ULONG)(fpu ? "FPU" : "CPU"), short_loops,
+          loops - 3 * (loops / 16), loops, i, frequency);
+    debug("      ticks short/long: %lu/%lu, delta range %lu..%lu\n",
+          short_total, long_total, i ? low : 0, high);
+    return result;
+}
+
 /*
  * Returns the CPU-frequencies in MHz scaled by 100
 */
@@ -276,7 +395,11 @@ ULONG get_mhz_cpu(void)
     for (multiplier = startMultiplier; multiplier <= maxMultiplier && count < MIN_MHZ_MEASURE; multiplier *= 2)
     {
         loop = CPULOOPS * multiplier;
-        count = (uint64_t) measure_loop_overhead(loop); // this compensates for the looping
+        count = frequency_eclock_available() ?
+                frequency_loop_time(loop, FALSE) : measure_loop_overhead(loop);
+        /* A failed measurement must not masquerade as a nominal clock. */
+        if (!count && frequency_eclock_available())
+            return 0;
         if (multiplier >= maxMultiplier || count >= MIN_MHZ_MEASURE) {
             break;
         }
@@ -308,9 +431,17 @@ ULONG get_mhz_cpu(void)
             break;
         case CPU_68020:
         case CPU_68EC020:
+            tmp *= 88;
+            break;
         case CPU_68030:
         case CPU_68EC030:
-            tmp *= 88;
+            /* MC68030 manual, sections 11.3.4, 11.6.9 and 11.6.15:
+             * cached SUBQ.L (2 clocks) + taken Bcc (6 clocks).
+             * Differencing cancels the final, non-taken branch. */
+            if (frequency_eclock_available() && hw_info.icache_enabled)
+                tmp = (uint64_t)loop * 8 * 100;
+            else
+                tmp *= 88;
             break;
         case CPU_68040:
         case CPU_68EC040:
@@ -382,7 +513,7 @@ ULONG get_mhz_cpu(void)
 }
 
 /*
- * Returns the FPU-frequencies in MHz
+ * Returns the FPU frequency in MHz scaled by 100
 */
 ULONG get_mhz_fpu(void)
 {
@@ -428,24 +559,29 @@ ULONG get_mhz_fpu(void)
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier *= 2)
     {
         loop = FPULOOPS * multiplier;
-        Forbid();
-        E_Freq = read_benchmark_clock(&start);
-        __asm__ volatile(
-            "fmove.w #1,fp1\n\t"
-            "1:\t\tfdiv.x fp1,fp1\n\t"
-            "subq.l\t#1,%0\n\t"
-            "bne.s\t1b\n\t"
-            : "+d"(loop)
-            :
-            : "cc", "fp1");
+        if (frequency_eclock_available()) {
+            count = frequency_loop_time(loop, TRUE);
+            overhead = frequency_loop_time(loop, FALSE);
+            if (!overhead || count <= overhead)
+                return 0;
+        } else {
+            Forbid();
+            E_Freq = read_benchmark_clock(&start);
+            __asm__ volatile(
+                "fmove.w #1,fp1\n\t"
+                "1:\t\tfdiv.x fp1,fp1\n\t"
+                "subq.l\t#1,%0\n\t"
+                "bne.s\t1b\n\t"
+                : "+d"(loop)
+                :
+                : "cc", "fp1");
 
-        E_Freq = read_benchmark_clock(&end);
-        Permit();
-        loop = FPULOOPS * multiplier; // the above inline assembly modifies loop
-
-        count = (uint64_t) EClock_Diff_in_ms(&start, &end, E_Freq);
-
-        overhead = measure_loop_overhead(loop);
+            E_Freq = read_benchmark_clock(&end);
+            Permit();
+            loop = FPULOOPS * multiplier;
+            count = EClock_Diff_in_ms(&start, &end, E_Freq);
+            overhead = measure_loop_overhead(loop);
+        }
         if (count > overhead) {
             count -= (uint64_t) overhead;
         }
@@ -455,7 +591,7 @@ ULONG get_mhz_fpu(void)
     }
 
     tmp = BASE_FACTOR * (uint64_t) multiplier;
-    debug("    fpu_mhz: results: %llu %llu %lu\n", count, tmp, overhead);
+    debug("    fpu_mhz: results: %lu %lu %lu\n", (ULONG)count, (ULONG)tmp, overhead);
 
     if (count > 0)
     {

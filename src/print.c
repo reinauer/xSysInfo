@@ -338,17 +338,20 @@ void export_hardware(BPTR fh)
     format_paula_string(buffer, sizeof(buffer));
     write_formatted(fh, "%-16s %s", "Sound:", buffer);
 
-    if (hw_info.cpu_revision[0] != '\0' &&
-        strcmp(hw_info.cpu_revision, "N/A") != 0) {
+    {
         char mhz_buf[16];
+        char frequency[24] = "";
         format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
-        snprintf(buffer, sizeof(buffer), "%s (%s) %s MHz",
-                 hw_info.cpu_string, hw_info.cpu_revision, mhz_buf);
-    } else {
-        char mhz_buf[16];
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
-        snprintf(buffer, sizeof(buffer), "%s %s MHz",
-                 hw_info.cpu_string, mhz_buf);
+        if (hw_info.cpu_mhz)
+            snprintf(frequency, sizeof(frequency), " %s MHz", mhz_buf);
+        if (hw_info.cpu_revision[0] != '\0' &&
+            strcmp(hw_info.cpu_revision, "N/A") != 0) {
+            snprintf(buffer, sizeof(buffer), "%s (%s)%s",
+                     hw_info.cpu_string, hw_info.cpu_revision, frequency);
+        } else {
+            snprintf(buffer, sizeof(buffer), "%s%s",
+                     hw_info.cpu_string, frequency);
+        }
     }
     write_formatted(fh, "%-16s %s", "CPU/MHz:", buffer);
 

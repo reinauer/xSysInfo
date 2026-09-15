@@ -174,15 +174,21 @@ static void build_cpu_string(char *buffer, ULONG size,
     default:          name = "unknown"; break;
     }
 
-    format_mhz(mhz, sizeof(mhz), hardware->cpu_mhz);
+    if (hardware->cpu_mhz) {
+        char value[16];
+        format_mhz(value, sizeof(value), hardware->cpu_mhz);
+        snprintf(mhz, sizeof(mhz), " %s MHz", value);
+    } else {
+        mhz[0] = '\0';
+    }
     if (hardware->cpu_type == CPU_68060 ||
         hardware->cpu_type == CPU_68EC060 ||
         hardware->cpu_type == CPU_68LC060 ||
         hardware->cpu_type == CPU_68080) {
-        snprintf(buffer, size, "%s %s MHz (rev %u)", name, mhz,
+        snprintf(buffer, size, "%s%s (rev %u)", name, mhz,
                  hardware->cpu_rev);
     } else {
-        snprintf(buffer, size, "%s %s MHz", name, mhz);
+        snprintf(buffer, size, "%s%s", name, mhz);
     }
 }
 
