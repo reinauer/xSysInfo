@@ -177,13 +177,13 @@ static void format_ramsey_refresh(char *buffer, ULONG size)
 {
     switch (hw_info.ramsey_refresh_rate) {
     case 0:
-        snprintf(buffer, size, "154 clk");
+        snprintf(buffer, size, "156 clk");
         break;
     case 1:
-        snprintf(buffer, size, "238 clk");
+        snprintf(buffer, size, "240 clk");
         break;
     case 2:
-        snprintf(buffer, size, "380 clk");
+        snprintf(buffer, size, "372 clk");
         break;
     default:
         snprintf(buffer, size, "off");

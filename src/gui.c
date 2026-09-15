@@ -2315,13 +2315,13 @@ static void draw_hardware_panel_contents(void)
             y += 8;
             switch (hw_info.ramsey_refresh_rate) {
                 case 0:
-                    copy_string(buffer, "154 clk", sizeof(buffer));
+                    copy_string(buffer, "156 clk", sizeof(buffer));
                     break;
                 case 1:
-                    copy_string(buffer, "238 clk", sizeof(buffer));
+                    copy_string(buffer, "240 clk", sizeof(buffer));
                     break;
                 case 2:
-                    copy_string(buffer, "380 clk", sizeof(buffer));
+                    copy_string(buffer, "372 clk", sizeof(buffer));
                     break;
                 default:
                     copy_string(buffer, "off", sizeof(buffer));
