@@ -309,6 +309,9 @@ typedef enum {
     MSG_SETPATCH,
     MSG_GRAPHICS_SYSTEM,
     MSG_NATIVE_GRAPHICS,
+    MSG_BOARD_NAMES,
+    MSG_BOARD_DECIMAL,
+    MSG_BOARD_HEX,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

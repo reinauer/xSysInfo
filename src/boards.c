@@ -430,15 +430,37 @@ void draw_boards_view(void)
                                  296);
 
         /* Product */
-        snprintf(buffer, sizeof(buffer), "%s", board->product_name);
+        if (app->board_display == BOARD_DISPLAY_NAMES) {
+            snprintf(buffer, sizeof(buffer), "%s", board->product_name);
+        } else if (app->board_display == BOARD_DISPLAY_HEX) {
+            snprintf(buffer, sizeof(buffer),
+                     board->board_type == BOARD_PCI ? "$%04lX" : "$%02lX",
+                     (unsigned long)board->product_id);
+        } else {
+            snprintf(buffer, sizeof(buffer), "%u", board->product_id);
+        }
         draw_board_field_clipped(296, y, buffer, 420);
 
         /* Manufacturer */
-        snprintf(buffer, sizeof(buffer), "%s", board->manufacturer_name);
+        if (app->board_display == BOARD_DISPLAY_NAMES) {
+            snprintf(buffer, sizeof(buffer), "%s", board->manufacturer_name);
+        } else if (app->board_display == BOARD_DISPLAY_HEX) {
+            snprintf(buffer, sizeof(buffer), "$%04lX",
+                     (unsigned long)board->manufacturer_id);
+        } else {
+            snprintf(buffer, sizeof(buffer), "%u", board->manufacturer_id);
+        }
         draw_board_field_clipped(420, y, buffer, 550);
 
         /* Serial or PCI class */
-        snprintf(buffer, sizeof(buffer), "%s", board->detail_string);
+        if (board->board_type == BOARD_PCI ||
+            app->board_display == BOARD_DISPLAY_NAMES) {
+            snprintf(buffer, sizeof(buffer), "%s", board->detail_string);
+        } else {
+            snprintf(buffer, sizeof(buffer),
+                     app->board_display == BOARD_DISPLAY_HEX ? "$%08lX" : "%lu",
+                     (unsigned long)board->serial_number);
+        }
         draw_board_field_clipped(550, y, buffer, SCREEN_WIDTH - 4);
 
         y += BOARD_LIST_LINE_H;
@@ -456,6 +478,8 @@ void draw_boards_view(void)
     if (btn) draw_button(btn);
     btn = find_button(BTN_BOARD_NEXT);
     if (btn) draw_button(btn);
+    btn = find_button(BTN_BOARD_DISPLAY);
+    if (btn) draw_cycle_button(btn);
     btn = find_button(BTN_BOARD_EXIT);
     if (btn) draw_button(btn);
 }
@@ -465,7 +489,14 @@ void draw_boards_view(void)
  */
 void boards_view_update_buttons(void)
 {
+    static const LocaleStringID display_labels[BOARD_DISPLAY_COUNT] = {
+        MSG_BOARD_NAMES, MSG_BOARD_DECIMAL, MSG_BOARD_HEX
+    };
     LONG max_scroll = max_board_scroll();
+
+    add_button(170, 188, 100, 12,
+               get_string(display_labels[app->board_display]),
+               BTN_BOARD_DISPLAY, board_list.count > 0);
 
     if (max_scroll > 0) {
         add_button(20, 188, 60, 12,
@@ -501,6 +532,11 @@ void boards_view_handle_button(ButtonID id)
                 app->board_scroll++;
                 redraw_current_view();
             }
+            break;
+
+        case BTN_BOARD_DISPLAY:
+            app->board_display = (app->board_display + 1) % BOARD_DISPLAY_COUNT;
+            redraw_current_view();
             break;
 
         case BTN_BOARD_EXIT:

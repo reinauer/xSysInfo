@@ -308,7 +308,8 @@ void redraw_button(ButtonID id)
     } else if (id == BTN_SOFTWARE_DOWN) {
         draw_scroll_arrow(btn->x, btn->y, btn->width, btn->height,
                           FALSE, btn->pressed);
-    } else if (id == BTN_SOFTWARE_CYCLE || id == BTN_SCALE_TOGGLE || id == BTN_HARDWARE_CYCLE) {
+    } else if (id == BTN_SOFTWARE_CYCLE || id == BTN_SCALE_TOGGLE ||
+               id == BTN_HARDWARE_CYCLE || id == BTN_BOARD_DISPLAY) {
         draw_cycle_button(btn);
     } else {
         draw_button(btn);

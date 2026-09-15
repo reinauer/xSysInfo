@@ -806,3 +806,14 @@ Grafik
 MSG_NATIVE_GRAPHICS
 AmigaOS (nativ)
 ;
+; Boards display cycle (button labels, max 10 characters)
+;
+MSG_BOARD_NAMES
+NAMEN
+;
+MSG_BOARD_DECIMAL
+DEC
+;
+MSG_BOARD_HEX
+HEX
+;

@@ -129,6 +129,14 @@ typedef enum {
     SCALE_EXPAND        /* Linear scale to fit all */
 } BarScale;
 
+/* Boards view display modes */
+typedef enum {
+    BOARD_DISPLAY_NAMES,
+    BOARD_DISPLAY_DECIMAL,
+    BOARD_DISPLAY_HEX,
+    BOARD_DISPLAY_COUNT
+} BoardDisplay;
+
 /* Display mode (from tooltype or command line) */
 typedef enum {
     DISPLAY_AUTO,       /* Auto-detect based on screen resolution */
@@ -181,6 +189,7 @@ typedef struct {
     /* Boards view state */
     LONG board_scroll;              /* Scroll offset */
     LONG board_count;               /* Total boards */
+    BoardDisplay board_display;     /* Names, decimal IDs, or hexadecimal IDs */
 
     /* Exit flag */
     BOOL running;

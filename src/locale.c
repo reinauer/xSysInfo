@@ -321,6 +321,9 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_SETPATCH */               "SetPatch",
     /* MSG_GRAPHICS_SYSTEM */        "Graphics",
     /* MSG_NATIVE_GRAPHICS */        "AmigaOS (native)",
+    /* MSG_BOARD_NAMES */            "NAMES",
+    /* MSG_BOARD_DECIMAL */          "DEC",
+    /* MSG_BOARD_HEX */              "HEX",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

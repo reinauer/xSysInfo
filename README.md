@@ -85,6 +85,12 @@ ROM, active ROM, Workbench, SetPatch, and graphics system. Its cycle button
 opens the library, device, resource, and MMU lists. Total Chip and Fast RAM
 are shown in the hardware overview.
 
+On the Boards page, the cycle button switches between **NAMES**, **DEC**,
+and **HEX**. DEC and HEX show numeric product and manufacturer IDs and
+serial numbers; hexadecimal values use the Amiga-style `$` prefix.
+PCI boards continue to show their device class in the serial column.
+The selected mode is remembered until xSysInfo exits.
+
 Dark mode, enabled with `xSysInfo DARK`:
 
 ![xSysInfo in dark mode](docs/xsysinfo-dark.png)
