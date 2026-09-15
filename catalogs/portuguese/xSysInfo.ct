@@ -774,3 +774,6 @@ HEX
 MSG_UNKNOWN_OS
 SO desconhecido
 ;
+MSG_BUS_MHZ
+Bus MHz
+;

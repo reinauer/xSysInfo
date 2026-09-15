@@ -820,3 +820,6 @@ HEX
 MSG_UNKNOWN_OS
 Ismeretlen OS
 ;
+MSG_BUS_MHZ
+Bus MHz
+;

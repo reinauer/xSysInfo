@@ -446,6 +446,15 @@ void which_compat_emit(const HardwareInfo *hardware,
     build_cpu_string(value, sizeof(value), hardware);
     snprintf(line, sizeof(line), "Central Processing Unit: %s", value);
     emit_line(context, line);
+    if (hardware->ramsey_rev) {
+        if (hardware->bus_mhz) {
+            format_mhz(value, sizeof(value), hardware->bus_mhz);
+            snprintf(line, sizeof(line), "        Motherboard bus: %s MHz", value);
+            emit_line(context, line);
+        } else {
+            emit_line(context, "        Motherboard bus: not available");
+        }
+    }
     build_fpu_string(value, sizeof(value), hardware);
     snprintf(line, sizeof(line), "    Floating Point Unit: %s", value);
     emit_line(context, line);

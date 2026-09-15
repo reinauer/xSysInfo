@@ -355,6 +355,15 @@ void export_hardware(BPTR fh)
     }
     write_formatted(fh, "%-16s %s", "CPU/MHz:", buffer);
 
+    if (hw_info.ramsey_rev) {
+        if (hw_info.bus_mhz) {
+            format_scaled(buffer, sizeof(buffer), hw_info.bus_mhz, TRUE);
+            write_formatted(fh, "%-16s %s MHz", "Motherboard Bus:", buffer);
+        } else {
+            write_formatted(fh, "%-16s %s", "Motherboard Bus:", get_string(MSG_NA));
+        }
+    }
+
     format_fpu_string(buffer, sizeof(buffer));
     write_formatted(fh, "%-16s %s", "FPU:", buffer);
 

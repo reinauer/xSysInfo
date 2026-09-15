@@ -178,6 +178,7 @@ typedef struct {
     UWORD cpu_rev;
     char cpu_revision[16];
     ULONG cpu_mhz;          /* CPU MHz * 100 */
+    ULONG bus_mhz;          /* Measured motherboard MHz * 100; 0 unavailable */
     char cpu_string[32];
 
     /* FPU */

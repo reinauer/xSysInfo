@@ -44,6 +44,7 @@ ULONG GetSSP(void);
 ULONG GetMMU( ULONG cpuType __asm("d0"));
 UBYTE GetRamseyRev(void);
 UBYTE GetRamseyCtrl(void);
+ULONG RunRamseyProbe(void);
 double DoFlops( ULONG loops __asm("d0"), ULONG fpuType __asm("d1"));
 
 #endif /* CPU_H */

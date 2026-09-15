@@ -36,6 +36,7 @@
 #include "boards.h"
 #include "drives.h"
 #include "benchmark.h"
+#include "busclock.h"
 #include "print.h"
 #include "which.h"
 #include "locale_str.h"
@@ -379,6 +380,8 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
+    measure_bus_frequency();
+
     if (g_full_mode) {
         BPTR output = Output();
 
@@ -434,6 +437,14 @@ int main(int argc, char **argv)
             printf("%s\n", buffer);
         } else {
             printf("%s\n", get_string(MSG_NA));
+        }
+
+        if (hw_info.ramsey_rev) {
+            if (hw_info.bus_mhz)
+                format_scaled(buffer, sizeof(buffer), hw_info.bus_mhz, TRUE);
+            else
+                copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
+            printf("Motherboard bus MHz: %s\n", buffer);
         }
 
         printf("MMU: %s enabled: %s\n", hw_info.mmu_string,

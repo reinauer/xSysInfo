@@ -2249,7 +2249,16 @@ static void draw_hardware_panel_contents(void)
         format_mmu_address(buffer, sizeof(buffer), 0);
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          "Page 0", buffer, 80);
-        y += 16;
+        y += 8;
+
+        if (hw_info.ramsey_rev) {
+            if (hw_info.bus_mhz)
+                format_scaled(buffer, sizeof(buffer), hw_info.bus_mhz, TRUE);
+            else
+                copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
+            draw_label_value(HARDWARE_PANEL_X + 4, y,
+                             get_string(MSG_BUS_MHZ), buffer, 80);
+        }
 
         cache_y = CACHE_LABEL_Y0;
         draw_label_value_max(HARDWARE_PANEL_X + 4, cache_y,

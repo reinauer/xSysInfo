@@ -56,6 +56,8 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_SetCacheBits
 	XDEF	_GetRamseyRev
 	XDEF	_GetRamseyCtrl
+	XDEF	_RunRamseyProbe
+	XREF	_sample_ramsey_refreshes
 
 _DoFlops:
 	cmp.l	#ASM_FPU_68881,d1		;is it 68881-code?
@@ -613,6 +615,21 @@ _GetRamseyCtrl:
 _read_ramsey_ctrl:
 	lea	RAMSEY_CTRL,a0
 	move.b	(a0),d0
+	rte
+
+; Run a bounded refresh sample with no task switches or interrupt jitter.
+; RTE restores the caller's original interrupt mask on every return path.
+_RunRamseyProbe:
+	movem.l	a5/a6,-(sp)
+	lea	_ramsey_probe_super(pc),a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a5/a6
+	rts
+
+_ramsey_probe_super:
+	ori.w	#$0700,sr
+	jsr	(_sample_ramsey_refreshes).l
 	rte
 
 

@@ -325,6 +325,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_BOARD_DECIMAL */          "DEC",
     /* MSG_BOARD_HEX */              "HEX",
     /* MSG_UNKNOWN_OS */             "Unknown OS",
+    /* MSG_BUS_MHZ */                "Bus MHz",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

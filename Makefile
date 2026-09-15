@@ -49,6 +49,7 @@ SRCS = src/main.c \
        src/battmem.c \
        src/hardware.c \
        src/benchmark.c \
+       src/busclock.c \
        src/dhry_1.c \
        src/dhry_2.c \
        src/memory.c \
@@ -202,10 +203,11 @@ clean:
 	@rm -rf $(MMU_DIR) $(DOWNLOAD_DIR)/MMULib
 
 # Dependencies
-src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/locale_str.h
+src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
 src/gui.o: src/gui.c src/bayer-16x16.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
 src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
 src/benchmark.o: src/benchmark.c src/xsysinfo.h src/benchmark.h src/hardware.h
+src/busclock.o: src/busclock.c src/busclock.h src/hardware.h src/cpu.h src/debug.h
 src/memory.o: src/memory.c src/xsysinfo.h src/memory.h src/hardware.h src/locale_str.h
 src/drives.o: src/drives.c src/xsysinfo.h src/drives.h src/scsi.h src/hardware.h src/locale_str.h
 src/scsi.o: src/scsi.c src/xsysinfo.h src/scsi.h src/gui.h src/locale_str.h
