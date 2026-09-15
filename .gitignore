@@ -1,4 +1,5 @@
 *.o
+/build/
 attic/
 catalogs/build/
 downloads/

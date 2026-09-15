@@ -12,6 +12,7 @@ PROG_REVISION := $(shell echo $(FULL_VERSION) | cut -f2 -d\.|cut -f1 -d\-)
 CC = m68k-amigaos-gcc
 STRIP = m68k-amigaos-strip
 VASM    := vasmm68k_mot
+PYTHON  ?= python3
 
 # NDK include path (override with: make NDK_PATH=/your/path)
 NDK_PATH ?= $(shell realpath $$(dirname $$(which $(CC)))/../m68k-amigaos/ndk-include)
@@ -197,6 +198,7 @@ clean:
 	@echo "  CLEAN"
 	@rm -f $(OBJS) $(ASM_OBJS) $(STACK_OBJ) $(TARGET) TinySetPatch $(STACK)
 	@rm -rf $(CATALOG_DIR)
+	@rm -rf $(PCI_BUILD_DIR)
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
 	@$(MAKE) -s -C 3rdparty/identify clean
@@ -227,17 +229,39 @@ DISK_TITLE = $(shell printf '%s' "xSysInfo-$(FULL_VERSION)" | \
 
 # Downloads directory and files
 IDENTIFY_USR_LHA = $(DOWNLOAD_DIR)/IdentifyUsr.lha
-IDENTIFY_PCI_LHA = $(DOWNLOAD_DIR)/IdentifyPci.lha
 OPENPCI_LHA = $(DOWNLOAD_DIR)/openpci68k.lha
+
+# Build the floppy's smaller PCI database without modifying the submodule.
+PCI_BUILD_DIR = build/pci
+PCI_IDS = 3rdparty/identify/pciids/pci.ids
+PCI_GENERATOR = 3rdparty/identify/update-pci.py
+PCI_PATCH = patches/identify-drop-empty-pci-vendors.patch
+PCI_DB = $(PCI_BUILD_DIR)/pci.db
 
 # MD5 checksums for verification
 IDENTIFY_USR_MD5 = f8bd9feb9fa595bea979755224d08c5c
-IDENTIFY_PCI_MD5 = 7771426e5c7a5e3dc882a973029099d1
 OPENPCI_MD5 = 16aeac58eb66bde1e5c2dc47502ffa05
 MMULIB_MD5 = 1e63e42c9d2895d22f896b6d90c26353
 MU_MANUAL_MD5 = 98ce060266ec1ac2dece921f431253b1
 
-.PHONY: identify-all disk download-libs
+.PHONY: identify-all disk download-libs pci-db
+
+pci-db: $(PCI_DB)
+
+# Existing checkouts may not have initialized identify's nested submodule.
+# Git checks out the revision recorded by identify, rather than the latest IDs.
+$(PCI_IDS):
+	@git -C 3rdparty/identify submodule update --init pciids
+
+$(PCI_DB): $(PCI_IDS) $(PCI_GENERATOR) $(PCI_PATCH) Makefile
+	@echo "  PCI   $@"
+	@mkdir -p $(PCI_BUILD_DIR)/pciids $(PCI_BUILD_DIR)/src/identify/pci
+	@cp $(PCI_GENERATOR) $(PCI_BUILD_DIR)/update-pci.py
+	@cd $(PCI_BUILD_DIR) && patch -f -p1 -i "$(abspath $(PCI_PATCH))"
+	@cp $(PCI_IDS) $(PCI_BUILD_DIR)/pciids/pci.ids
+	@cd $(PCI_BUILD_DIR) && $(PYTHON) update-pci.py
+	@$(VASM) -esc -Fbin -o $@.tmp $(PCI_BUILD_DIR)/src/identify/pci/database.s
+	@mv $@.tmp $@
 
 # Create downloads directory
 $(DOWNLOAD_DIR):
@@ -271,20 +295,6 @@ $(IDENTIFY_USR_LHA): | $(DOWNLOAD_DIR)
 			echo "$@: OK"; \
 		else \
 			$(call md5_fail_msg,$@,$(IDENTIFY_USR_MD5)); rm -f $@; exit 1; \
-		fi \
-	fi
-
-# Download and verify IdentifyPci.lha
-$(IDENTIFY_PCI_LHA): | $(DOWNLOAD_DIR)
-	@if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(IDENTIFY_PCI_MD5)); then \
-		echo "$@ already downloaded and verified"; \
-	else \
-		echo "Downloading IdentifyPci.lha..."; \
-		curl -sL http://aminet.net/util/libs/IdentifyPci.lha -o $@; \
-		if $(call verify_md5_cmd,$@,$(IDENTIFY_PCI_MD5)); then \
-			echo "$@: OK"; \
-		else \
-			$(call md5_fail_msg,$@,$(IDENTIFY_PCI_MD5)); rm -f $@; exit 1; \
 		fi \
 	fi
 
@@ -342,17 +352,12 @@ $(MMU_SDK_FILES): $(MU_MANUAL_LHA)
 	@touch $@
 
 # Download and prepare libraries and developer files.
-download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMU_LIBS) $(MMU_SDK_FILES)
+download-libs: $(IDENTIFY_USR_LHA) $(OPENPCI_LHA) $(MMU_LIBS) $(MMU_SDK_FILES)
 	@mkdir -p 3rdparty/identify/build
 	# Extract Identify library (use 68000-compatible version)
 	@echo "  UNPACK $(IDENTIFY_USR_LHA)"
 	@lha xq $(IDENTIFY_USR_LHA) Identify/libs/identify.library_000
 	@mv Identify/libs/identify.library_000 3rdparty/identify/build/identify.library
-	@rm -rf Identify
-	# Extract PCI database
-	@echo "  UNPACK $(IDENTIFY_PCI_LHA)"
-	@lha xq $(IDENTIFY_PCI_LHA) Identify/s/pci.db
-	@mv Identify/s/pci.db 3rdparty/identify/build/
 	@rm -rf Identify
 	# Extract OpenPCI library
 	@echo "  UNPACK $(OPENPCI_LHA)"
@@ -370,7 +375,7 @@ TinySetPatch: $(TINYSETPATCH_SRC) $(TINYSETPATCH_DIR)/Makefile Makefile
 		VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
 	@cp $(TINYSETPATCH_BIN) $@
 
-disk: $(TARGET) download-libs TinySetPatch $(STACK)
+disk: $(TARGET) download-libs $(PCI_DB) TinySetPatch $(STACK)
 	@echo "  DISK"
 	@xdftool $(DISK) format "$(DISK_TITLE)"
 	@xdftool $(DISK) write $(TARGET) $(TARGET)
@@ -384,7 +389,7 @@ disk: $(TARGET) download-libs TinySetPatch $(STACK)
 	done
 	@xdftool $(DISK) makedir S
 	@xdftool $(DISK) write Startup-Sequence S/Startup-Sequence
-	@xdftool $(DISK) write 3rdparty/identify/build/pci.db S/pci.db
+	@xdftool $(DISK) write $(PCI_DB) S/pci.db
 	@xdftool $(DISK) makedir C
 	@xdftool $(DISK) write $(STACK) C/Stack
 	@xdftool $(DISK) write TinySetPatch C/TinySetPatch

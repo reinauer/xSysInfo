@@ -17,13 +17,13 @@
 
 ## Building `xSysInfo`
 
-To build `xSysInfo`, you will need a GCC cross-compiler for m68k-amigaos (e.g., `m68k-amigaos-gcc`). The build process also requires `make`, `curl`, `md5sum`, and `lha` to handle external dependencies.
+To build `xSysInfo`, you will need a GCC cross-compiler for m68k-amigaos (e.g., `m68k-amigaos-gcc`). The build process also requires `make`, `curl`, `md5sum`, `lha`, Python 3, `patch`, and `vasmm68k_mot` (VASM) to handle external dependencies and assemble the PCI database.
 
 1.  **Clone the repository**:
     ```bash
     git clone https://github.com/reinauer/xsysinfo.git
     cd xsysinfo
-    git submodule update --init
+    git submodule update --init --recursive
     ```
 
 2.  **Build the project**:
@@ -125,8 +125,11 @@ as separate entries to enable either option.
     software. Developer headers come from the source submodule; the runtime
     library comes from
     [IdentifyUsr.lha](https://aminet.net/util/libs/IdentifyUsr.lha).
-*   [IdentifyPci.lha](https://aminet.net/util/libs/IdentifyPci.lha): Supplies
-    the `pci.db` identification database included on the disk image.
+*   [PCI IDs](https://github.com/pciutils/pciids): Supplies the PCI identification
+    data through identify's nested submodule. The disk's `pci.db` is built
+    locally with [the empty-vendor pruning patch](https://codefloe.com/shred/identify/commit/19f91eac2debe6085794203c541ffcf098181f03).
+    The full database is available separately in
+    [IdentifyPci.lha](https://aminet.net/util/libs/IdentifyPci.lha).
 *   [openpci68k.lha](https://aminet.net/driver/other/openpci68k.lha): Supplies
     `openpci.library` for PCI device access.
 *   [MMULib.lha](https://aminet.net/util/libs/MMULib.lha): Supplies
