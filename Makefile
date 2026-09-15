@@ -78,7 +78,7 @@ ASM_OBJS = $(ASM_SRCS:.S=.o)
 
 TARGET = xSysInfo
 
-.PHONY: all clean identify mmu catalogs lha
+.PHONY: all clean identify mmu catalogs lha TinySetPatch
 
 # FlexCat uses the Unix target on both Linux and macOS.
 FLEXCAT_BIN = 3rdparty/flexcat/src/bin_unix/flexcat
@@ -358,8 +358,14 @@ download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMU_LIBS
 	@mv Libs/openpci.library 3rdparty/identify/build/
 	@rm -rf Libs
 
+# Refresh TinySetPatch's own Git-derived version on every build. Parent
+# command-line variables also enter the environment, so clear both paths
+# through which xSysInfo's version overrides could reach the sub-build.
+TinySetPatch: MAKEOVERRIDES =
 TinySetPatch: $(TINYSETPATCH_SRC) $(TINYSETPATCH_DIR)/Makefile Makefile
-	@$(MAKE) -s -C $(TINYSETPATCH_DIR) TinySetPatch VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
+	@env -u FULL_VERSION -u PROG_VERSION -u PROG_REVISION \
+		$(MAKE) -s -C $(TINYSETPATCH_DIR) TinySetPatch \
+		VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
 	@cp $(TINYSETPATCH_BIN) $@
 
 disk: $(TARGET) download-libs TinySetPatch $(STACK)
