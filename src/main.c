@@ -327,7 +327,7 @@ int main(int argc, char **argv)
     memset(app, 0, sizeof(AppContext));
     app->current_view = VIEW_MAIN;
     app->software_type = SOFTWARE_OVERVIEW;
-    app->bar_scale = SCALE_SHRINK;
+    app->bar_scale = SCALE_EXPAND;
     app->running = TRUE;
     app->pressed_button = -1;
     app->dark_mode = g_dark_mode;
