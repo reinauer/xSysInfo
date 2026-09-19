@@ -99,7 +99,8 @@ Dark mode, enabled with `xSysInfo DARK`:
 
 These settings are read from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line. The supplied
-icon contains `DISPLAY=auto`.
+icon contains `DISPLAY=auto`, plus disabled examples `(DISPLAY=window)`,
+`(DISPLAY=screen)`, `(DARK)`, and `(DEBUG)`.
 
 | ToolType | Description |
 | --- | --- |
@@ -109,8 +110,9 @@ icon contains `DISPLAY=auto`.
 | `DARK` | Use the dark blue palette. Omit this entry to use the default gray palette. |
 | `DEBUG` | Enable diagnostic output. Omit this entry to leave debugging off. |
 
-Use one `DISPLAY` entry to select the display mode. Add `DARK` or `DEBUG`
-as separate entries to enable either option.
+Keep exactly one `DISPLAY` entry enabled to select the display mode; put
+parentheses around the other choices. Remove the parentheses from `(DARK)`
+or `(DEBUG)` to enable either option, and restore them to disable it.
 
 ![XSysInfo in windowed mode](docs/xsysinfo-windowed.png)
 

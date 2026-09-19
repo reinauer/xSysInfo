@@ -57,7 +57,8 @@ Total Chip and Fast RAM are shown in the hardware overview.
 Workbench icon ToolTypes:
 These settings come from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line.
-The supplied icon contains DISPLAY=auto.
+The supplied icon contains DISPLAY=auto, plus disabled examples
+(DISPLAY=window), (DISPLAY=screen), (DARK), and (DEBUG).
 
   ToolType        Description
   --------------  ------------------------------------------------------
@@ -71,8 +72,9 @@ The supplied icon contains DISPLAY=auto.
   DEBUG           Enable diagnostic output. Omit this entry to leave
                   debugging off.
 
-Use one DISPLAY entry to select the display mode. Add DARK or DEBUG
-as separate entries to enable either option.
+Keep exactly one DISPLAY entry enabled to select the display mode; put
+parentheses around the other choices. Remove the parentheses from (DARK)
+or (DEBUG) to enable either option, and restore them to disable it.
 
 Web page:
         https://github.com/reinauer/xSysInfo/blob/main/README.md
