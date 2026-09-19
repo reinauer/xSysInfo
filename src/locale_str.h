@@ -314,6 +314,9 @@ typedef enum {
     MSG_BOARD_HEX,
     MSG_UNKNOWN_OS,
     MSG_BUS_MHZ,
+    MSG_HARDWARE_CLOCK,
+    MSG_RTC_DATE,
+    MSG_RTC_TIME,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

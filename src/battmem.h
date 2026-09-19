@@ -13,6 +13,7 @@
 
 /* Reference system data */
 typedef struct {
+    BOOL available;
     BOOL valid_data;
     BOOL amnesia_amiga;
     BOOL amnesia_shared;

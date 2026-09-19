@@ -823,3 +823,15 @@ Nieznany OS
 MSG_BUS_MHZ
 Bus MHz
 ;
+;
+; Hardware clock page
+;
+MSG_HARDWARE_CLOCK
+ZEGAR
+;
+MSG_RTC_DATE
+Data RTC
+;
+MSG_RTC_TIME
+Czas RTC
+;

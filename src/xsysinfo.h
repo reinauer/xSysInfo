@@ -105,11 +105,12 @@ typedef enum {
     SOFTWARE_COUNT
 } SoftwareType;
 
-/* Software list types */
+/* Hardware pages */
 typedef enum {
     HARDWARE_STD,
     HARDWARE_CPU,
     HARDWARE_EXT,
+    HARDWARE_CLOCK,
     HARDWARE_COUNT
 } HardwareType;
 

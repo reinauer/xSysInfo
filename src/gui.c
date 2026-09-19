@@ -33,6 +33,7 @@
 #include "scsi.h"
 #include "print.h"
 #include "cache.h"
+#include "clock.h"
 #include "locale_str.h"
 
 /* External references */
@@ -257,6 +258,8 @@ static const char *get_hardware_page_label(void)
             return get_string(MSG_HARDWARE_CPU);
         case HARDWARE_EXT:
             return get_string(MSG_HARDWARE_EXT);
+        case HARDWARE_CLOCK:
+            return get_string(MSG_HARDWARE_CLOCK);
         case HARDWARE_STD:
         default:
             return get_string(MSG_HARDWARE_STD);
@@ -1947,6 +1950,40 @@ static void draw_speed_panel(void)
     draw_speed_panel_contents(TRUE);
 }
 
+/* Refresh just the changing date/time rows, including midnight rollover. */
+static void draw_clock_time_rows(BOOL force)
+{
+    static char previous[2][24];
+    static const LocaleStringID labels[] = { MSG_RTC_DATE, MSG_RTC_TIME };
+    struct ClockData date;
+    char values[2][24];
+    ULONG row;
+
+    if (read_hardware_time(&date)) {
+        snprintf(values[0], sizeof(values[0]), "%04u-%02u-%02u",
+                 date.year, date.month, date.mday);
+        snprintf(values[1], sizeof(values[1]), "%02u:%02u:%02u",
+                 date.hour, date.min, date.sec);
+    } else {
+        copy_string(values[0], get_string(MSG_NA), sizeof(values[0]));
+        copy_string(values[1], get_string(MSG_NA), sizeof(values[1]));
+    }
+    for (row = 0; row < 2; row++) {
+        if (force || strcmp(values[row], previous[row]) != 0) {
+            draw_hardware_overview_row(HARDWARE_PANEL_Y + 32 + row * 8,
+                                      get_string(labels[row]), values[row]);
+            copy_string(previous[row], values[row], sizeof(previous[row]));
+        }
+    }
+}
+
+void refresh_clock_page(void)
+{
+    if (app->current_view == VIEW_MAIN &&
+        app->hardware_type == HARDWARE_CLOCK && !overlay_backup.valid)
+        draw_clock_time_rows(FALSE);
+}
+
 /*
  * Draw hardware panel
  */
@@ -1976,9 +2013,9 @@ static void draw_hardware_panel_contents(void)
 
     y = HARDWARE_PANEL_Y + 24;
     if (app->hardware_type == HARDWARE_STD) {
-        /* Clock */
+        /* Identify the machine before listing its components. */
         draw_label_value(HARDWARE_PANEL_X + 4, y,
-                         get_string(MSG_CLOCK), hw_info.clock_string,
+                         "Amiga", hw_info.amiga_model_string,
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
         y += 8;
 
@@ -2131,6 +2168,17 @@ static void draw_hardware_panel_contents(void)
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
         y += 8;
 
+        if (hw_info.ramsey_rev) {
+            if (hw_info.bus_mhz)
+                format_scaled(buffer, sizeof(buffer), hw_info.bus_mhz, TRUE);
+            else
+                copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
+            draw_label_value(HARDWARE_PANEL_X + 4, y,
+                             get_string(MSG_BUS_MHZ), buffer,
+                             HARDWARE_OVERVIEW_VALUE_OFFSET);
+            y += 8;
+        }
+
         /* Frequencies - left column continues */
         {
             unsigned long long horiz_khz =
@@ -2211,13 +2259,7 @@ static void draw_hardware_panel_contents(void)
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_FAST_RAM), buffer,
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
-        y += 8;
 
-        if (strcmp(hw_info.amiga_model_string, get_string(MSG_NA)) != 0) {
-            draw_label_value(HARDWARE_PANEL_X + 4, y,
-                             "Amiga", hw_info.amiga_model_string,
-                             HARDWARE_OVERVIEW_VALUE_OFFSET);
-        }
     } else if (app->hardware_type == HARDWARE_CPU) {
         WORD cache_y;
 
@@ -2256,15 +2298,6 @@ static void draw_hardware_panel_contents(void)
                          "Page 0", buffer, 80);
         y += 8;
 
-        if (hw_info.ramsey_rev) {
-            if (hw_info.bus_mhz)
-                format_scaled(buffer, sizeof(buffer), hw_info.bus_mhz, TRUE);
-            else
-                copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
-            draw_label_value(HARDWARE_PANEL_X + 4, y,
-                             get_string(MSG_BUS_MHZ), buffer, 80);
-        }
-
         cache_y = CACHE_LABEL_Y0;
         draw_label_value_max(HARDWARE_PANEL_X + 4, cache_y,
                              get_string(MSG_ICACHE), NULL, 0,
@@ -2290,7 +2323,7 @@ static void draw_hardware_panel_contents(void)
                              get_string(MSG_SUPER_SCALAR), NULL, 0,
                              CACHE_BTN_X - 4);
         draw_cache_buttons();
-    } else { // extended hw-info
+    } else if (app->hardware_type == HARDWARE_EXT) {
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_EXT_INFO), NULL, 120);
         y += 8;
@@ -2344,10 +2377,30 @@ static void draw_hardware_panel_contents(void)
             draw_label_value(HARDWARE_PANEL_X + 18, y,
                              get_string(MSG_RAMSEY_REFRESH), buffer, 110);
             y += 8;
-               draw_label_value(HARDWARE_PANEL_X + 4, y,
+        }
+        if (hw_info.sdmac_rev  && hw_info.gary_type == FAT_GARY) { //
+            snprintf(buffer, sizeof(buffer), "%s REV %02X", (hw_info.is_A4000T? get_string(MSG_NCR_53C710) : get_string(MSG_SDMAC)), hw_info.sdmac_rev);
+        } else {
+            copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
+        }
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_SDMAC_REV), buffer,
+                         HARDWARE_CHIPSET_VALUE_OFFSET);
+        y += 8;
+
+    } else if (app->hardware_type == HARDWARE_CLOCK) {
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_CLOCK), hw_info.clock_string,
+                         HARDWARE_OVERVIEW_VALUE_OFFSET);
+        y += 8;
+
+        draw_clock_time_rows(TRUE);
+        y += 3 * 8;
+
+        if (hw_info.battMemData.available) {
+            draw_label_value(HARDWARE_PANEL_X + 4, y,
                              get_string(MSG_NV_RAM), NULL, 120);
             y += 8;
-
             if (hw_info.battMemData.valid_data) {
                 snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_amiga ? get_string(MSG_YES) : get_string(MSG_NO));
                 draw_label_value(HARDWARE_PANEL_X + 18, y,
@@ -2396,16 +2449,6 @@ static void draw_hardware_panel_contents(void)
                 y += 8;
             }
         }
-        if (hw_info.sdmac_rev  && hw_info.gary_type == FAT_GARY) { //
-            snprintf(buffer, sizeof(buffer), "%s REV %02X", (hw_info.is_A4000T? get_string(MSG_NCR_53C710) : get_string(MSG_SDMAC)), hw_info.sdmac_rev);
-        } else {
-            copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
-        }
-        draw_label_value(HARDWARE_PANEL_X + 4, y,
-                         get_string(MSG_SDMAC_REV), buffer,
-                         HARDWARE_CHIPSET_VALUE_OFFSET);
-        y += 8;
-
     }
 }
 

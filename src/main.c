@@ -37,6 +37,7 @@
 #include "drives.h"
 #include "benchmark.h"
 #include "busclock.h"
+#include "clock.h"
 #include "print.h"
 #include "which.h"
 #include "locale_str.h"
@@ -1030,18 +1031,23 @@ static void main_loop(void)
 {
     struct IntuiMessage *msg;
     ULONG signals;
-    ULONG win_signal;
+    ULONG win_signal, clock_signal;
 
     win_signal = 1L << app->window->UserPort->mp_SigBit;
 
     while (app->running) {
-        signals = Wait(win_signal | SIGBREAKF_CTRL_C);
+        clock_signal = clock_refresh_signal(app->current_view == VIEW_MAIN &&
+                                             app->hardware_type == HARDWARE_CLOCK);
+        signals = Wait(win_signal | clock_signal | SIGBREAKF_CTRL_C);
 
         /* Check for break */
         if (signals & SIGBREAKF_CTRL_C) {
             app->running = FALSE;
             break;
         }
+
+        if ((signals & clock_signal) && clock_refresh_ready())
+            refresh_clock_page();
 
         /* Process window messages */
         while ((msg = (struct IntuiMessage *)
@@ -1154,6 +1160,7 @@ static void main_loop(void)
             }
         }
     }
+    cleanup_clock_refresh();
 }
 
 /*

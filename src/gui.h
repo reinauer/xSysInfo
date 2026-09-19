@@ -128,6 +128,7 @@ void draw_boards_view(void);
 
 /* Redraw current view */
 void redraw_current_view(void);
+void refresh_clock_page(void);
 
 /* Panel drawing helpers */
 void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title);

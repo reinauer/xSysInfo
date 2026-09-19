@@ -1047,12 +1047,10 @@ void detect_clock(void)
  */
 void detect_batt_mem(void)
 {
+    hw_info.battMemData.available = openBattMem();
     hw_info.battMemData.valid_data = FALSE;
 
-    if ( hw_info.clock_type == CLOCK_RP5C01 //clock with NV-ram
-        && hw_info.ramsey_rev > 0 //we have a ramsey (and might be a A3000
-        && openBattMem() //batt mem resource is open
-        ) {
+    if (hw_info.battMemData.available) {
         hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
     }
 

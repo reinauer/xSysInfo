@@ -9,6 +9,7 @@
 ## Features
 
 *   **Detailed Hardware Information**: Get in-depth reports on your CPU, memory, drives (including SCSI), expansion boards, and cache.
+*   **Clock and Battery Memory**: View the hardware clock date/time, updated once per second on the Clock page, plus available NV-RAM settings. Dates use YYYY-MM-DD and times use the 24-hour format.
 *   **Software Environment Overview**: View details about your AmigaOS software setup.
 *   **Benchmarking**: Includes Dhrystone benchmarks to assess your system's performance.
 *   **Graphical User Interface (GUI)**: User-friendly interface for easy navigation and information display.

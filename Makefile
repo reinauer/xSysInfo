@@ -51,6 +51,7 @@ SRCS = src/main.c \
        src/hardware.c \
        src/benchmark.c \
        src/busclock.c \
+       src/clock.c \
        src/dhry_1.c \
        src/dhry_2.c \
        src/memory.c \
@@ -205,6 +206,9 @@ clean:
 	@rm -rf $(MMU_DIR) $(DOWNLOAD_DIR)/MMULib
 
 # Dependencies
+$(OBJS): src/battmem.h
+src/main.o src/gui.o: src/clock.h
+src/clock.o: src/clock.c src/clock.h src/hardware.h
 src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
 src/gui.o: src/gui.c src/bayer-16x16.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
 src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
