@@ -366,8 +366,14 @@ static struct DosList *MyLockDosList(ULONG flags)
     if (hw_info.kickstart_patch_version >= MIN_KICK_DEVICE_VERSION) {
         dol = (struct DosList *)LockDosList(flags);
     } else {
+        static struct DosList head;
+        struct DosInfo *info;
+
         Forbid();
-        dol = (struct DosList *)BADDR(((struct DosInfo *)BADDR(DOSBase->dl_Root->rn_Info))->di_DevInfo);
+        info = (struct DosInfo *)BADDR(DOSBase->dl_Root->rn_Info);
+        /* NextDosEntry expects a cursor before the first real entry. */
+        head.dol_Next = info->di_DevInfo;
+        dol = &head;
     }
     return dol;
 }
