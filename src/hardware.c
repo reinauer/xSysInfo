@@ -1660,8 +1660,11 @@ void detect_frequencies(void)
           "PowerSupplyFrequency=%lu\n",
           (ULONG)GfxBase->DisplayFlags, hw_info.vert_freq, hw_info.supply_freq);
 
-    /* EClock frequency from exec */
-    hw_info.eclock_freq = SysBase->ex_EClockFrequency;
+    /* ex_EClockFrequency was added in Exec V36. */
+    if (SysBase->LibNode.lib_Version >= 36)
+        hw_info.eclock_freq = SysBase->ex_EClockFrequency;
+    else
+        hw_info.eclock_freq = hw_info.is_pal ? 709379 : 715909;
 }
 
 /*
