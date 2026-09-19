@@ -49,7 +49,7 @@ Examples:
       Save the full report to a file in RAM:.
 
 Graphical interface:
-The System Software Installed tile defaults to an overview of the OS,
+The System Software tile defaults to an overview of the OS,
 physical ROM, active ROM, Workbench, SetPatch, and graphics system.
 Use its cycle button for the library, device, resource, and MMU lists.
 Total Chip and Fast RAM are shown in the hardware overview.

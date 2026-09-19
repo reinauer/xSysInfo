@@ -26,8 +26,8 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_CONTACT_LABEL */          "Contact:",
 
     /* Section headers */
-    /* MSG_SYSTEM_SOFTWARE */        "SYSTEM SOFTWARE INSTALLED",
-    /* MSG_INTERNAL_HARDWARE */      "HARDWARE INFORMATION",
+    /* MSG_SYSTEM_SOFTWARE */        "SYSTEM SOFTWARE",
+    /* MSG_INTERNAL_HARDWARE */      "HARDWARE",
     /* MSG_SPEED_COMPARISONS */      "SPEED COMPARISONS",
     /* MSG_MEMORY_INFO */            "MEMORY INFORMATION",
     /* MSG_BOARDS_INFO */            "AUTOCONFIG BOARDS INFORMATION",
