@@ -1281,8 +1281,8 @@ void format_size(ULONG bytes, char *buffer, ULONG bufsize)
     ULONG scaled;
 
     if (bytes >= 1024 * 1024 * 1024) {
-        scaled = (bytes / (1024 * 1024 * 1024)) * 100 +
-                 ((bytes % (1024 * 1024 * 1024)) * 100) / (1024 * 1024 * 1024);
+        scaled = (unsigned long long)bytes * 100ULL /
+                 (1024ULL * 1024 * 1024);
         format_scaled(num_buf, sizeof(num_buf), scaled, TRUE);
         snprintf(buffer, bufsize, "%sG", num_buf);
     } else if (bytes >= 1024 * 1024) {
