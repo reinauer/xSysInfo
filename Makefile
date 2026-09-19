@@ -6,8 +6,10 @@
 ADATE   := $(shell date '+%-d.%-m.%Y')
 # FULL_VERSION is 42.xx-yy-dirty
 FULL_VERSION ?= $(shell git describe --tags --dirty | sed -E 's/^release_//; s/^v//')
+FULL_VERSION := $(FULL_VERSION)
 PROG_VERSION := $(shell echo $(FULL_VERSION) | cut -f1 -d\.)
 PROG_REVISION := $(shell echo $(FULL_VERSION) | cut -f2 -d\.|cut -f1 -d\-)
+VERSION_STAMP = build/version
 
 CC = m68k-amigaos-gcc
 STRIP = m68k-amigaos-strip
@@ -88,6 +90,19 @@ TARGET = xSysInfo
 FLEXCAT_BIN = 3rdparty/flexcat/src/bin_unix/flexcat
 
 all: download-libs identify mmu $(TARGET) disk lha
+
+# Compiler flags are not file dependencies. Record the embedded metadata
+# and update its timestamp only when a value changes.
+.PHONY: FORCE_VERSION
+FORCE_VERSION:
+
+$(VERSION_STAMP): FORCE_VERSION
+	@mkdir -p $(dir $@)
+	@printf '%s\n' '$(FULL_VERSION)' '$(ADATE)' \
+		'$(PROG_VERSION)' '$(PROG_REVISION)' > $@.tmp
+	@if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
+
+$(OBJS) $(STACK_OBJ): $(VERSION_STAMP)
 
 # FlexCat build - only when binary doesn't exist
 $(FLEXCAT_BIN):
@@ -203,6 +218,7 @@ clean:
 	@rm -f $(OBJS) $(ASM_OBJS) $(STACK_OBJ) $(TARGET) TinySetPatch $(STACK)
 	@rm -rf $(CATALOG_DIR)
 	@rm -rf $(PCI_BUILD_DIR)
+	@rm -f $(VERSION_STAMP)
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
 	@$(MAKE) -s -C 3rdparty/identify clean
