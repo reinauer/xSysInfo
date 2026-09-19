@@ -1157,19 +1157,22 @@ static BOOL detect_ncr53c770(unsigned char *revision)
 /* Detect onboard NCR SCSI or the A3000 SDMAC revision. */
 void detect_sdmac(void)
 {
-    unsigned char sdmac_rev;
+    unsigned char ncr_rev;
     uint32_t ovalue, rvalue;
     uint8_t sdmac_version = 0;
     uint8_t istr;
     int pass;
     uint8_t old_timeout;
     hw_info.sdmac_rev = 0;
+    hw_info.sdmac_present = FALSE;
+    hw_info.resdmac_version = 0;
+    hw_info.ncr_rev = 0;
     hw_info.ncr_type = NCR_NONE;
 
     if (hw_info.gary_type == FAT_GARY)
     { // you need fat gary to access ncr!
         /* The 53C770 has a different register map and revision register. */
-        if (detect_ncr53c770(&hw_info.sdmac_rev)) {
+        if (detect_ncr53c770(&hw_info.ncr_rev)) {
             hw_info.ncr_type = NCR_53C770;
             return;
         }
@@ -1179,11 +1182,11 @@ void detect_sdmac(void)
         *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
 
         // now test for A4000T NCR53C710: upper four bits of CTEST8-register contains the chip-rev.
-        sdmac_rev = *((volatile unsigned char *)(NCR_CTEST8_REG));
-        sdmac_rev = (sdmac_rev & 0xF0) >> 4; // only upper four bits matter
-        if (sdmac_rev != 0 && sdmac_rev != 0xF)
+        ncr_rev = *((volatile unsigned char *)(NCR_CTEST8_REG));
+        ncr_rev = (ncr_rev & 0xF0) >> 4; // only upper four bits matter
+        if (ncr_rev != 0 && ncr_rev != 0xF)
         {
-            hw_info.sdmac_rev = sdmac_rev;
+            hw_info.ncr_rev = ncr_rev;
             hw_info.ncr_type = NCR_53C710;
         }
 
@@ -1198,11 +1201,22 @@ void detect_sdmac(void)
         old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
         *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
 
-        sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
-        if (sdmac_rev != 0 && sdmac_rev <= 0xF0) { //realistic values!
-            hw_info.sdmac_rev = sdmac_rev;
-            goto sdmac_done;
+        /* ReSDMAC exposes four ASCII bytes (e.g. "v1.2"), not a chip
+         * revision byte. Validate the whole signature and its stability. */
+        rvalue = *(volatile uint32_t *)SDMAC_REVISION;
+        if ((rvalue & 0xff00ff00UL) == 0x76002e00UL &&
+            ((rvalue >> 16) & 0xff) >= '0' &&
+            ((rvalue >> 16) & 0xff) <= '9' &&
+            (rvalue & 0xff) >= '0' && (rvalue & 0xff) <= '9') {
+            (void)*(volatile uint8_t *)RAMSEY_VER;
+            if (rvalue == *(volatile uint32_t *)SDMAC_REVISION) {
+                hw_info.resdmac_version = rvalue;
+                hw_info.sdmac_present = TRUE;
+                hw_info.sdmac_rev = 4;
+            }
         }
+        if (hw_info.resdmac_version)
+            goto sdmac_done;
         if (hw_info.sdmac_rev == 0) {
             /* Quick check: ISTR bits - FIFO cannot be both empty and full */
             istr = *SDMAC_ISTR;
@@ -1210,6 +1224,11 @@ void detect_sdmac(void)
                 goto sdmac_done;
             if ((istr & SDMAC_ISTR_FIFOE) && (istr & SDMAC_ISTR_FIFOF))
                 goto sdmac_done;
+            /* ASR is read-only and does not acknowledge WD interrupts.
+             * Reserved bits 2/3 distinguish open bus from a WD33C93. */
+            if (*SDMAC_WD_ASR & WD_ASR_RESERVED)
+                goto sdmac_done;
+            hw_info.sdmac_present = TRUE;
             sdmac_version = 2; //default version
             /* Probe WTC registers to distinguish SDMAC-02 from SDMAC-04 */
             for (pass = 0; pass < 6; pass++) {
@@ -1223,15 +1242,24 @@ void detect_sdmac(void)
                     case 5: wvalue = 0x3c3c3c3c; break;
                 }
                 Disable();
+                /* Never change a transfer count while SCSI is active or
+                 * awaiting service (INT, BSY, CIP, DBR in the WD ASR). */
+                if ((*SDMAC_WD_ASR & (WD_ASR_ACTIVE | WD_ASR_RESERVED)) ||
+                    *SDMAC_ISTR != SDMAC_ISTR_FIFOE) {
+                    Enable();
+                    goto sdmac_done;
+                }
                 ovalue = *(volatile uint32_t *)SDMAC_WTC;
                 *(volatile uint32_t *)SDMAC_WTC = wvalue;
                 (void) *(volatile uint32_t *)RAMSEY_VER; /* Push write to bus */
                 rvalue = *(volatile uint32_t *)SDMAC_WTC;
                 *(volatile uint32_t *)SDMAC_WTC = ovalue;
+                (void) *(volatile uint32_t *)RAMSEY_VER;
                 Enable();
                 if (rvalue == wvalue) {
                     if ((wvalue != 0x00000000) && (wvalue != 0xffffffff)) {
                         sdmac_version = 0; /* Detection failed */
+                        hw_info.sdmac_present = FALSE;
                         goto sdmac_done;
                     }
                 } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
@@ -1243,6 +1271,7 @@ void detect_sdmac(void)
                 }
                 else {
                     sdmac_version = 0; /* Detection failed */
+                    hw_info.sdmac_present = FALSE;
                     goto sdmac_done;
                 }
             }
@@ -1254,21 +1283,47 @@ sdmac_done:
     }
 }
 
-void format_sdmac_string(char *buffer, ULONG size)
+void format_dma_string(char *buffer, ULONG size)
 {
-    LocaleStringID name = MSG_SDMAC;
+    const char *name = get_string(hw_info.resdmac_version ?
+                                  MSG_RESDMAC : MSG_SDMAC);
 
-    if (hw_info.gary_type != FAT_GARY ||
-        (!hw_info.sdmac_rev && hw_info.ncr_type == NCR_NONE)) {
-        snprintf(buffer, size, "%s", get_string(MSG_NA));
-        return;
-    }
+    if (!hw_info.sdmac_present)
+        copy_string(buffer, get_string(MSG_NONE), size);
+    else if (hw_info.resdmac_version || !hw_info.sdmac_rev)
+        copy_string(buffer, name, size);
+    else
+        snprintf(buffer, size, "%s rev %02X", name, hw_info.sdmac_rev);
+}
+
+void format_resdmac_version(char *buffer, ULONG size)
+{
+    ULONG version = hw_info.resdmac_version;
+
+    snprintf(buffer, size, "%c%c%c%c", (int)(version >> 24),
+             (int)((version >> 16) & 0xff), (int)((version >> 8) & 0xff),
+             (int)(version & 0xff));
+}
+
+void format_scsi_chip_string(char *buffer, ULONG size)
+{
+    LocaleStringID name;
+
     if (hw_info.ncr_type == NCR_53C770)
         name = MSG_NCR_53C770;
     else if (hw_info.ncr_type == NCR_53C710)
         name = MSG_NCR_53C710;
+    else {
+        /* The A3000 pairs Super DMAC with a WD33C93-compatible chip.
+         * Exact silicon/firmware identification requires a controller
+         * reset. Do not infer the suffix or read CDB1 as a revision:
+         * once the driver is running CDB1 contains command data. */
+        copy_string(buffer, get_string(hw_info.sdmac_present ?
+                                       MSG_WD33C93_FAMILY : MSG_NONE), size);
+        return;
+    }
 
-    snprintf(buffer, size, "%s rev %02X", get_string(name), hw_info.sdmac_rev);
+    snprintf(buffer, size, "%s rev %02X", get_string(name), hw_info.ncr_rev);
 }
 
 

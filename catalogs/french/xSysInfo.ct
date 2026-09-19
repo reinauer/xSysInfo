@@ -850,3 +850,16 @@ OFF
 MSG_1MX1
 Puces 1Mx1
 ;
+; DMA and SCSI controller details
+MSG_DMA_CHIP
+Puce DMA
+;
+MSG_DMA_VERSION
+Micrologiciel
+;
+MSG_RESDMAC
+ReSDMAC
+;
+MSG_WD33C93_FAMILY
+Famille WD33C93
+;

@@ -335,6 +335,10 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_BTN_ON */                 "ON",
     /* MSG_BTN_OFF */                "OFF",
     /* MSG_1MX1 */                   "1Mx1 chips",
+    /* MSG_DMA_CHIP */               "DMA chip",
+    /* MSG_DMA_VERSION */            "Firmware",
+    /* MSG_RESDMAC */                "ReSDMAC",
+    /* MSG_WD33C93_FAMILY */         "WD33C93 family",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

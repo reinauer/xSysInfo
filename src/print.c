@@ -461,7 +461,13 @@ void export_hardware(BPTR fh)
         WRITE_LINE(fh, "    N/A");
     }
 
-    format_sdmac_string(buffer, sizeof(buffer));
+    format_dma_string(buffer, sizeof(buffer));
+    write_formatted(fh, "  DMA chip:       %s", buffer);
+    if (hw_info.resdmac_version) {
+        format_resdmac_version(buffer, sizeof(buffer));
+        write_formatted(fh, "    Firmware:     %s", buffer);
+    }
+    format_scsi_chip_string(buffer, sizeof(buffer));
     write_formatted(fh, "  SCSI chip:      %s", buffer);
 
     WRITE_LINE(fh, "");

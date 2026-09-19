@@ -804,3 +804,16 @@ DESLIGADO
 MSG_1MX1
 Chips 1Mx1
 ;
+; DMA and SCSI controller details
+MSG_DMA_CHIP
+Chip DMA
+;
+MSG_DMA_VERSION
+Firmware
+;
+MSG_RESDMAC
+ReSDMAC
+;
+MSG_WD33C93_FAMILY
+Família WD33C93
+;

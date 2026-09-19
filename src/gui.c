@@ -2381,7 +2381,18 @@ static void draw_hardware_panel_contents(void)
                              get_string(MSG_RAMSEY_REFRESH), buffer, 110);
             y += 8;
         }
-        format_sdmac_string(buffer, sizeof(buffer));
+        format_dma_string(buffer, sizeof(buffer));
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_DMA_CHIP), buffer,
+                         HARDWARE_CHIPSET_VALUE_OFFSET);
+        y += 8;
+        if (hw_info.resdmac_version) {
+            format_resdmac_version(buffer, sizeof(buffer));
+            draw_label_value(HARDWARE_PANEL_X + 18, y,
+                             get_string(MSG_DMA_VERSION), buffer, 110);
+            y += 8;
+        }
+        format_scsi_chip_string(buffer, sizeof(buffer));
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_SDMAC_REV), buffer,
                          HARDWARE_CHIPSET_VALUE_OFFSET);

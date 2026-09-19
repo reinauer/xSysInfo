@@ -321,6 +321,10 @@ typedef enum {
     MSG_BTN_ON,
     MSG_BTN_OFF,
     MSG_1MX1,
+    MSG_DMA_CHIP,
+    MSG_DMA_VERSION,
+    MSG_RESDMAC,
+    MSG_WD33C93_FAMILY,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

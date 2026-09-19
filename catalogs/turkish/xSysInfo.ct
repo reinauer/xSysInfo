@@ -850,3 +850,16 @@ KAPALI
 MSG_1MX1
 1Mx1 yongalar
 ;
+; DMA and SCSI controller details
+MSG_DMA_CHIP
+DMA yongasý
+;
+MSG_DMA_VERSION
+Aygýt yazýl.
+;
+MSG_RESDMAC
+ReSDMAC
+;
+MSG_WD33C93_FAMILY
+WD33C93 ailesi
+;

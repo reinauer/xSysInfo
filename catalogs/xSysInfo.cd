@@ -850,3 +850,16 @@ OFF
 MSG_1MX1 (//)
 1Mx1 chips
 ;
+; DMA and SCSI controller details
+MSG_DMA_CHIP (//)
+DMA chip
+;
+MSG_DMA_VERSION (//)
+Firmware
+;
+MSG_RESDMAC (//)
+ReSDMAC
+;
+MSG_WD33C93_FAMILY (//)
+WD33C93 family
+;
