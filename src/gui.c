@@ -25,6 +25,7 @@
 #include "xsysinfo.h"
 #include "gui.h"
 #include "hardware.h"
+#include "wdprobe.h"
 #include "benchmark.h"
 #include "software.h"
 #include "memory.h"
@@ -2398,6 +2399,19 @@ static void draw_hardware_panel_contents(void)
                          HARDWARE_CHIPSET_VALUE_OFFSET);
         y += 8;
 
+        if (hw_info.sdmac_present && wd_info.chip != WD_UNKNOWN) {
+            static const LocaleStringID labels[WD_DETAIL_COUNT] = {
+                MSG_WD_MICROCODE, MSG_WD_CLOCK, MSG_WD_MODE,
+                MSG_TIMEOUT, MSG_WD_SYNC_OFFSET
+            };
+            unsigned detail;
+            for (detail = 0; detail < WD_DETAIL_COUNT; detail++) {
+                format_wd_detail(detail, buffer, sizeof(buffer));
+                draw_label_value(HARDWARE_PANEL_X + 18, y,
+                                 get_string(labels[detail]), buffer, 110);
+                y += 8;
+            }
+        }
     } else if (app->hardware_type == HARDWARE_CLOCK) {
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_CLOCK), hw_info.clock_string,

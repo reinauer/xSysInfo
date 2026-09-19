@@ -31,6 +31,7 @@
 #include "xsysinfo.h"
 #include "gui.h"
 #include "hardware.h"
+#include "wdprobe.h"
 #include "software.h"
 #include "memory.h"
 #include "boards.h"
@@ -73,6 +74,9 @@ static BOOL g_which_mode = FALSE;
 /* Dark palette mode */
 static BOOL g_dark_mode = FALSE;
 
+/* Optional WD SCSI controller check, enabled only by SCSI. */
+static BOOL g_scsi_check = FALSE;
+
 /* Global application context */
 AppContext app_context;
 struct TextAttr Topaz8Font = {
@@ -84,7 +88,7 @@ struct TextAttr Topaz8Font = {
 AppContext *app = &app_context;
 
 /* Command line argument template */
-#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,WHICH/S,DARK/S"
+#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,WHICH/S,DARK/S,SCSI/S"
 
 /* Argument array indices */
 enum {
@@ -93,6 +97,7 @@ enum {
     ARG_FULL,
     ARG_WHICH,
     ARG_DARK,
+    ARG_SCSI,
     ARG_COUNT
 };
 
@@ -221,6 +226,8 @@ static BOOL parse_args(int argc, char **argv)
                 g_which_mode = TRUE;
             else if (xstricmp(argv[i], "dark") == 0)
                 g_dark_mode = TRUE;
+            else if (xstricmp(argv[i], "scsi") == 0)
+                g_scsi_check = TRUE;
         }
     }
     return TRUE;
@@ -270,6 +277,10 @@ static void parse_tooltypes(void)
             app->dark_mode = TRUE;
         }
 
+        if (find_icon_tooltype(tooltypes, ICON_STR("SCSI"))) {
+            g_scsi_check = TRUE;
+        }
+
         FreeDiskObject(dobj);
     }
 
@@ -312,6 +323,7 @@ static void run_full_memory_benchmarks(void)
 int main(int argc, char **argv)
 {
     int ret = RETURN_OK;
+    const char *scsi_error = NULL;
     debug(XSYSINFO_NAME ": Checking start...\n");
 
     /* Check if started from Workbench */
@@ -369,10 +381,6 @@ int main(int argc, char **argv)
     /* Enumerate expansion boards */
     enumerate_boards();
 
-    debug(XSYSINFO_NAME ": Enumerating drives...\n");
-    /* Enumerate drives */
-    enumerate_drives();
-
     debug(XSYSINFO_NAME ": Init timer...\n");
     /* Initialize benchmark timer */
     if (!init_timer()) {
@@ -382,6 +390,44 @@ int main(int argc, char **argv)
     }
 
     measure_bus_frequency();
+
+    if (g_scsi_check) {
+        WDProbeStatus result;
+        LocaleStringID error;
+
+        /* Finish any redirected diagnostics before touching the controller. */
+        if (!wb_startup)
+            flush_report_output(Output());
+        result = probe_wd_controller();
+        if (result != WD_PROBE_OK && result != WD_PROBE_NOT_APPLICABLE) {
+            switch (result) {
+            case WD_PROBE_BUSY: error = MSG_WD_BUSY; break;
+            case WD_PROBE_UNAVAILABLE: error = MSG_WD_UNAVAILABLE; break;
+            case WD_PROBE_CLOCK_FAILED: error = MSG_WD_CLOCK_FAILED; break;
+            case WD_PROBE_RESTORE_FAILED: error = MSG_WD_RESTORE_FAILED; break;
+            default: error = MSG_WD_FAILED; break;
+            }
+            scsi_error = get_string(error);
+            if (result == WD_PROBE_RESTORE_FAILED) {
+                /* Avoid drive enumeration, redirected output and benchmarks.
+                 * Only this critical failure needs an acknowledgement. */
+                struct IntuiText body = { 1, 0, JAM2,
+                    0, 0, NULL, (UBYTE *)scsi_error, NULL };
+                struct IntuiText ok = { 1, 0, JAM2,
+                    0, 0, NULL, (UBYTE *)get_string(MSG_BTN_OK), NULL };
+                AutoRequest(NULL, &body, NULL, &ok, 0, 0, 480, 60);
+                ret = RETURN_FAIL;
+                goto cleanup;
+            }
+            ret = RETURN_WARN;
+            if (!wb_startup)
+                Printf((CONST_STRPTR)"%s\n", (LONG)scsi_error);
+        }
+    }
+
+    /* Check SCSI before drive enumeration opens filesystems and devices. */
+    debug(XSYSINFO_NAME ": Enumerating drives...\n");
+    enumerate_drives();
 
     if (g_full_mode) {
         BPTR output = Output();
@@ -424,6 +470,12 @@ int main(int argc, char **argv)
 
         debug(XSYSINFO_NAME ": Draw screen...\n");
         redraw_current_view();
+
+        if (scsi_error) {
+            show_status_overlay(scsi_error);
+            Delay(150);
+            hide_status_overlay();
+        }
 
         debug(XSYSINFO_NAME ": Start main loop...\n");
         main_loop();

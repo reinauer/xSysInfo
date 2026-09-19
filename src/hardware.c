@@ -28,6 +28,7 @@
 
 #include "xsysinfo.h"
 #include "hardware.h"
+#include "wdprobe.h"
 #include "locale_str.h"
 #include "debug.h"
 #include "cpu.h" //for cpu-type/rev
@@ -1314,6 +1315,12 @@ void format_scsi_chip_string(char *buffer, ULONG size)
     else if (hw_info.ncr_type == NCR_53C710)
         name = MSG_NCR_53C710;
     else {
+        if (hw_info.sdmac_present && wd_info.chip != WD_UNKNOWN) {
+            name = wd_info.chip == WD_33C93B ? MSG_WD33C93B :
+                   wd_info.chip == WD_33C93A ? MSG_WD33C93A : MSG_WD33C93;
+            copy_string(buffer, get_string(name), size);
+            return;
+        }
         /* The A3000 pairs Super DMAC with a WD33C93-compatible chip.
          * Exact silicon/firmware identification requires a controller
          * reset. Do not infer the suffix or read CDB1 as a revision:

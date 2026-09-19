@@ -325,6 +325,21 @@ typedef enum {
     MSG_DMA_VERSION,
     MSG_RESDMAC,
     MSG_WD33C93_FAMILY,
+    MSG_WD33C93,
+    MSG_WD33C93A,
+    MSG_WD33C93B,
+    MSG_WD_MICROCODE,
+    MSG_WD_CLOCK,
+    MSG_WD_MODE,
+    MSG_WD_SYNC_OFFSET,
+    MSG_WD_POLLED,
+    MSG_WD_BUS,
+    MSG_WD_ASYNC,
+    MSG_WD_BUSY,
+    MSG_WD_UNAVAILABLE,
+    MSG_WD_CLOCK_FAILED,
+    MSG_WD_RESTORE_FAILED,
+    MSG_WD_FAILED,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

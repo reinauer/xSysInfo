@@ -863,3 +863,49 @@ ReSDMAC
 MSG_WD33C93_FAMILY
 WD33C93 ailesi
 ;
+; Optional WD SCSI check
+MSG_WD33C93
+WD33C93
+;
+MSG_WD33C93A
+WD33C93A
+;
+MSG_WD33C93B
+WD33C93B
+;
+MSG_WD_MICROCODE
+Mikrokod
+;
+MSG_WD_CLOCK
+SCSI saati
+;
+MSG_WD_MODE
+G/Ç modu
+;
+MSG_WD_SYNC_OFFSET
+Eþz./ofset
+;
+MSG_WD_POLLED
+Sorgulama
+;
+MSG_WD_BUS
+WD veriyolu
+;
+MSG_WD_ASYNC
+Asenkron
+;
+MSG_WD_BUSY
+SCSI denetleyicisi meþgul; kontrol atlandý.
+;
+MSG_WD_UNAVAILABLE
+Bu yapýlandýrmada WD kontrolü kullanýlamýyor.
+;
+MSG_WD_CLOCK_FAILED
+WD saat hýzý ölçülemedi.
+;
+MSG_WD_RESTORE_FAILED
+WD yüklenemedi. Diski kullanmadan yeniden baþlatýn.
+;
+MSG_WD_FAILED
+WD kontrolü baþarýsýz; denetleyici geri yüklendi.
+;

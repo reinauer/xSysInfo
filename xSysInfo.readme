@@ -34,6 +34,8 @@ without a leading dash.
   DARK    Use the dark blue palette in the graphical interface.
           The default is the gray palette.
   DEBUG   Enable diagnostic output. Debugging is off by default.
+  SCSI    Check the A3000 WD SCSI controller at startup. Disabled by
+          default; see below before enabling it.
 
 BRIEF, FULL, and WHICH run without opening the graphical interface.
 If more than one report mode is supplied, FULL takes precedence over
@@ -45,17 +47,44 @@ Examples:
       Open the graphical interface in dark mode.
   xSysInfo FULL >RAM:xSysInfo.txt
       Save the full report to a file in RAM:.
+  xSysInfo SCSI
+      Open the interface after checking the WD SCSI controller.
+  xSysInfo SCSI FULL >RAM:xSysInfo-scsi.txt
+      Include WD SCSI check results in a full report.
 
 Graphical interface:
-The System Software Installed tile defaults to an overview of the OS,
+The System Software tile defaults to an overview of the OS,
 physical ROM, active ROM, Workbench, SetPatch, and graphics system.
 Use its cycle button for the library, device, resource, and MMU lists.
 Total Chip and Fast RAM are shown in the hardware overview.
 
+On an A3000, the optional SCSI Shell option or Workbench ToolType runs
+one WD33C93 check at startup. It resets the controller, identifies
+WD33C93/A/B-compatible chips, reads microcode where supported, and
+measures the input clock. Stop all disk activity before launching with
+SCSI enabled. Normal Shell and Workbench launches leave the check
+disabled. When enabled, it has no confirmation prompt. AmigaOS 2.0 or
+later is required for its timer.
+
+The check runs before xSysInfo enumerates drives; machines without a
+supported controller are silently skipped.
+
+Busy controllers, incomplete transfers, and configurations whose reset
+settings cannot be recovered are skipped. Results appear on CHIPSET,
+in PRINT, and in FULL reports. Mode, timeout, and sync settings are
+snapshots taken before the check; sync describes the last selected
+target. Unreadable microcode and clocks that cannot be measured
+(including some emulators) show N/A. On supported hardware, a skipped
+or incomplete check produces a warning and Shell return code 5.
+If controller restoration fails, xSysInfo displays an error and exits
+with code 20 without enumerating drives, running further benchmarks or
+writing a report. Reboot before accessing disks in that case.
+
 Workbench icon ToolTypes:
 These settings come from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line.
-The supplied icon contains DISPLAY=auto.
+The supplied icon contains DISPLAY=auto, plus disabled examples
+(DISPLAY=window), (DISPLAY=screen), (DARK), (DEBUG), and (SCSI).
 
   ToolType        Description
   --------------  ------------------------------------------------------
@@ -68,9 +97,12 @@ The supplied icon contains DISPLAY=auto.
                   default gray palette.
   DEBUG           Enable diagnostic output. Omit this entry to leave
                   debugging off.
+  SCSI            Run the optional WD SCSI controller check at startup,
+                  as described above. Disabled by default.
 
-Use one DISPLAY entry to select the display mode. Add DARK or DEBUG
-as separate entries to enable either option.
+Keep exactly one DISPLAY entry enabled to select the display mode; put
+parentheses around the other choices. Remove the parentheses from (DARK),
+(DEBUG), or (SCSI) to enable an option, and restore them to disable it.
 
 Web page:
         https://github.com/reinauer/xSysInfo/blob/main/README.md

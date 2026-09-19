@@ -863,3 +863,49 @@ ReSDMAC
 MSG_WD33C93_FAMILY
 WD33C93 család
 ;
+; Optional WD SCSI check
+MSG_WD33C93
+WD33C93
+;
+MSG_WD33C93A
+WD33C93A
+;
+MSG_WD33C93B
+WD33C93B
+;
+MSG_WD_MICROCODE
+Mikrokód
+;
+MSG_WD_CLOCK
+SCSI órajel
+;
+MSG_WD_MODE
+I/O mód
+;
+MSG_WD_SYNC_OFFSET
+Szink./eltol.
+;
+MSG_WD_POLLED
+Lekérdezés
+;
+MSG_WD_BUS
+WD busz
+;
+MSG_WD_ASYNC
+Aszinkron
+;
+MSG_WD_BUSY
+A SCSI-vezérlõ foglalt; ellenõrzés kihagyva.
+;
+MSG_WD_UNAVAILABLE
+A WD-ellenõrzés nem érhetõ el ezen a konfiguráción.
+;
+MSG_WD_CLOCK_FAILED
+A WD órajele nem mérhetõ.
+;
+MSG_WD_RESTORE_FAILED
+WD-hiba. Lemezhasználat elõtt indítsa újra a gépet.
+;
+MSG_WD_FAILED
+A WD-ellenõrzés hibás; a vezérlõ visszaállítva.
+;

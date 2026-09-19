@@ -863,3 +863,49 @@ ReSDMAC
 MSG_WD33C93_FAMILY (//)
 WD33C93 family
 ;
+; Optional WD SCSI check
+MSG_WD33C93 (//)
+WD33C93
+;
+MSG_WD33C93A (//)
+WD33C93A
+;
+MSG_WD33C93B (//)
+WD33C93B
+;
+MSG_WD_MICROCODE (//13)
+Microcode
+;
+MSG_WD_CLOCK (//13)
+SCSI clock
+;
+MSG_WD_MODE (//13)
+I/O mode
+;
+MSG_WD_SYNC_OFFSET (//13)
+Sync / offset
+;
+MSG_WD_POLLED (//)
+Polled
+;
+MSG_WD_BUS (//)
+WD bus
+;
+MSG_WD_ASYNC (//)
+Async
+;
+MSG_WD_BUSY (//55)
+SCSI controller busy; check skipped.
+;
+MSG_WD_UNAVAILABLE (//55)
+WD check unavailable for this configuration.
+;
+MSG_WD_CLOCK_FAILED (//55)
+WD clock could not be measured.
+;
+MSG_WD_RESTORE_FAILED (//55)
+WD restore failed. Reboot before disk access.
+;
+MSG_WD_FAILED (//55)
+WD check failed; controller restored.
+;

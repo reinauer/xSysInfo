@@ -62,6 +62,7 @@ without a leading dash.
 | `WHICH` | Write a column-aligned system report compatible with the WhichAmiga 1.3.3 text format to Shell output. |
 | `DARK` | Use the dark blue palette in the graphical interface. The default is the gray palette. |
 | `DEBUG` | Enable diagnostic output. Debugging is off by default. |
+| `SCSI` | Check the A3000 WD SCSI controller at startup. Disabled by default; see below before enabling it. |
 
 `BRIEF`, `FULL`, and `WHICH` run without opening the graphical interface.
 If more than one report mode is supplied, `FULL` takes precedence over
@@ -73,6 +74,8 @@ For example, open the interface in dark mode or save a full report to RAM:
 ```text
 xSysInfo DARK
 xSysInfo FULL >RAM:xSysInfo.txt
+xSysInfo SCSI
+xSysInfo SCSI FULL >RAM:xSysInfo-scsi.txt
 ```
 
 Example output from `xSysInfo WHICH`:
@@ -85,6 +88,27 @@ The System Software tile opens on an overview of the OS, physical
 ROM, active ROM, Workbench, SetPatch, and graphics system. Its cycle button
 opens the library, device, resource, and MMU lists. Total Chip and Fast RAM
 are shown in the hardware overview.
+
+On an A3000, the optional **SCSI** Shell option or Workbench ToolType runs
+a WD33C93 check once at startup. It resets the controller, identifies
+WD33C93/A/B-compatible chips, reads microcode where supported, and measures
+the input clock. Stop all disk activity before launching with SCSI enabled.
+Normal Shell and Workbench launches leave the check disabled. When enabled,
+it has no confirmation prompt. AmigaOS 2.0 or later is required for its timer.
+
+The check runs before xSysInfo enumerates drives; machines without a
+supported controller are silently skipped.
+
+The check skips busy controllers, incomplete transfers, and configurations
+whose reset settings cannot be recovered. Results appear on **CHIPSET**,
+in **PRINT**, and in **FULL** reports. Mode, timeout, and sync settings are
+snapshots taken before the check; sync describes the last selected target.
+Older chips without readable microcode show N/A. Clock measurement can
+also be unavailable on emulators. On supported hardware, a skipped or
+incomplete check produces a warning and Shell return code 5. If controller
+restoration fails, xSysInfo displays an error and exits with code 20 without
+enumerating drives, running further benchmarks or writing a report.
+Reboot before accessing disks in that case.
 
 On the Boards page, the cycle button switches between **NAMES**, **DEC**,
 and **HEX**. DEC and HEX show numeric product and manufacturer IDs and
@@ -101,7 +125,7 @@ Dark mode, enabled with `xSysInfo DARK`:
 These settings are read from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line. The supplied
 icon contains `DISPLAY=auto`, plus disabled examples `(DISPLAY=window)`,
-`(DISPLAY=screen)`, `(DARK)`, and `(DEBUG)`.
+`(DISPLAY=screen)`, `(DARK)`, `(DEBUG)`, and `(SCSI)`.
 
 | ToolType | Description |
 | --- | --- |
@@ -110,10 +134,11 @@ icon contains `DISPLAY=auto`, plus disabled examples `(DISPLAY=window)`,
 | `DISPLAY=screen` | Open a separate PAL or NTSC screen. |
 | `DARK` | Use the dark blue palette. Omit this entry to use the default gray palette. |
 | `DEBUG` | Enable diagnostic output. Omit this entry to leave debugging off. |
+| `SCSI` | Run the optional WD SCSI controller check at startup, as described above. Disabled by default. |
 
 Keep exactly one `DISPLAY` entry enabled to select the display mode; put
-parentheses around the other choices. Remove the parentheses from `(DARK)`
-or `(DEBUG)` to enable either option, and restore them to disable it.
+parentheses around the other choices. Remove the parentheses from `(DARK)`,
+`(DEBUG)`, or `(SCSI)` to enable an option, and restore them to disable it.
 
 ![XSysInfo in windowed mode](docs/xsysinfo-windowed.png)
 

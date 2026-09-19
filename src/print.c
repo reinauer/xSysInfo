@@ -17,6 +17,7 @@
 #include "xsysinfo.h"
 #include "print.h"
 #include "hardware.h"
+#include "wdprobe.h"
 #include "software.h"
 #include "benchmark.h"
 #include "memory.h"
@@ -469,6 +470,18 @@ void export_hardware(BPTR fh)
     }
     format_scsi_chip_string(buffer, sizeof(buffer));
     write_formatted(fh, "  SCSI chip:      %s", buffer);
+    if (hw_info.sdmac_present && wd_info.chip != WD_UNKNOWN) {
+        static const char *labels[WD_DETAIL_COUNT] = {
+            "Microcode", "SCSI clock", "I/O mode", "Timeout", "Sync / offset"
+        };
+        unsigned detail;
+        for (detail = 0; detail < WD_DETAIL_COUNT; detail++) {
+            format_wd_detail(detail, buffer, sizeof(buffer));
+            write_formatted(fh, "    %-13s %s", labels[detail], buffer);
+        }
+        WRITE_LINE(fh, "    Configuration captured before the SCSI check;");
+        WRITE_LINE(fh, "    sync setting describes the last selected target.");
+    }
 
     WRITE_LINE(fh, "");
 }

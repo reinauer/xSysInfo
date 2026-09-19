@@ -339,6 +339,21 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_DMA_VERSION */            "Firmware",
     /* MSG_RESDMAC */                "ReSDMAC",
     /* MSG_WD33C93_FAMILY */         "WD33C93 family",
+    /* MSG_WD33C93 */                 "WD33C93",
+    /* MSG_WD33C93A */                "WD33C93A",
+    /* MSG_WD33C93B */                "WD33C93B",
+    /* MSG_WD_MICROCODE */            "Microcode",
+    /* MSG_WD_CLOCK */                "SCSI clock",
+    /* MSG_WD_MODE */                 "I/O mode",
+    /* MSG_WD_SYNC_OFFSET */          "Sync / offset",
+    /* MSG_WD_POLLED */               "Polled",
+    /* MSG_WD_BUS */                  "WD bus",
+    /* MSG_WD_ASYNC */                "Async",
+    /* MSG_WD_BUSY */                 "SCSI controller busy; check skipped.",
+    /* MSG_WD_UNAVAILABLE */          "WD check unavailable for this configuration.",
+    /* MSG_WD_CLOCK_FAILED */         "WD clock could not be measured.",
+    /* MSG_WD_RESTORE_FAILED */       "WD restore failed. Reboot before disk access.",
+    /* MSG_WD_FAILED */               "WD check failed; controller restored.",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */
