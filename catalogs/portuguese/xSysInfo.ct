@@ -725,7 +725,7 @@ MSG_MMU_FLAGS3_HINT
 IM=Impreciso NS=não-serie CB=CopyBack
 ;
 MSG_MMU_FLAGS4_HINT
-SO=Supervisor BL=Vazio SH=Partilhado INV=Inválido
+SO=Supervisor BL=Vazio SH=Partilh. INV=Inválido
 ;
 MSG_MMU_FLAGS5_HINT
 SNG=Página Única RP=Reparável IO=EspaçoIO

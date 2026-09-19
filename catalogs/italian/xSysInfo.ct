@@ -344,7 +344,7 @@ MSG_UNKNOWN
 Sconosciuto
 ;
 MSG_YES
-Si
+Sì
 ;
 MSG_NO
 No
@@ -663,10 +663,10 @@ MSG_SCSI_HOST_ID
 SCSI ID
 ;
 MSG_LONG
-Long
+Lungo
 ;
 MSG_SHORT
-Short
+Breve
 ;
 MSG_NCR_53C710
 NCR 53C710
@@ -771,7 +771,7 @@ MSG_MMU_FLAGS3_HINT
 IM=Impreciso NS=non-seriale CB=CopyBack
 ;
 MSG_MMU_FLAGS4_HINT
-SO=Supervisore BL=Vuoto SH=Condiviso INV=Invalido
+SO=Supervisore BL=Vuoto SH=Condiv. INV=Invalido
 ;
 MSG_MMU_FLAGS5_HINT
 SNG=Pagina Singola RP=Riparabile IO=SpazioIO
