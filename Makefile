@@ -109,18 +109,27 @@ $(FLEXCAT_BIN):
 	@$(MAKE) -s -C 3rdparty/flexcat bootstrap
 	@$(MAKE) -s -C 3rdparty/flexcat
 
-# Identify library build (requires FlexCat)
-IDENTIFY_HEADER = $(IDENTIFY_INC)/proto/identify.h
+# Generate both Identify compiler bindings from the submodule's SDK.
+IDENTIFY_HEADERS = $(IDENTIFY_INC)/proto/identify.h \
+	$(IDENTIFY_INC)/inline/identify.h
+IDENTIFY_SDK_FILES = $(IDENTIFY_INC)/fd/identify_lib.fd \
+	$(IDENTIFY_INC)/clib/identify_protos.h
 
-identify: $(IDENTIFY_HEADER)
+identify: $(IDENTIFY_HEADERS)
 
 $(FD2PRAGMA_TYPES):
 	@echo "  DOWNLOAD $@"
 	@curl -fLsS 'https://github.com/adtools/fd2pragma/raw/refs/heads/master/fd2pragma.types' -o $@
 
-$(IDENTIFY_HEADER): $(FLEXCAT_BIN) $(FD2PRAGMA_TYPES) | download-libs
-	@export PATH="$(CURDIR)/$(dir $(FLEXCAT_BIN)):$(PATH)" && \
-	$(MAKE) -s -C 3rdparty/identify reference/proto/identify.h reference/inline/identify.h
+$(IDENTIFY_INC)/proto/identify.h: IDENTIFY_HEADER_TYPE = 38
+$(IDENTIFY_INC)/inline/identify.h: IDENTIFY_HEADER_TYPE = 40
+
+$(IDENTIFY_HEADERS): $(IDENTIFY_SDK_FILES) $(FD2PRAGMA_TYPES)
+	@echo "  HEADER $@"
+	@mkdir -p $(dir $@)
+	@fd2pragma --infile $(IDENTIFY_INC)/fd/identify_lib.fd \
+		--clib $(IDENTIFY_INC)/clib/identify_protos.h --to $(dir $@) \
+		--special $(IDENTIFY_HEADER_TYPE) --autoheader --comment
 
 # Generate compiler bindings directly beside the MuManual include files.
 MMU_HEADERS = $(MMU_INC)/proto/mmu.h $(MMU_INC)/inline/mmu.h \
@@ -203,7 +212,7 @@ $(STACK_OBJ): $(STACK_SRC)
 	@echo "  CC    $@"
 	@$(CC) $(STACK_CFLAGS) -c -o $@ $<
 
-$(OBJS): src/%.o: src/%.c src/xsysinfo.h $(IDENTIFY_HEADER) $(MMU_HEADERS)
+$(OBJS): src/%.o: src/%.c src/xsysinfo.h $(IDENTIFY_HEADERS) $(MMU_HEADERS)
 	@echo "  CC    $@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
