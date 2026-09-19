@@ -626,6 +626,10 @@ void detect_system_software(void)
                         sizeof(system_software.os_name));
         setpatch = IdHardwareNumTags(IDHW_SETPATCHVER, TAG_DONE);
     }
+    /* Older identify.library versions do not recognize the V48 ROMs. */
+    if (!system_software.os_name[0] && SysBase->LibNode.lib_Version == 48)
+        copy_string(system_software.os_name, "AmigaOS 3.3",
+                    sizeof(system_software.os_name));
     if (setpatch) {
         system_software.has_setpatch_version = TRUE;
         system_software.setpatch_version = setpatch & 0xffff;

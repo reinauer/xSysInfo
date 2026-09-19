@@ -70,6 +70,8 @@ static const char *kickstart_name(UWORD version, UWORD revision)
         if (revision >= 102)
             return "Kickstart 3.2.1";
         return "Kickstart 3.2";
+    case 48:
+        return "Kickstart 3.3";
     default:
         return "Kickstart unknown";
     }
@@ -145,6 +147,8 @@ static const char *workbench_name(ULONG os_number, UWORD version, UWORD revision
             revision >= 3)
             return "Workbench 3.2.1";
         return "Workbench 3.2";
+    case 48:
+        return "Workbench 3.3";
     default:
         return "Workbench unknown";
     }
