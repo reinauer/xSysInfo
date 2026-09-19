@@ -96,8 +96,10 @@ the input clock. Stop all disk activity before launching with SCSI enabled.
 Normal Shell and Workbench launches leave the check disabled. When enabled,
 it has no confirmation prompt. AmigaOS 2.0 or later is required for its timer.
 
-The check runs before xSysInfo enumerates drives; machines without a
-supported controller are silently skipped.
+The bootable floppy image enables it with `xSysInfo SCSI` in its
+Startup-Sequence. The check runs before xSysInfo enumerates drives;
+machines without a supported controller are silently skipped. The
+Workbench icon keeps `(SCSI)` disabled.
 
 The check skips busy controllers, incomplete transfers, and configurations
 whose reset settings cannot be recovered. Results appear on **CHIPSET**,
