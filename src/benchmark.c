@@ -953,12 +953,12 @@ ULONG measure_loop_overhead(ULONG count)
 static ULONG measure_mem_read_speed_once(volatile ULONG *src, ULONG buffer_size,
                                          ULONG iterations, ULONG *elapsed_us)
 {
-    ULONG E_Freq;
+    ULONG E_Freq, end_freq;
     struct EClockVal start, end;
     uint64_t elapsed;
     ULONG overhead;
-    uint64_t total_read = 0;
-    ULONG total_loops = 0;
+    uint64_t total_read;
+    uint64_t total_loops;
     ULONG longs_per_read;
     ULONG loop_count;
     ULONG i;
@@ -970,6 +970,7 @@ static ULONG measure_mem_read_speed_once(volatile ULONG *src, ULONG buffer_size,
 
     /* Align source pointer to 16 bytes for optimal burst mode */
     aligned_src = (volatile ULONG *)(((ULONG)src + 15) & ~15);
+    if ((ULONG)aligned_src < (ULONG)src) return 0;
 
     /* Adjust buffer size if alignment reduced available space */
     if ((ULONG)aligned_src > (ULONG)src) {
@@ -982,6 +983,12 @@ static ULONG measure_mem_read_speed_once(volatile ULONG *src, ULONG buffer_size,
     loop_count = longs_per_read / 32; /* 8 regs * 4 unrolls = 32 longs (128 bytes) per iter */
 
     if (loop_count == 0) return 0;
+
+    /* Only complete 128-byte blocks are read; the aligned buffer may
+     * still have an unused tail. Keep accounting outside the timed loop. */
+    total_loops = (uint64_t)loop_count * iterations;
+    if (total_loops == 0 || total_loops > ULONG_MAX) return 0;
+    total_read = total_loops * 32 * sizeof(ULONG);
 
     Forbid();
     E_Freq = read_benchmark_clock(&start);
@@ -1005,21 +1012,24 @@ static ULONG measure_mem_read_speed_once(volatile ULONG *src, ULONG buffer_size,
             :
             : "d1", "d2", "d3", "d4", "a1", "a2", "a3", "a4", "cc", "memory"
         );
-        total_read += buffer_size;
-        total_loops += loop_count;
     }
-    E_Freq = read_benchmark_clock(&end);
+    end_freq = read_benchmark_clock(&end);
     Permit();
+    if (end_freq != E_Freq || end.ev_hi < start.ev_hi ||
+        (end.ev_hi == start.ev_hi && end.ev_lo < start.ev_lo))
+        return 0;
     elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
 
 
     /* Compensate for loop overhead */
-    overhead = measure_loop_overhead(total_loops);
+    overhead = measure_loop_overhead((ULONG)total_loops);
     if (elapsed > overhead) {
         elapsed -= overhead;
     } else {
-        /* Should not happen, but safety first */
-        elapsed = 1;
+        /* A non-positive corrected interval cannot yield a valid speed. */
+        debug("  bench: memory interval %lu us does not exceed "
+              "loop overhead %lu us\n", (ULONG)elapsed, overhead);
+        return 0;
     }
 
     if (elapsed > 0 && total_read > 0) {
