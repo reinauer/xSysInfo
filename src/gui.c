@@ -2723,8 +2723,8 @@ void switch_to_view(ViewMode view)
     redraw_current_view();
 }
 
-/* Blank pointer sprite data for hiding mouse cursor */
-static UWORD blank_pointer[] = {
+/* SetPointer sprite data must remain in Chip RAM for sprite DMA. */
+static UWORD __chip blank_pointer[] = {
     0x0000, 0x0000,  /* Reserved */
     0x0000, 0x0000,  /* 1 line of empty data */
     0x0000, 0x0000   /* Reserved */
