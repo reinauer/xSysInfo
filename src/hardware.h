@@ -305,6 +305,7 @@ BOOL detect_emu68_systems(void);
 void detect_amiga_model(void);
 void detect_cpu(void);
 void detect_fpu(void);
+struct Library *open_mmu_library(void);
 void detect_mmu(void);
 void load_mmu_remap_table(void);
 APTR mmu_physical_address(APTR addr);

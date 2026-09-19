@@ -542,6 +542,19 @@ void detect_fpu(void)
 
 }
 
+/* MMULib checks this same marker before loading its CPU support. */
+struct Library *open_mmu_library(void)
+{
+    BOOL patched;
+
+    Forbid();
+    patched = FindSemaphore((CONST_STRPTR)"\253 SetPatch \273") != NULL;
+    Permit();
+    if (!patched)
+        return NULL;
+    return OpenLibrary((CONST_STRPTR)"mmu.library", 40L);
+}
+
 /*
  * Detect MMU type
  */
@@ -559,7 +572,7 @@ void detect_mmu(void)
                 sizeof(hw_info.mmu_string));
 
     // first: try mmu.lib
-    if ((MMUBase = (struct Library *)OpenLibrary((CONST_STRPTR)"mmu.library", 40L)))
+    if ((MMUBase = open_mmu_library()))
     { // check for mmu.lib
             fallBack = FALSE;
             switch (GetMMUType())
@@ -755,7 +768,7 @@ void load_mmu_remap_table(void)
     if (!hw_info.mmu_enabled)
         return;
 
-    MMUBase = (struct Library *)OpenLibrary((CONST_STRPTR)"mmu.library", 40L);
+    MMUBase = open_mmu_library();
     if (!MMUBase)
         return;
 

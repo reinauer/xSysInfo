@@ -368,7 +368,7 @@ void enumerate_mmu_entries(void)
     if (mmuLoaded && hw_info.mmu_enabled) {
         //no else: iff mmu.library is in the libraries list, it can load!
         if (DOSBase && DOSBase->dl_lib.lib_Version >= 37) {
-            if ((MMUBase = OpenLibrary((CONST_STRPTR)"mmu.library", 40L))) {
+            if ((MMUBase = open_mmu_library())) {
 
                 entry = &mmu_list.entries[mmu_list.count];
                 snprintf(entry->name, sizeof(entry->name), "%s: %lukB.",
