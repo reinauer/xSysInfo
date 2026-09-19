@@ -594,7 +594,7 @@ MSG_SDMAC_REV
 Chip SCSI
 ;
 MSG_RAMSEY_PAGE
-Modalità pagina
+Modo pagina
 ;
 MSG_RAMSEY_BURST
 Burst
@@ -603,7 +603,7 @@ MSG_RAMSEY_WRAP
 Wrap
 ;
 MSG_RAMSEY_SIZE
-Dimensione RAM
+Dim. RAM
 ;
 MSG_RAMSEY_SKIP
 Salta
@@ -612,10 +612,10 @@ MSG_RAMSEY_REFRESH
 Aggiorna
 ;
 MSG_1M
-1M-chips
+Chip 1Mx4
 ;
 MSG_256K
-256K-chips
+Chip 256Kx4
 ;
 MSG_GARY_A1000
 A1000
@@ -845,4 +845,8 @@ ON
 ;
 MSG_BTN_OFF
 OFF
+;
+; Ramsey RAM geometry
+MSG_1MX1
+Chip 1Mx1
 ;

@@ -320,6 +320,7 @@ typedef enum {
     MSG_NCR_53C770,
     MSG_BTN_ON,
     MSG_BTN_OFF,
+    MSG_1MX1,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

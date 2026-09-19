@@ -248,7 +248,6 @@ typedef struct {
     BOOL ramsey_page_enabled;
     BOOL ramsey_burst_enabled;
     BOOL ramsey_wrap_enabled;
-    BOOL ramsey_size_1M;
     BOOL ramsey_skip_enabled;
     ULONG ramsey_refresh_rate;     /* 0 = 156, 1 = 240, 2 = 372 clocks, 3 = off */
 
@@ -309,6 +308,7 @@ void detect_batt_mem(void);
 void detect_gary(void);
 void detect_ramsey(void);
 void format_ramsey_rev_string(char *buffer, ULONG size);
+const char *get_ramsey_size_string(void);
 void detect_sdmac(void);
 void format_sdmac_string(char *buffer, ULONG size);
 void detect_system_chips(void);

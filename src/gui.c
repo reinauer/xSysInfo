@@ -2352,14 +2352,17 @@ static void draw_hardware_panel_contents(void)
             draw_label_value(HARDWARE_PANEL_X + 18, y,
                              get_string(MSG_RAMSEY_WRAP), buffer, 110);
             y += 8;
-            snprintf(buffer, sizeof(buffer), "%s", hw_info.ramsey_size_1M ? get_string(MSG_1M) : get_string(MSG_256K));
             draw_label_value(HARDWARE_PANEL_X + 18, y,
-                             get_string(MSG_RAMSEY_SIZE), buffer, 110);
+                             get_string(MSG_RAMSEY_SIZE),
+                             get_ramsey_size_string(), 110);
             y += 8;
-            snprintf(buffer, sizeof(buffer), "%s", hw_info.ramsey_skip_enabled ? get_string(MSG_ON) : get_string(MSG_OFF));
-            draw_label_value(HARDWARE_PANEL_X + 18, y,
-                             get_string(MSG_RAMSEY_SKIP), buffer, 110);
-            y += 8;
+            if (hw_info.ramsey_rev == 0x0f) {
+                draw_label_value(HARDWARE_PANEL_X + 18, y,
+                                 get_string(MSG_RAMSEY_SKIP),
+                                 get_string(hw_info.ramsey_skip_enabled ?
+                                            MSG_ON : MSG_OFF), 110);
+                y += 8;
+            }
             switch (hw_info.ramsey_refresh_rate) {
                 case 0:
                     copy_string(buffer, "156 clk", sizeof(buffer));
@@ -2371,7 +2374,7 @@ static void draw_hardware_panel_contents(void)
                     copy_string(buffer, "372 clk", sizeof(buffer));
                     break;
                 default:
-                    copy_string(buffer, "off", sizeof(buffer));
+                    copy_string(buffer, get_string(MSG_OFF), sizeof(buffer));
                     break;
                }
             draw_label_value(HARDWARE_PANEL_X + 18, y,

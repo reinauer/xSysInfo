@@ -186,7 +186,7 @@ static void format_ramsey_refresh(char *buffer, ULONG size)
         snprintf(buffer, size, "372 clk");
         break;
     default:
-        snprintf(buffer, size, "off");
+        snprintf(buffer, size, "Off");
         break;
     }
 }
@@ -431,10 +431,10 @@ void export_hardware(BPTR fh)
                         on_off_string(hw_info.ramsey_burst_enabled));
         write_formatted(fh, "    Wrap:         %s",
                         on_off_string(hw_info.ramsey_wrap_enabled));
-        write_formatted(fh, "    Size:         %s",
-                        hw_info.ramsey_size_1M ? "1M" : "256K");
-        write_formatted(fh, "    Skip:         %s",
-                        on_off_string(hw_info.ramsey_skip_enabled));
+        write_formatted(fh, "    RAM size:     %s", get_ramsey_size_string());
+        if (hw_info.ramsey_rev == 0x0f)
+            write_formatted(fh, "    Skip:         %s",
+                            on_off_string(hw_info.ramsey_skip_enabled));
         format_ramsey_refresh(buffer, sizeof(buffer));
         write_formatted(fh, "    Refresh:      %s", buffer);
     }

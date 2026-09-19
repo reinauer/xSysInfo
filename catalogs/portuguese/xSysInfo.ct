@@ -548,7 +548,7 @@ MSG_SDMAC_REV
 Chip SCSI
 ;
 MSG_RAMSEY_PAGE
-Modo de página
+Modo página
 ;
 MSG_RAMSEY_BURST
 Burst
@@ -566,10 +566,10 @@ MSG_RAMSEY_REFRESH
 Refresh
 ;
 MSG_1M
-Chips 1M
+Chips 1Mx4
 ;
 MSG_256K
-Chips 256K
+Chips 256Kx4
 ;
 MSG_GARY_A1000
 A1000
@@ -799,4 +799,8 @@ LIGADO
 ;
 MSG_BTN_OFF
 DESLIGADO
+;
+; Ramsey RAM geometry
+MSG_1MX1
+Chips 1Mx1
 ;

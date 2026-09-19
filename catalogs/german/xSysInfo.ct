@@ -603,7 +603,7 @@ MSG_RAMSEY_WRAP
 Wrap
 ;
 MSG_RAMSEY_SIZE
-RAM-Groesse
+RAM-Größe
 ;
 MSG_RAMSEY_SKIP
 Skip
@@ -612,10 +612,10 @@ MSG_RAMSEY_REFRESH
 Refresh
 ;
 MSG_1M
-1M-Chips
+1Mx4-Chips
 ;
 MSG_256K
-256K-Chips
+256Kx4-Chips
 ;
 MSG_GARY_A1000
 A1000
@@ -845,4 +845,8 @@ AN
 ;
 MSG_BTN_OFF
 AUS
+;
+; Ramsey RAM geometry
+MSG_1MX1
+1Mx1-Chips
 ;

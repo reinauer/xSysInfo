@@ -251,11 +251,11 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_RAMSEY_PAGE */            "Page mode",
     /* MSG_RAMSEY_BURST */           "Burst",
     /* MSG_RAMSEY_WRAP */            "Wrap",
-    /* MSG_RAMSEY_SIZE */            "Ramsize",
+    /* MSG_RAMSEY_SIZE */            "RAM size",
     /* MSG_RAMSEY_SKIP */            "Skip",
     /* MSG_RAMSEY_REFRESH */         "Refresh",
-    /* MSG_1M */                     "1M-chips",
-    /* MSG_256K */                   "256K-chips",
+    /* MSG_1M */                     "1Mx4 chips",
+    /* MSG_256K */                   "256Kx4 chips",
     /* MSG_GARY_A1000 */             "A1000",
     /* MSG_GARY_A500 */              "Gary",
     /* MSG_GAYLE */                  "Gayle",
@@ -334,6 +334,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* Cache toggle button labels */
     /* MSG_BTN_ON */                 "ON",
     /* MSG_BTN_OFF */                "OFF",
+    /* MSG_1MX1 */                   "1Mx1 chips",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

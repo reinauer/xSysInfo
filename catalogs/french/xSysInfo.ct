@@ -612,10 +612,10 @@ MSG_RAMSEY_REFRESH
 Rafraich.
 ;
 MSG_1M
-Puces 1M
+Puces 1Mx4
 ;
 MSG_256K
-Puces 256K
+Puces 256Kx4
 ;
 MSG_GARY_A1000
 A1000
@@ -845,4 +845,8 @@ ON
 ;
 MSG_BTN_OFF
 OFF
+;
+; Ramsey RAM geometry
+MSG_1MX1
+Puces 1Mx1
 ;

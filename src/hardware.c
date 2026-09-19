@@ -1100,10 +1100,21 @@ void detect_ramsey(void)
         hw_info.ramsey_page_enabled = hw_info.ramsey_ctl & RAMSEY_PAGE_MODE;
         hw_info.ramsey_burst_enabled = hw_info.ramsey_ctl & RAMSEY_BURST_MODE;
         hw_info.ramsey_wrap_enabled = hw_info.ramsey_ctl & RAMSEY_WRAP_MODE;
-        hw_info.ramsey_size_1M = hw_info.ramsey_ctl & RAMSEY_SIZE;
-        hw_info.ramsey_skip_enabled = hw_info.ramsey_ctl & RAMSEY_SKIP_MODE;
+        /* On Ramsey 04, bit 4 selects RAM width, not skip mode. */
+        hw_info.ramsey_skip_enabled = hw_info.ramsey_rev == 0x0f &&
+                                     (hw_info.ramsey_ctl & RAMSEY_SKIP_MODE);
         hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFRESH_MODE)>>5;
     }
+}
+
+const char *get_ramsey_size_string(void)
+{
+    if (hw_info.ramsey_ctl & RAMSEY_SIZE)
+        return get_string(MSG_1M);
+    if (hw_info.ramsey_rev == 0x0d &&
+        !(hw_info.ramsey_ctl & RAMSEY_SKIP_MODE))
+        return get_string(MSG_1MX1);
+    return get_string(MSG_256K);
 }
 
 /* Read-only 53C770 probe, following ncr7xx's stable register signature. */

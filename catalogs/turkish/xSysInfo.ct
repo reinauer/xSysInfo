@@ -612,10 +612,10 @@ MSG_RAMSEY_REFRESH
 Yenileme
 ;
 MSG_1M
-1M yongalar
+1Mx4 yongalar
 ;
 MSG_256K
-256K yongalar
+256Kx4 yongalar
 ;
 MSG_GARY_A1000
 A1000
@@ -845,4 +845,8 @@ AÇIK
 ;
 MSG_BTN_OFF
 KAPALI
+;
+; Ramsey RAM geometry
+MSG_1MX1
+1Mx1 yongalar
 ;

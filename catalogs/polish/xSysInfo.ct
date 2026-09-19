@@ -612,10 +612,10 @@ MSG_RAMSEY_REFRESH
 Odswiezanie
 ;
 MSG_1M
-Kosci 1M
+Ko¶ci 1Mx4
 ;
 MSG_256K
-Kosci 256K
+Ko¶ci 256Kx4
 ;
 MSG_GARY_A1000
 A1000
@@ -845,4 +845,8 @@ WL
 ;
 MSG_BTN_OFF
 WYL
+;
+; Ramsey RAM geometry
+MSG_1MX1
+Ko¶ci 1Mx1
 ;
