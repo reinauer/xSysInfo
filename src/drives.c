@@ -50,6 +50,7 @@ DriveList drive_list;
 #define DRIVE_SPEED_HARD_CHUNK  (256UL * 1024UL)
 #define DRIVE_SPEED_TARGET_US   1000000UL
 #define DRIVE_SPEED_MAX_US      2000000UL
+#define DRIVE_SPEED_TOTAL_US    (DRIVE_SPEED_MAX_US * DRIVE_SPEED_SAMPLES)
 #define DRIVE_SPEED_MAX_BYTES   (32UL * 1024UL * 1024UL)
 #define DRIVE_SPEED_FLOPPY_TRACKS 3UL
 #define DRIVE_SPEED_DD_SECTORS    11UL
@@ -997,7 +998,7 @@ static BOOL nsd_supports_read64(struct IOStdReq *io)
     return FALSE;
 }
 
-static const char *drive_read_cmd_name(UWORD command)
+const char *drive_read_cmd_name(UWORD command)
 {
     switch (command) {
         case CMD_READ:
@@ -1151,9 +1152,158 @@ static APTR alloc_drive_speed_buffer(const DriveInfo *drive, ULONG size,
     return NULL;
 }
 
-/*
- * Measure drive speed (bytes/second)
- */
+/* Bound sequential reads to the partition when its geometry is known. */
+static BOOL drive_speed_range(const DriveInfo *drive, ULONG block_size,
+                              uint64_t *offset, ULONG *max_bytes)
+{
+    uint64_t available = 0;
+
+    *offset = 0;
+    if (drive->surfaces && drive->sectors_per_track) {
+        uint64_t cylinder = (uint64_t)drive->surfaces *
+                            drive->sectors_per_track;
+
+        if (drive->high_cylinder < drive->low_cylinder ||
+            cylinder > UINT64_MAX / block_size)
+            return FALSE;
+        cylinder *= block_size;
+        if ((uint64_t)drive->high_cylinder + 1 > UINT64_MAX / cylinder)
+            return FALSE;
+        *offset = (uint64_t)drive->low_cylinder * cylinder;
+        available = ((uint64_t)drive->high_cylinder + 1 -
+                     drive->low_cylinder) * cylinder;
+    } else if (get_geometry_total_blocks(drive)) {
+        /* A filesystem block count can understate the raw range when its
+         * blocks are larger. Using device block size is conservative. */
+        available = (uint64_t)get_geometry_total_blocks(drive) * block_size;
+    }
+    if (available && available < *max_bytes)
+        *max_bytes = (ULONG)available;
+    *max_bytes = align_drive_transfer(*max_bytes, block_size);
+    return *max_bytes >= block_size && *offset <= UINT64_MAX - *max_bytes;
+}
+
+/* No output or task/interrupt suppression belongs in the timed read loop. */
+static BOOL measure_drive_sample(struct IOStdReq *io, APTR buffer,
+                                 ULONG buffer_size, ULONG block_size,
+                                 UWORD read_cmd, uint64_t offset,
+                                 ULONG max_bytes, ULONG max_us,
+                                 BOOL is_floppy, DriveSpeedSample *sample,
+                                 BOOL *read_failed, ULONG *bytes_issued)
+{
+    struct EClockVal start, end;
+    ULONG rate, end_rate;
+    ULONG read_length = 0;
+    uint64_t speed;
+    BYTE error = 0;
+    BOOL timer_failed = FALSE;
+
+    memset(sample, 0, sizeof(*sample));
+    sample->offset = offset;
+    *read_failed = FALSE;
+    *bytes_issued = 0;
+    rate = read_benchmark_clock(&start);
+
+    while (sample->bytes_read < max_bytes) {
+        uint64_t position = offset + sample->bytes_read;
+
+        if (!is_floppy && sample->read_count &&
+            (sample->elapsed_us >= max_us ||
+             (sample->read_count >= 2 &&
+              sample->elapsed_us >= DRIVE_SPEED_TARGET_US)))
+            break;
+
+        read_length = buffer_size;
+        if (!is_floppy && read_length > DRIVE_SPEED_FIRST_CHUNK &&
+            block_size <= DRIVE_SPEED_FIRST_CHUNK &&
+            (sample->read_count == 0 ||
+             sample->elapsed_us > DRIVE_SPEED_TARGET_US / 4))
+            read_length = DRIVE_SPEED_FIRST_CHUNK;
+        if (read_length > max_bytes - sample->bytes_read)
+            read_length = max_bytes - sample->bytes_read;
+        read_length = align_drive_transfer(read_length, block_size);
+        if (read_length < block_size) break;
+
+        io->io_Command = read_cmd;
+        io->io_Data = buffer;
+        io->io_Length = read_length;
+        io->io_Offset = (ULONG)position;
+        io->io_Actual = (ULONG)(position >> 32);
+
+        *bytes_issued += read_length;
+        error = DoIO((struct IORequest *)io);
+        end_rate = read_benchmark_clock(&end);
+        /* A zero rate selects GetSysTime's microsecond representation. */
+        if (end_rate != rate || end.ev_hi < start.ev_hi ||
+            (end.ev_hi == start.ev_hi && end.ev_lo < start.ev_lo)) {
+            timer_failed = TRUE;
+            break;
+        }
+        sample->elapsed_us = EClock_Diff_in_ms(&start, &end, rate);
+        if (error || io->io_Error || io->io_Actual != read_length) {
+            *read_failed = TRUE;
+            break;
+        }
+
+        sample->bytes_read += io->io_Actual;
+        sample->read_count++;
+        if (!sample->min_transfer || read_length < sample->min_transfer)
+            sample->min_transfer = read_length;
+        if (read_length > sample->max_transfer)
+            sample->max_transfer = read_length;
+    }
+
+    /* Take the final timestamp before any diagnostics. Include loop work
+     * between requests in this end-to-end device throughput measurement. */
+    end_rate = read_benchmark_clock(&end);
+    if (end_rate != rate || end.ev_hi < start.ev_hi ||
+        (end.ev_hi == start.ev_hi && end.ev_lo < start.ev_lo))
+        timer_failed = TRUE;
+    if (timer_failed) {
+        *read_failed = FALSE; /* Changing buffers cannot repair a timer. */
+        debug("  drives: Invalid timer interval during speed measurement\n");
+        return FALSE;
+    }
+    sample->elapsed_us = EClock_Diff_in_ms(&start, &end, rate);
+    if (*read_failed) {
+        uint64_t position = offset + sample->bytes_read;
+
+        debug("  drives: Read failed at $%08lx:%08lx, requested %lu "
+              "actual %lu, error %ld/%ld\n",
+              (ULONG)(position >> 32), (ULONG)position,
+              read_length, (ULONG)io->io_Actual,
+              (LONG)error, (LONG)io->io_Error);
+        return FALSE;
+    }
+    if (!sample->elapsed_us || !sample->bytes_read) {
+        debug("  drives: No measurable read interval\n");
+        return FALSE;
+    }
+    speed = (uint64_t)sample->bytes_read * 1000000ULL / sample->elapsed_us;
+    sample->bytes_sec = speed > ULONG_MAX ? ULONG_MAX : (ULONG)speed;
+    return sample->bytes_sec != 0;
+}
+
+static ULONG summarize_drive_speed(DriveSpeedResults *results)
+{
+    ULONG speeds[DRIVE_SPEED_SAMPLES];
+    ULONG i, j, count = results->sample_count;
+
+    if (!count) return 0;
+    for (i = 0; i < count; i++) {
+        ULONG speed = results->samples[i].bytes_sec;
+        for (j = i; j && speeds[j - 1] > speed; j--)
+            speeds[j] = speeds[j - 1];
+        speeds[j] = speed;
+    }
+    results->min_bytes_sec = speeds[0];
+    results->max_bytes_sec = speeds[count - 1];
+    if (count & 1) return speeds[count / 2];
+    return (ULONG)(((uint64_t)speeds[count / 2 - 1] +
+                    speeds[count / 2]) / 2);
+}
+
+/* Measure sequential device reads; the GUI keeps just the median speed. */
 ULONG measure_drive_speed(ULONG index)
 {
     DriveInfo *drive;
@@ -1164,27 +1314,20 @@ ULONG measure_drive_speed(ULONG index)
     ULONG buffer_size = 0;
     ULONG block_size;
     ULONG total_read = 0;
-    ULONG E_Freq;
-    struct EClockVal start, end;
-    uint64_t elapsed;
+    uint64_t total_elapsed = 0;
     ULONG bytes_per_sec = 0;
     ULONG max_test_bytes;
-    ULONG target_us = 0;
-    ULONG max_us = 0;
-    ULONG min_reads = 1;
-    ULONG reads_done = 0;
-    ULONG read_length;
+    ULONG bytes_left;
+    ULONG wanted_samples;
+    ULONG i;
     ULONG used_buffer_flags = 0;
     UWORD read_cmd = CMD_READ;
     uint64_t read_offset_bytes = 0;
-    uint64_t offset64;
     BYTE error;
     BOOL is_floppy;
     BOOL read_failed = FALSE;
     BOOL safe_buffer_retry = FALSE;
     BOOL can_retry_safe_buffer = FALSE;
-
-    if (!benchmark_timer_available()) return 0;
 
     if (index >= (ULONG)drive_list.count) {
         debug("  drives: Invalid drive index %lu (count=%lu)\n",
@@ -1193,22 +1336,21 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     drive = &drive_list.drives[index];
+    drive->speed_measured = FALSE;
+    drive->speed_bytes_sec = 0;
+    memset(&drive->speed_results, 0, sizeof(drive->speed_results));
+    if (!benchmark_timer_available()) return 0;
 
     /* Check if we have device info */
     if (!drive->handler_name[0]) {
         debug("  drives: No handler name for speed test on %s\n",
               (LONG)drive->device_name);
-        /* Mark as measured with 0 speed so user sees it was attempted */
-        drive->speed_measured = TRUE;
-        drive->speed_bytes_sec = 0;
         return 0;
     }
 
     if (!drive_has_media_evidence(drive)) {
         debug("  drives: No media evidence for speed test on %s\n",
               (LONG)drive->device_name);
-        drive->speed_measured = FALSE;
-        drive->speed_bytes_sec = 0;
         return 0;
     }
 
@@ -1223,16 +1365,17 @@ ULONG measure_drive_speed(ULONG index)
         /* Read three complete logical tracks.  Besides giving the test more
          * data, this includes both a side change and a cylinder step on a
          * normal two-sided floppy. */
+        if (sectors_per_track > ULONG_MAX / block_size /
+                                DRIVE_SPEED_FLOPPY_TRACKS)
+            return 0;
         buffer_size = sectors_per_track * block_size;
         max_test_bytes = buffer_size * DRIVE_SPEED_FLOPPY_TRACKS;
+        wanted_samples = 1;
     } else {
         buffer_size = DRIVE_SPEED_HARD_CHUNK;
         max_test_bytes = DRIVE_SPEED_MAX_BYTES;
-        target_us = DRIVE_SPEED_TARGET_US;
-        max_us = DRIVE_SPEED_MAX_US;
-        min_reads = 2;
+        wanted_samples = DRIVE_SPEED_SAMPLES;
     }
-    if (block_size == 0) block_size = 512;
     if (buffer_size < block_size) buffer_size = block_size;
     buffer_size = align_drive_transfer(buffer_size, block_size);
     if (buffer_size < block_size) buffer_size = block_size;
@@ -1245,13 +1388,20 @@ ULONG measure_drive_speed(ULONG index)
             debug("  drives: Capping speed read size to MaxTransfer %lu\n",
                   (ULONG)buffer_size);
         } else {
-            debug("  drives: Ignoring MaxTransfer %lu smaller than block %lu\n",
+            debug("  drives: MaxTransfer %lu is smaller than block %lu\n",
                   (ULONG)drive->max_transfer, (ULONG)block_size);
+            return 0;
         }
     }
-    if (max_test_bytes < buffer_size) {
-        max_test_bytes = buffer_size;
+    if (!drive_speed_range(drive, block_size, &read_offset_bytes,
+                           &max_test_bytes)) {
+        debug("  drives: Invalid speed-test address range\n");
+        return 0;
     }
+    if (buffer_size > max_test_bytes) buffer_size = max_test_bytes;
+    if (wanted_samples > max_test_bytes / block_size)
+        wanted_samples = max_test_bytes / block_size;
+    bytes_left = max_test_bytes;
 
     /* Create message port */
     port = (struct MsgPort *)CreatePort(NULL, 0);
@@ -1285,13 +1435,15 @@ retry_speed_test:
         buffer = NULL;
     }
     total_read = 0;
-    elapsed = 0;
     bytes_per_sec = 0;
-    reads_done = 0;
     read_failed = FALSE;
     read_cmd = CMD_READ;
     can_retry_safe_buffer = FALSE;
     used_buffer_flags = 0;
+    memset(&drive->speed_results, 0, sizeof(drive->speed_results));
+    /* Keep whole-run budgets across the one permitted buffer retry. */
+    if (bytes_left < block_size || total_elapsed >= DRIVE_SPEED_TOTAL_US)
+        goto cleanup;
 
     buffer = alloc_drive_speed_buffer(drive, buffer_size, safe_buffer_retry,
                                       &can_retry_safe_buffer,
@@ -1301,18 +1453,9 @@ retry_speed_test:
         goto cleanup;
     }
 
-    /* Calculate read offset - start from low cylinder */
-    if (drive->surfaces && drive->sectors_per_track) {
-        read_offset_bytes = (uint64_t)drive->low_cylinder *
-                            (uint64_t)drive->surfaces *
-                            (uint64_t)drive->sectors_per_track *
-                            (uint64_t)block_size;
-        if (block_size > 1 && read_offset_bytes > 0) {
-            read_offset_bytes -= read_offset_bytes % block_size;
-        }
-    } else {
-        debug("  drives: Missing geometry, defaulting read offset to 0\n");
-    }
+    if (!drive_speed_range(drive, block_size, &read_offset_bytes,
+                           &max_test_bytes))
+        goto cleanup;
 
     /* CMD_READ takes a 32-bit byte offset; partitions starting beyond
      * 4 GB need one of the 64-bit read commands */
@@ -1329,7 +1472,8 @@ retry_speed_test:
     debug("  drives: Speed test on %s unit %ld, cmd %s, chunk %lu max %lu target %lu us flags $%08lx at offset %lu MB ($%08lx:%08lx)\n",
           (LONG)drive->handler_name, (LONG)drive->unit_number,
           (LONG)drive_read_cmd_name(read_cmd),
-          (ULONG)buffer_size, (ULONG)max_test_bytes, (ULONG)target_us,
+          (ULONG)buffer_size, (ULONG)max_test_bytes,
+          is_floppy ? 0UL : DRIVE_SPEED_TARGET_US,
           (ULONG)used_buffer_flags,
           (ULONG)(read_offset_bytes >> 20),
           (ULONG)(read_offset_bytes >> 32), (ULONG)read_offset_bytes);
@@ -1362,6 +1506,7 @@ retry_speed_test:
             debug("  drives: 64-bit read probe failed, reading at offset 0 instead\n");
             read_cmd = CMD_READ;
             read_offset_bytes = 0;
+            drive->speed_results.offset_fallback = TRUE;
         }
     }
 
@@ -1378,99 +1523,62 @@ retry_speed_test:
         }
     }
 
-    E_Freq = read_benchmark_clock(&start);
+    drive->speed_results.buffer_flags = used_buffer_flags;
+    drive->speed_results.buffer_type = TypeOfMem(buffer);
+    drive->speed_results.read_command = read_cmd;
+    drive->speed_results.safe_buffer_retry = safe_buffer_retry;
 
-    /* Perform reads */
-    while (TRUE) {
-        if (is_floppy) {
-            if (total_read >= max_test_bytes) {
-                break;
-            }
-        } else {
-            if (elapsed >= max_us && reads_done > 0) {
-                break;
-            }
-            if (reads_done >= min_reads && elapsed >= target_us) {
-                break;
-            }
-            if (total_read >= max_test_bytes) {
-                break;
-            }
-        }
+    for (i = 0; i < wanted_samples; i++) {
+        DriveSpeedSample *sample = &drive->speed_results.samples[i];
+        ULONG sample_bytes, sample_us, issued;
+        BOOL valid;
 
-        read_length = buffer_size;
-        if (!is_floppy && read_length > DRIVE_SPEED_FIRST_CHUNK &&
-            (reads_done == 0 || elapsed > target_us / 4)) {
-            read_length = DRIVE_SPEED_FIRST_CHUNK;
-        }
-        if (read_length > max_test_bytes - total_read) {
-            read_length = max_test_bytes - total_read;
-        }
-        read_length = align_drive_transfer(read_length, block_size);
-        if (read_length < block_size) {
+        if (bytes_left < block_size || total_elapsed >= DRIVE_SPEED_TOTAL_US)
             break;
+        /* Reserve a share of the remaining range for each later sample.
+         * Start the next sample immediately after the last successful read. */
+        sample_bytes = (max_test_bytes - total_read) / (wanted_samples - i);
+        if (sample_bytes > bytes_left) sample_bytes = bytes_left;
+        sample_bytes = align_drive_transfer(sample_bytes, block_size);
+        if (sample_bytes < block_size) break;
+        sample_us = DRIVE_SPEED_TOTAL_US - (ULONG)total_elapsed;
+        if (sample_us > DRIVE_SPEED_MAX_US) sample_us = DRIVE_SPEED_MAX_US;
+
+        valid = measure_drive_sample(io, buffer, buffer_size, block_size,
+                                     read_cmd, read_offset_bytes + total_read,
+                                     sample_bytes, sample_us, is_floppy,
+                                     sample, &read_failed, &issued);
+        bytes_left -= issued;
+        total_elapsed += sample->elapsed_us;
+        if (!valid) {
+            if (read_failed && can_retry_safe_buffer && !safe_buffer_retry) {
+                debug("  drives: Read failed, restarting with safe buffer\n");
+                safe_buffer_retry = TRUE;
+                goto retry_speed_test;
+            }
+            goto cleanup;
         }
-
-        offset64 = read_offset_bytes + (uint64_t)total_read;
-
-        io->io_Command = read_cmd;
-        io->io_Data = buffer;
-        io->io_Length = read_length;
-        io->io_Offset = (ULONG)offset64;
-        /* High 32 offset bits for the 64-bit read commands; CMD_READ
-         * ignores io_Actual on input and the offset fits 32 bits then */
-        io->io_Actual = (ULONG)(offset64 >> 32);
-
-        error = DoIO((struct IORequest *)io);
-        debug("  drives: Read %ld cmd %s offset $%08lx:%08lx len %lu error %ld io_Error %ld actual %lu\n",
-              (LONG)(reads_done + 1),
-              (LONG)drive_read_cmd_name(read_cmd),
-              (ULONG)(offset64 >> 32), (ULONG)offset64,
-              (ULONG)read_length, (LONG)error, (LONG)io->io_Error,
-              (ULONG)io->io_Actual);
-        if (error != 0 || io->io_Error != 0) {
-            debug("  drives: Read error %ld/%ld at iteration %ld\n",
-                  (LONG)error, (LONG)io->io_Error, (LONG)reads_done);
-            read_failed = TRUE;
-            break;
-        }
-        if (io->io_Actual != read_length) {
-            debug("  drives: Short read at iteration %ld: expected %lu got %lu\n",
-                  (LONG)reads_done, (ULONG)read_length,
-                  (ULONG)io->io_Actual);
-            read_failed = TRUE;
-            break;
-        }
-        total_read += io->io_Actual;
-        reads_done++;
-
-        E_Freq = read_benchmark_clock(&end);
-        elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
+        total_read += sample->bytes_read;
+        drive->speed_results.sample_count++;
     }
 
-    E_Freq = read_benchmark_clock(&end);
+    bytes_per_sec = summarize_drive_speed(&drive->speed_results);
+    drive->speed_bytes_sec = bytes_per_sec;
+    drive->speed_measured = bytes_per_sec != 0;
+    for (i = 0; i < drive->speed_results.sample_count; i++) {
+        const DriveSpeedSample *sample = &drive->speed_results.samples[i];
 
-    /* Calculate speed */
-    elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
-
-    if (read_failed && can_retry_safe_buffer && !safe_buffer_retry) {
-        debug("  drives: Read failed, retrying with safe buffer\n");
-        safe_buffer_retry = TRUE;
-        goto retry_speed_test;
+        debug("  drives: Sample %lu at $%08lx:%08lx: %lu bytes in %lu us, "
+              "%lu reads of %lu..%lu bytes = %lu B/s\n",
+              i + 1, (ULONG)(sample->offset >> 32), (ULONG)sample->offset,
+              sample->bytes_read, sample->elapsed_us, sample->read_count,
+              sample->min_transfer, sample->max_transfer, sample->bytes_sec);
     }
-
-    if (!read_failed && elapsed > 0 && total_read > 0) {
-        /* Timer ticks are in microseconds */
-        bytes_per_sec = (ULONG)(((uint64_t)total_read * 1000000ULL) / elapsed);
-        drive->speed_bytes_sec = bytes_per_sec;
-        drive->speed_measured = TRUE;
-    } else {
-        drive->speed_bytes_sec = 0;
-        drive->speed_measured = FALSE;
-    }
-
-    debug("  drives: Read %ld bytes in %ld us = %ld bytes/sec\n",
-          (LONG)total_read, (LONG)elapsed, (LONG)bytes_per_sec);
+    debug("  drives: Median %lu B/s, range %lu..%lu B/s, %lu samples; "
+          "buffer type $%08lx, requested $%08lx\n",
+          bytes_per_sec, drive->speed_results.min_bytes_sec,
+          drive->speed_results.max_bytes_sec, drive->speed_results.sample_count,
+          drive->speed_results.buffer_type, used_buffer_flags);
 
 cleanup:
     if (buffer) FreeMem(buffer, buffer_size);
@@ -1496,10 +1604,9 @@ cleanup:
     if (io) DeleteExtIO((struct IORequest *)io);
     if (port) DeletePort(port);
 
-    if (!device_opened) {
-        /* If we failed to open or allocate, ensure marked as failed */
-        drive->speed_measured = FALSE;
-        drive->speed_bytes_sec = 0;
+    if (!drive->speed_measured) {
+        /* Never publish partial samples or leave stale results after failure. */
+        memset(&drive->speed_results, 0, sizeof(drive->speed_results));
     }
 
     return bytes_per_sec;

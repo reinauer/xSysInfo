@@ -701,6 +701,49 @@ void export_boards(BPTR fh)
 /*
  * Export drives information
  */
+static void export_drive_speed(BPTR fh, const DriveSpeedResults *results,
+                               ULONG bytes_sec)
+{
+    ULONG i;
+    const char *memory_type = (results->buffer_type & MEMF_CHIP) ? "Chip RAM" :
+                             (results->buffer_type & MEMF_FAST) ? "Fast RAM" :
+                             "Unknown";
+
+    write_formatted(fh, "  Speed test:  Sequential device reads, %lu sample(s)",
+                    (unsigned long)results->sample_count);
+    if (results->sample_count > 1) {
+        write_formatted(fh, "  Statistic:   Median %lu B/s; consecutive ranges, caches unchanged",
+                        (unsigned long)bytes_sec);
+        write_formatted(fh, "  Range:       %lu..%lu B/s",
+                        (unsigned long)results->min_bytes_sec,
+                        (unsigned long)results->max_bytes_sec);
+    }
+    write_formatted(fh, "  Read command: %s",
+                    drive_read_cmd_name(results->read_command));
+    write_formatted(fh, "  Read buffer: %s, type $%08lX, requested $%08lX",
+                    memory_type, (unsigned long)results->buffer_type,
+                    (unsigned long)results->buffer_flags);
+    if (results->safe_buffer_retry)
+        WRITE_LINE(fh, "  Buffer retry: Restarted with Chip RAM after a read failure");
+    if (results->offset_fallback)
+        WRITE_LINE(fh, "  Read offset: Fell back to device start; 64-bit read failed");
+
+    for (i = 0; i < results->sample_count; i++) {
+        const DriveSpeedSample *s = &results->samples[i];
+
+        write_formatted(fh, "  Sample %lu:   %lu B/s, %lu bytes in %lu us",
+                        (unsigned long)(i + 1), (unsigned long)s->bytes_sec,
+                        (unsigned long)s->bytes_read,
+                        (unsigned long)s->elapsed_us);
+        write_formatted(fh, "    Offset:    $%08lX:%08lX, %lu reads of %lu..%lu bytes",
+                        (unsigned long)(s->offset >> 32),
+                        (unsigned long)s->offset,
+                        (unsigned long)s->read_count,
+                        (unsigned long)s->min_transfer,
+                        (unsigned long)s->max_transfer);
+    }
+}
+
 void export_drives(BPTR fh)
 {
     ULONG i;
@@ -756,6 +799,8 @@ void export_drives(BPTR fh)
         write_formatted(fh, "  Buffers:     %lu",
                         (unsigned long)d->num_buffers);
         write_formatted(fh, "  Speed:       %s", speed_buffer);
+        if (d->speed_measured && d->speed_results.sample_count)
+            export_drive_speed(fh, &d->speed_results, d->speed_bytes_sec);
 
         WRITE_LINE(fh, "");
     }

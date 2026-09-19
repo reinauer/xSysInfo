@@ -224,6 +224,7 @@ $(BENCH_OBJS): CFLAGS += -O2
 $(DHRY_OBJS): CFLAGS += -falign-functions=16 -falign-loops=16 -fno-lto
 $(DHRY_OBJS): src/dhry.h Makefile
 src/benchmark.o: src/dhry.h
+src/drives.o src/print.o src/main.o src/gui.o: src/drives.h
 
 $(ASM_OBJS): src/%.o: src/%.S
 	@echo "  ASM   $@"

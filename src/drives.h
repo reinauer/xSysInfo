@@ -9,9 +9,34 @@
 #define DRIVES_H
 
 #include "xsysinfo.h"
+#include <stdint.h>
 
 /* Maximum drives we'll track */
 #define MAX_DRIVES  32
+#define DRIVE_SPEED_SAMPLES 3
+
+/* Completed sequential device-read measurements, in read order. */
+typedef struct {
+    uint64_t offset;
+    ULONG bytes_read;
+    ULONG elapsed_us;
+    ULONG read_count;
+    ULONG min_transfer;
+    ULONG max_transfer;
+    ULONG bytes_sec;
+} DriveSpeedSample;
+
+typedef struct {
+    DriveSpeedSample samples[DRIVE_SPEED_SAMPLES];
+    ULONG sample_count;
+    ULONG min_bytes_sec;
+    ULONG max_bytes_sec;
+    ULONG buffer_flags;         /* Allocation requirements */
+    ULONG buffer_type;          /* Actual TypeOfMem result */
+    UWORD read_command;
+    BOOL safe_buffer_retry;
+    BOOL offset_fallback;
+} DriveSpeedResults;
 
 /* Disk state */
 typedef enum {
@@ -70,6 +95,7 @@ typedef struct {
     BOOL has_max_transfer;
     BOOL has_address_mask;
     ULONG speed_bytes_sec;      /* 0 = not measured */
+    DriveSpeedResults speed_results;
     ULONG disk_errors;
     BOOL speed_measured;
     BOOL scsi_supported;        /* TRUE if device supports SCSI direct commands */
@@ -101,5 +127,6 @@ void format_filesystem_display(const DriveInfo *drive, char *buffer,
 const char *get_disk_state_string(DiskState state);
 const char *get_filesystem_string(FilesystemType fs);
 FilesystemType identify_filesystem(ULONG dos_type);
+const char *drive_read_cmd_name(UWORD command);
 
 #endif /* DRIVES_H */
