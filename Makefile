@@ -79,6 +79,8 @@ STACK_CFLAGS = $(filter-out -flto%,$(CFLAGS)) -fno-lto
 OBJS = $(SRCS:.c=.o)
 
 BENCH_OBJS = src/benchmark.o src/dhry_1.o src/dhry_2.o
+DHRY_OBJS = src/dhry_1.o src/dhry_2.o
+DHRY_LINK_SCRIPT = src/dhrystone.ld
 
 ASM_OBJS = $(ASM_SRCS:.S=.o)
 
@@ -194,9 +196,9 @@ lha: $(TARGET) TinySetPatch catalogs xSysInfo.readme
 	@rm -rf $(LHA_DIR) $(LHA_DIR).info
 	@echo "Created $(LHA_NAME)"
 
-$(TARGET): $(OBJS) $(ASM_OBJS)
+$(TARGET): $(OBJS) $(ASM_OBJS) $(DHRY_LINK_SCRIPT)
 	@echo "  LINK  $@"
-	@$(CC) $(LDFLAGS) -o $@ $(OBJS) $(ASM_OBJS) $(LIBS)
+	@$(CC) $(LDFLAGS) -Wl,-T,$(DHRY_LINK_SCRIPT) -o $@ $(OBJS) $(ASM_OBJS) $(LIBS)
 	@echo "  STRIP $@"
 	@$(STRIP) $@
 	@wc -c < "$@" | awk '{printf "$@ successfully compiled (%s bytes)\n", $$1}'
@@ -217,6 +219,11 @@ $(OBJS): src/%.o: src/%.c src/xsysinfo.h $(IDENTIFY_HEADERS) $(MMU_HEADERS)
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
 $(BENCH_OBJS): CFLAGS += -O2
+
+# Keep Dhrystone's cache-line layout independent of unrelated code changes.
+$(DHRY_OBJS): CFLAGS += -falign-functions=16 -falign-loops=16 -fno-lto
+$(DHRY_OBJS): src/dhry.h Makefile
+src/benchmark.o: src/dhry.h
 
 $(ASM_OBJS): src/%.o: src/%.S
 	@echo "  ASM   $@"

@@ -22,6 +22,7 @@
 #include "hardware.h"
 #include "debug.h"
 #include "cpu.h"
+#include "dhry.h"
 #include "locale_str.h"
 
 extern struct ExecBase *SysBase;
@@ -75,10 +76,6 @@ static BOOL etimer_open = FALSE;
 
 /* External references */
 extern HardwareInfo hw_info;
-
-/* Dhrystone implementation (from original source) */
-int Dhry_Initialize(void);
-void Dhry_Run(unsigned long Number_Of_Runs);
 
 /*
  * Initialize timer for benchmarking
@@ -753,9 +750,15 @@ void wait_ticks(ULONG ticks)
     DoIO((struct IORequest *)timer_req);
 }
 
-/*
- * Run the original Dhrystone 2.1 benchmark
- */
+/* Report loaded placement outside the timed benchmark. */
+static void debug_dhrystone_location(const char *name, APTR address)
+{
+    debug("  bench: %s at $%08lx, offset %lu/16, memory flags $%08lx\n",
+          (ULONG)name, (ULONG)address, (ULONG)address & 15UL,
+          TypeOfMem(address));
+}
+
+/* Run the original Dhrystone 2.1 benchmark. */
 ULONG run_dhrystone(void)
 {
     const ULONG default_loops = 1000UL;
@@ -769,6 +772,17 @@ ULONG run_dhrystone(void)
     int attempt;
 
     if (!benchmark_timer_available()) return 0;
+
+    if (g_debug_enabled) {
+        debug_dhrystone_location("Dhry_Run", (APTR)Dhry_Run);
+        debug_dhrystone_location("Proc_1", (APTR)Proc_1);
+        debug_dhrystone_location("Proc_6", (APTR)Proc_6);
+        debug_dhrystone_location("Func_2", (APTR)Func_2);
+        debug("  bench: Dhrystone I-cache %lu, D-cache %lu, "
+              "I-burst %lu, D-burst %lu\n",
+              (ULONG)hw_info.icache_enabled, (ULONG)hw_info.dcache_enabled,
+              (ULONG)hw_info.iburst_enabled, (ULONG)hw_info.dburst_enabled);
+    }
 
     for (attempt = 0; attempt < max_attempts; attempt++) {
         if (!Dhry_Initialize()) {
