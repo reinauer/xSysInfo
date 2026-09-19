@@ -1172,7 +1172,7 @@ static void format_cpu_value(char *buffer, size_t size)
     if (hw_info.cpu_mhz > 0)
         format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, FALSE);
     else
-        mhz_buf[0] = 0;
+        copy_string(mhz_buf, get_string(MSG_NA), sizeof(mhz_buf));
 
     if (hw_info.cpu_revision[0] != '\0' &&
         strcmp(hw_info.cpu_revision, "N/A") != 0) {

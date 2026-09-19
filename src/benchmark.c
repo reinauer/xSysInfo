@@ -254,11 +254,19 @@ static BOOL frequency_eclock_available(void)
 }
 
 /* Keep the sampling support small; the timed loops are explicit assembly. */
+typedef struct {
+    const char *reason;
+    ULONG expected_rate, first_rate, last_rate;
+    struct EClockVal start, end;
+} FrequencyFailure;
+
 static ULONG __attribute__((optimize("Os")))
-frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency)
+frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
+                 FrequencyFailure *failure)
 {
     struct EClockVal start, end;
     ULONG first_rate, last_rate;
+    const char *reason = NULL;
 
     Disable();
     first_rate = ReadEClock(&start);
@@ -284,10 +292,27 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency)
     last_rate = ReadEClock(&end);
     Enable();
 
-    if (!first_rate || first_rate != last_rate ||
-        (*frequency && first_rate != *frequency) ||
-        end.ev_hi != start.ev_hi + (end.ev_lo < start.ev_lo))
+    if (!first_rate)
+        reason = "zero EClock frequency";
+    else if (first_rate != last_rate ||
+             (*frequency && first_rate != *frequency))
+        reason = "EClock frequency changed";
+    else if (end.ev_hi != start.ev_hi + (end.ev_lo < start.ev_lo))
+        reason = "invalid EClock interval";
+    else if (end.ev_lo == start.ev_lo)
+        reason = "EClock did not advance";
+    if (reason) {
+        /* Preserve the first failed sample; print only after Permit(). */
+        if (!failure->reason) {
+            failure->reason = reason;
+            failure->expected_rate = *frequency;
+            failure->first_rate = first_rate;
+            failure->last_rate = last_rate;
+            failure->start = start;
+            failure->end = end;
+        }
         return 0;
+    }
     *frequency = first_rate;
     return end.ev_lo - start.ev_lo;
 }
@@ -300,14 +325,17 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency)
  * Sum E-clock ticks before conversion to avoid rounding each sample.
  */
 static ULONG __attribute__((optimize("Os")))
-frequency_loop_time(ULONG reference_loops, BOOL fpu)
+frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
 {
     const ULONG samples = 64;
     const ULONG short_loops = fpu ? 2 : 16;
     ULONG loops = short_loops;
-    ULONG frequency = 0, ticks, shorter, total = 0, result = 0, i = 0;
+    ULONG frequency = 0, ticks = 0, shorter = 0, total = 0, result = 0, i = 0;
     ULONG short_total = 0, long_total = 0, low = ~0UL, high = 0;
-    ULONG loop_total = 0, sample_loops;
+    ULONG loop_total = 0, sample_loops = 0;
+    FrequencyFailure failure = {0};
+    const char *reason = NULL;
+    BOOL measuring = FALSE;
 
     Forbid();
     /* Double until the measured interval reaches 100 us. Only the loop
@@ -315,17 +343,22 @@ frequency_loop_time(ULONG reference_loops, BOOL fpu)
      * 200 us including the extra timer read outside the measured interval.
      * Start small so calibration itself also releases interrupts often. */
     for (;;) {
-        ticks = frequency_sample(loops, fpu, &frequency);
+        ticks = frequency_sample(loops, fpu, &frequency, &failure);
         if (!ticks)
             goto done;
         if (ticks >= frequency / 10000)
             break;
-        if (loops >= 65536)
+        if (loops >= 65536) {
+            reason = "calibration loop limit";
             goto done;
+        }
         loops *= 2;
     }
-    if (loops == short_loops)
+    if (loops == short_loops) {
+        reason = "timer overhead leaves no loop interval";
         goto done;
+    }
+    measuring = TRUE;
     for (i = 0; i < samples; i++) {
         /* Vary the long count downward to avoid repeatedly sampling at
          * the same E-clock phase. Each adjacent AB/BA pair uses the same
@@ -334,14 +367,22 @@ frequency_loop_time(ULONG reference_loops, BOOL fpu)
         /* Balance sample order so the long loop does not always benefit
          * from the preceding short loop warming the timer/cache paths. */
         if (i & 1) {
-            ticks = frequency_sample(sample_loops, fpu, &frequency);
-            shorter = frequency_sample(short_loops, fpu, &frequency);
+            ticks = frequency_sample(sample_loops, fpu, &frequency, &failure);
+            shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
         } else {
-            shorter = frequency_sample(short_loops, fpu, &frequency);
-            ticks = frequency_sample(sample_loops, fpu, &frequency);
+            shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
+            ticks = frequency_sample(sample_loops, fpu, &frequency, &failure);
         }
-        if (!shorter || ticks <= shorter || ticks > frequency / 5000)
+        if (failure.reason)
             goto done;
+        if (ticks <= shorter) {
+            reason = "long sample not longer than short sample";
+            goto done;
+        }
+        if (ticks > frequency / 5000) {
+            reason = "sample exceeds 200 us";
+            goto done;
+        }
         short_total += shorter;
         long_total += ticks;
         if (ticks - shorter < low) low = ticks - shorter;
@@ -351,6 +392,8 @@ frequency_loop_time(ULONG reference_loops, BOOL fpu)
     }
     result = (uint64_t)total * reference_loops * 1000000 /
              ((uint64_t)loop_total * frequency);
+    if (!result)
+        reason = "loop interval rounds to zero";
 done:
     Permit();
     debug("    clock %s: %lu short, %lu..%lu long, %lu pairs, EClock %lu Hz\n",
@@ -358,7 +401,36 @@ done:
           loops - 3 * (loops / 16), loops, i, frequency);
     debug("      ticks short/long: %lu/%lu, delta range %lu..%lu\n",
           short_total, long_total, i ? low : 0, high);
+    if (!result) {
+        debug("      attempt %lu/3 rejected at %s %lu: %s\n", attempt,
+              (ULONG)(!measuring ? "calibration" :
+                      i < samples ? "pair" : "conversion"),
+              measuring && i < samples ? i + 1 : 0,
+              (ULONG)(failure.reason ? failure.reason : reason));
+        debug("      loops short/long: %lu/%lu, ticks short/long: %lu/%lu\n",
+              short_loops, measuring ? sample_loops : loops, shorter, ticks);
+        if (failure.reason)
+            debug("      EClock Hz expected/start/end: %lu/%lu/%lu; "
+                  "ticks %08lx:%08lx -> %08lx:%08lx\n",
+                  failure.expected_rate, failure.first_rate, failure.last_rate,
+                  failure.start.ev_hi, failure.start.ev_lo,
+                  failure.end.ev_hi, failure.end.ev_lo);
+    }
     return result;
+}
+
+static ULONG frequency_loop_time(ULONG reference_loops, BOOL fpu)
+{
+    ULONG attempt, result;
+
+    /* Retry whole batches, including calibration, to avoid selecting only
+     * favourable pairs. Each attempt restores scheduling and interrupts. */
+    for (attempt = 1; attempt <= 3; attempt++) {
+        result = frequency_loop_time_once(reference_loops, fpu, attempt);
+        if (result)
+            return result;
+    }
+    return 0;
 }
 
 /*
@@ -542,11 +614,7 @@ ULONG get_mhz_fpu(void)
     case CPU_68040:
     case CPU_68060:
     case CPU_68080:
-        // cpu-frequency available?
-        if (hw_info.cpu_mhz == 0)
-        {
-            get_mhz_cpu(); // recalc
-        }
+        /* The integrated FPU shares the CPU result, including failure. */
         return hw_info.cpu_mhz;
     default:
         break;
@@ -1035,10 +1103,44 @@ void run_memory_speed_tests(void)
         (volatile ULONG *)0xF80000, buffer_size, iterations);
 }
 
+static ULONG cpu_frequency_config(void)
+{
+    refresh_cache_status();
+    return ((ULONG)hw_info.cpu_type << 8) |
+           (!!hw_info.icache_enabled << 0) |
+           (!!hw_info.dcache_enabled << 1) |
+           (!!hw_info.iburst_enabled << 2) |
+           (!!hw_info.dburst_enabled << 3) |
+           (!!hw_info.copyback_enabled << 4) |
+           (!!hw_info.super_scalar_enabled << 5) |
+           (!!hw_info.mmu_enabled << 6) |
+           (frequency_eclock_available() << 7);
+}
+
 void measure_processor_frequencies(void)
 {
+    static ULONG previous_config, previous_mhz;
+    ULONG config = cpu_frequency_config();
+    ULONG mhz;
+
     debug("  bench: calc cpu frequency...\n");
-    hw_info.cpu_mhz = get_mhz_cpu();
+    mhz = get_mhz_cpu();
+    if (cpu_frequency_config() != config) {
+        /* A setting changed during the measurement; neither result applies. */
+        mhz = previous_mhz = 0;
+        debug("    cpu_mhz: configuration changed during measurement\n");
+    } else if (mhz) {
+        previous_config = config;
+        previous_mhz = mhz;
+    } else if (previous_mhz && previous_config == config) {
+        mhz = previous_mhz;
+        debug("    cpu_mhz: retaining %lu MHz/100, configuration $%08lx\n",
+              mhz, config);
+    } else {
+        previous_mhz = 0;
+        debug("    cpu_mhz: unavailable, no matching previous reading\n");
+    }
+    hw_info.cpu_mhz = mhz;
     debug("  bench: calc fpu frequency...\n");
     hw_info.fpu_mhz = hw_info.fpu_enabled ? get_mhz_fpu() : 0;
 }
