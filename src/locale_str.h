@@ -318,6 +318,8 @@ typedef enum {
     MSG_RTC_DATE,
     MSG_RTC_TIME,
     MSG_NCR_53C770,
+    MSG_BTN_ON,
+    MSG_BTN_OFF,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

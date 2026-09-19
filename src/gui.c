@@ -379,33 +379,33 @@ void main_view_update_buttons(void)
         /* Inline cache toggle buttons in hardware panel. */
         snprintf(icache_label, sizeof(icache_label), "%s",
                  hw_info.has_icache ?
-                     (hw_info.icache_enabled ? get_string(MSG_ON) :
-                                               get_string(MSG_OFF)) :
+                     (hw_info.icache_enabled ? get_string(MSG_BTN_ON) :
+                                               get_string(MSG_BTN_OFF)) :
                      get_string(MSG_NA));
         snprintf(dcache_label, sizeof(dcache_label), "%s",
                  hw_info.has_dcache ?
-                     (hw_info.dcache_enabled ? get_string(MSG_ON) :
-                                               get_string(MSG_OFF)) :
+                     (hw_info.dcache_enabled ? get_string(MSG_BTN_ON) :
+                                               get_string(MSG_BTN_OFF)) :
                      get_string(MSG_NA));
         snprintf(iburst_label, sizeof(iburst_label), "%s",
                  hw_info.has_iburst ?
-                     (hw_info.iburst_enabled ? get_string(MSG_ON) :
-                                               get_string(MSG_OFF)) :
+                     (hw_info.iburst_enabled ? get_string(MSG_BTN_ON) :
+                                               get_string(MSG_BTN_OFF)) :
                      get_string(MSG_NA));
         snprintf(dburst_label, sizeof(dburst_label), "%s",
                  hw_info.has_dburst ?
-                     (hw_info.dburst_enabled ? get_string(MSG_ON) :
-                                               get_string(MSG_OFF)) :
+                     (hw_info.dburst_enabled ? get_string(MSG_BTN_ON) :
+                                               get_string(MSG_BTN_OFF)) :
                      get_string(MSG_NA));
         snprintf(cback_label, sizeof(cback_label), "%s",
                  hw_info.has_copyback ?
-                     (hw_info.copyback_enabled ? get_string(MSG_ON) :
-                                                 get_string(MSG_OFF)) :
+                     (hw_info.copyback_enabled ? get_string(MSG_BTN_ON) :
+                                                 get_string(MSG_BTN_OFF)) :
                      get_string(MSG_NA));
         snprintf(super_scalar_label, sizeof(super_scalar_label), "%s",
                  hw_info.has_super_scalar ?
-                     (hw_info.super_scalar_enabled ? get_string(MSG_ON) :
-                                                     get_string(MSG_OFF)) :
+                     (hw_info.super_scalar_enabled ? get_string(MSG_BTN_ON) :
+                                                     get_string(MSG_BTN_OFF)) :
                      get_string(MSG_NA));
 
         add_button(CACHE_BTN_X, CACHE_ROW_Y0, CACHE_BTN_W, CACHE_BTN_H,
@@ -2490,27 +2490,27 @@ static void refresh_all_cache_buttons(void)
     /* Update all labels based on current state */
     snprintf(icache_label, sizeof(icache_label), "%s",
              hw_info.has_icache ?
-                 (hw_info.icache_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 (hw_info.icache_enabled ? get_string(MSG_BTN_ON) : get_string(MSG_BTN_OFF)) :
                  get_string(MSG_NA));
     snprintf(dcache_label, sizeof(dcache_label), "%s",
              hw_info.has_dcache ?
-                 (hw_info.dcache_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 (hw_info.dcache_enabled ? get_string(MSG_BTN_ON) : get_string(MSG_BTN_OFF)) :
                  get_string(MSG_NA));
     snprintf(iburst_label, sizeof(iburst_label), "%s",
              hw_info.has_iburst ?
-                 (hw_info.iburst_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 (hw_info.iburst_enabled ? get_string(MSG_BTN_ON) : get_string(MSG_BTN_OFF)) :
                  get_string(MSG_NA));
     snprintf(dburst_label, sizeof(dburst_label), "%s",
              hw_info.has_dburst ?
-                 (hw_info.dburst_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 (hw_info.dburst_enabled ? get_string(MSG_BTN_ON) : get_string(MSG_BTN_OFF)) :
                  get_string(MSG_NA));
     snprintf(cback_label, sizeof(cback_label), "%s",
              hw_info.has_copyback ?
-                 (hw_info.copyback_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 (hw_info.copyback_enabled ? get_string(MSG_BTN_ON) : get_string(MSG_BTN_OFF)) :
                  get_string(MSG_NA));
     snprintf(super_scalar_label, sizeof(super_scalar_label), "%s",
              hw_info.has_super_scalar ?
-                 (hw_info.super_scalar_enabled ? get_string(MSG_ON) : get_string(MSG_OFF)) :
+                 (hw_info.super_scalar_enabled ? get_string(MSG_BTN_ON) : get_string(MSG_BTN_OFF)) :
                  get_string(MSG_NA));
 
     /* Update all button pressed states */

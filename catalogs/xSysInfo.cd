@@ -89,7 +89,7 @@ MSG_COMMENT (//)
 Comment
 ;
 MSG_HORIZ_KHZ (//)
-Horiz KHz
+Horiz kHz
 ;
 MSG_ECLOCK_HZ (//)
 EClock Hz
@@ -135,10 +135,10 @@ MSG_DHRYSTONES (//)
 Dhrystones
 ;
 MSG_MIPS (//)
-Mips
+MIPS
 ;
 MSG_MFLOPS (//)
-MFlops
+MFLOPS
 ;
 MSG_MEM_SPEED_UNIT (//)
 MB/s
@@ -336,31 +336,31 @@ MSG_NA (//)
 N/A
 ;
 MSG_NONE (//)
-NONE
+None
 ;
 MSG_UNKNOWN (//)
-UNKNOWN
+Unknown
 ;
 MSG_YES (//)
-YES
+Yes
 ;
 MSG_NO (//)
-NO
+No
 ;
 MSG_ON (//)
-ON
+On
 ;
 MSG_OFF (//)
-OFF
+Off
 ;
 MSG_IN_USE (//)
-IN USE
+In use
 ;
 MSG_CLOCK_FOUND (//)
-CLOCK FOUND
+Clock found
 ;
 MSG_CLOCK_NOT_FOUND (//)
-NOT FOUND
+Not found
 ;
 MSG_DISK_OK (//)
 Disk OK, Read/Write
@@ -385,47 +385,47 @@ PCMCIA
 ; Zorro types
 ;
 MSG_ZORRO_II (//)
-ZORRO II
+Zorro II
 ;
 MSG_ZORRO_III (//)
-ZORRO III
+Zorro III
 ;
 ; Memory types
 ;
 MSG_CHIP_RAM (//)
-CHIP RAM
+Chip RAM
 ;
 MSG_FAST_RAM (//)
-FAST RAM
+Fast RAM
 ;
 MSG_SLOW_RAM (//)
-SLOW RAM
+Slow RAM
 ;
 MSG_ROM (//)
 ROM
 ;
 MSG_24BIT_RAM (//)
-24BIT RAM
+24-bit RAM
 ;
 MSG_32BIT_RAM (//)
-32BIT RAM
+32-bit RAM
 ;
 MSG_MEM_SPEED_HEADER (//)
-CHIP  FAST  ROM
+Chip  Fast  ROM
 ;
 ; SCSI Types
 ;
 MSG_SCSI_TYPE_DISK (//)
-DISK
+Disk
 ;
 MSG_SCSI_TYPE_TAPE (//)
-TAPE
+Tape
 ;
 MSG_SCSI_TYPE_PRINTER (//)
-PRINTER
+Printer
 ;
 MSG_SCSI_TYPE_PROCESSOR (//)
-PROCESSOR
+Processor
 ;
 MSG_SCSI_TYPE_WORM (//)
 WORM
@@ -434,16 +434,16 @@ MSG_SCSI_TYPE_CDROM (//)
 CD
 ;
 MSG_SCSI_TYPE_SCANNER (//)
-SCANNER
+Scanner
 ;
 MSG_SCSI_TYPE_OPTICAL (//)
-OPTICAL
+Optical
 ;
 MSG_SCSI_TYPE_CHANGER (//)
-CHANGER
+Changer
 ;
 MSG_SCSI_TYPE_COMM (//)
-COMM
+Comm
 ;
 ; SCSI Versions
 ;
@@ -619,16 +619,16 @@ MSG_GARY_A1000 (//)
 A1000
 ;
 MSG_GARY_A500 (//)
-GARY
+Gary
 ;
 MSG_GAYLE (//)
-GAYLE
+Gayle
 ;
 MSG_FAT_GARY (//)
-FAT GARY
+Fat Gary
 ;
 MSG_GARY_UNKNOWN (//)
-UNKNOWN
+Unknown
 ;
 MSG_EXT_INFO (//)
 Extended info for A3000/4000
@@ -652,25 +652,25 @@ MSG_SYNC_TRANS (//)
 Sync
 ;
 MSG_FAST_SYNC (//)
-Fast Sync
+Fast sync
 ;
 MSG_QUEUING (//)
 Queuing
 ;
 MSG_SCSI_HOST_ID (//)
-SCSI_ID
+SCSI ID
 ;
 MSG_LONG (//)
-LONG
+Long
 ;
 MSG_SHORT (//)
-SHORT
+Short
 ;
 MSG_NCR_53C710 (//)
 NCR 53C710
 ;
 MSG_SDMAC (//)
-SDMAC
+Super DMAC
 ;
 MSG_MSM6242B (//)
 OKI MSM6242B
@@ -783,7 +783,7 @@ IND=Indirect +=more flags
 ; A1000 86-pin edge connector (predates Zorro II)
 ;
 MSG_SLOT_ZORRO (//)
-ZORRO
+Zorro
 ;
 MSG_SOFTWARE_OVERVIEW (//)
 OVERVIEW
@@ -837,4 +837,12 @@ RTC time
 ;
 MSG_NCR_53C770 (//)
 NCR 53C770
+;
+; Cache toggle button labels
+;
+MSG_BTN_ON (//)
+ON
+;
+MSG_BTN_OFF (//)
+OFF
 ;

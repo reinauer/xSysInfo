@@ -1257,7 +1257,7 @@ void format_sdmac_string(char *buffer, ULONG size)
     else if (hw_info.ncr_type == NCR_53C710)
         name = MSG_NCR_53C710;
 
-    snprintf(buffer, size, "%s REV %02X", get_string(name), hw_info.sdmac_rev);
+    snprintf(buffer, size, "%s rev %02X", get_string(name), hw_info.sdmac_rev);
 }
 
 

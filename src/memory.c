@@ -48,37 +48,37 @@ const char *get_memory_type_string(UWORD attrs, APTR addr)
     //strcat crashes on a 68000/010?!?!
     /* Check for specific memory regions */
     if (attrs & MEMF_CHIP) {
-        pos = snprintf(buffer, sizeof(buffer), "CHIP RAM");
+        pos = snprintf(buffer, sizeof(buffer), "Chip RAM");
     } else if (address >= 0xC00000 && address < 0xD80000 &&
                hw_info.gary_type != GARY_A1000) {
         /* Ranger/Slow RAM area. Skip on A1000: there is no motherboard
          * Ranger option, so memory in this window must be coming over
          * the CPU expansion (e.g. Spirit Inboard 1000) and is actually
          * CPU-side fast RAM. */
-        pos = snprintf(buffer, sizeof(buffer), "SLOW RAM");
+        pos = snprintf(buffer, sizeof(buffer), "Slow RAM");
     } else if (attrs & MEMF_FAST) {
         /* The DMA24 flag below already implies a 24-bit address; avoid
          * two different 24-bit hints in one line (issue #26) */
         if (attrs & MEMF_24BITDMA) {
-            pos = snprintf(buffer, sizeof(buffer), "FAST RAM");
+            pos = snprintf(buffer, sizeof(buffer), "Fast RAM");
         } else if (address < 0x01000000) {
-            pos = snprintf(buffer, sizeof(buffer), "FAST RAM (24bit)");
+            pos = snprintf(buffer, sizeof(buffer), "Fast RAM (24-bit)");
         } else {
-            pos = snprintf(buffer, sizeof(buffer), "FAST RAM (32bit)");
+            pos = snprintf(buffer, sizeof(buffer), "Fast RAM (32-bit)");
         }
     } else {
         pos = snprintf(buffer, sizeof(buffer), "RAM");
     }
 
     if (attrs & MEMF_LOCAL) {
-        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", LOCAL");
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", Local");
     }
 
     if (attrs & MEMF_PUBLIC) {
-        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", PUBLIC");
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", Public");
     }
     if (attrs & MEMF_KICK) {
-        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", KICK");
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", Kick");
     }
     if (attrs & MEMF_24BITDMA) {
         pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", DMA24");

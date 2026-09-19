@@ -75,7 +75,7 @@ static void write_formatted(BPTR fh, const char *format, ...)
 
 static const char *on_off_string(BOOL enabled)
 {
-    return enabled ? "ON" : "OFF";
+    return enabled ? "On" : "Off";
 }
 
 static const char *yes_no_string(BOOL enabled)
@@ -140,13 +140,13 @@ static void format_fpu_string(char *buffer, ULONG size)
             snprintf(buffer, size, "%s %s MHz",
                      hw_info.fpu_string, mhz_buf);
         } else {
-            snprintf(buffer, size, "%s %s MHz (OFF)",
+            snprintf(buffer, size, "%s %s MHz (Off)",
                      hw_info.fpu_string, mhz_buf);
         }
     } else if (hw_info.fpu_enabled || hw_info.fpu_type == FPU_NONE) {
         snprintf(buffer, size, "%s", hw_info.fpu_string);
     } else {
-        snprintf(buffer, size, "%s (OFF)", hw_info.fpu_string);
+        snprintf(buffer, size, "%s (Off)", hw_info.fpu_string);
     }
 }
 
@@ -356,7 +356,7 @@ void export_hardware(BPTR fh)
     write_formatted(fh, "%-16s %s", "FPU:", buffer);
 
     if (hw_info.mmu_enabled) {
-        snprintf(buffer, sizeof(buffer), "%s (IN USE)", hw_info.mmu_string);
+        snprintf(buffer, sizeof(buffer), "%s (In use)", hw_info.mmu_string);
     } else {
         strncpy(buffer, hw_info.mmu_string, sizeof(buffer) - 1);
     }
@@ -381,7 +381,7 @@ void export_hardware(BPTR fh)
             ((unsigned long long)hw_info.horiz_freq * 100ULL) / 1000ULL;
         format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz, FALSE);
     }
-    write_formatted(fh, "%-16s %s KHz", "Horiz Freq:", buffer);
+    write_formatted(fh, "%-16s %s kHz", "Horiz Freq:", buffer);
 
     snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.eclock_freq);
     write_formatted(fh, "%-16s %s Hz", "EClock:", buffer);
@@ -405,18 +405,18 @@ void export_hardware(BPTR fh)
     /* Cache status */
     WRITE_LINE(fh, "Cache Status:");
     write_formatted(fh, "  ICache:   %s",
-                    hw_info.has_icache ? (hw_info.icache_enabled ? "ON" : "OFF") : "N/A");
+                    hw_info.has_icache ? (hw_info.icache_enabled ? "On" : "Off") : "N/A");
     write_formatted(fh, "  DCache:   %s",
-                    hw_info.has_dcache ? (hw_info.dcache_enabled ? "ON" : "OFF") : "N/A");
+                    hw_info.has_dcache ? (hw_info.dcache_enabled ? "On" : "Off") : "N/A");
     write_formatted(fh, "  IBurst:   %s",
-                    hw_info.has_iburst ? (hw_info.iburst_enabled ? "ON" : "OFF") : "N/A");
+                    hw_info.has_iburst ? (hw_info.iburst_enabled ? "On" : "Off") : "N/A");
     write_formatted(fh, "  DBurst:   %s",
-                    hw_info.has_dburst ? (hw_info.dburst_enabled ? "ON" : "OFF") : "N/A");
+                    hw_info.has_dburst ? (hw_info.dburst_enabled ? "On" : "Off") : "N/A");
     write_formatted(fh, "  CopyBack: %s",
-                    hw_info.has_copyback ? (hw_info.copyback_enabled ? "ON" : "OFF") : "N/A");
+                    hw_info.has_copyback ? (hw_info.copyback_enabled ? "On" : "Off") : "N/A");
     write_formatted(fh, "  Super Scalar: %s",
                     hw_info.has_super_scalar ?
-                    (hw_info.super_scalar_enabled ? "ON" : "OFF") : "N/A");
+                    (hw_info.super_scalar_enabled ? "On" : "Off") : "N/A");
 
     WRITE_LINE(fh, "");
     WRITE_LINE(fh, "Extended Hardware:");
@@ -451,7 +451,7 @@ void export_hardware(BPTR fh)
                         on_off_string(hw_info.battMemData.scan_luns));
         write_formatted(fh, "    Sync Trans.:  %s",
                         on_off_string(hw_info.battMemData.sync_transfer));
-        write_formatted(fh, "    Fast Sync:    %s",
+        write_formatted(fh, "    Fast sync:    %s",
                         on_off_string(hw_info.battMemData.fast_sync_transfer));
         write_formatted(fh, "    Queuing:      %s",
                         on_off_string(hw_info.battMemData.tagged_queuing));
@@ -462,7 +462,7 @@ void export_hardware(BPTR fh)
     }
 
     format_sdmac_string(buffer, sizeof(buffer));
-    write_formatted(fh, "  SDMAC/NCR:      %s", buffer);
+    write_formatted(fh, "  SCSI chip:      %s", buffer);
 
     WRITE_LINE(fh, "");
 }
@@ -565,7 +565,7 @@ void export_benchmarks(BPTR fh)
                 strncpy(rom_str, "N/A", sizeof(rom_str));
             }
 
-            write_formatted(fh, "Memory Speed:      CHIP %s  FAST %s  ROM %s MB/s",
+            write_formatted(fh, "Memory Speed:      Chip %s  Fast %s  ROM %s MB/s",
                            chip_str, fast_str, rom_str);
         }
     } else {
