@@ -65,6 +65,8 @@ static char dburst_label[16], cback_label[16], super_scalar_label[16];
 #define CACHE_ROW_STEP 11
 #define HARDWARE_OVERVIEW_VALUE_OFFSET 90
 #define HARDWARE_CHIPSET_VALUE_OFFSET 124
+#define PANEL_CYCLE_MARGIN 2
+#define SOFTWARE_CYCLE_WIDTH 92
 
 #define XSYSINFO_LOGO_W     104
 #define XSYSINFO_LOGO_H     16
@@ -336,8 +338,9 @@ void main_view_update_buttons(void)
                get_string(MSG_BTN_PRINT), BTN_PRINT, TRUE);
 
     /* Software type cycle button */
-    add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 98,
-               SOFTWARE_PANEL_Y + 2, 92, 12,
+    add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W -
+               PANEL_CYCLE_MARGIN - SOFTWARE_CYCLE_WIDTH,
+               SOFTWARE_PANEL_Y + 2, SOFTWARE_CYCLE_WIDTH, 12,
                get_software_page_label(),
                BTN_SOFTWARE_CYCLE, TRUE);
 
@@ -356,14 +359,15 @@ void main_view_update_buttons(void)
                app->software_type != SOFTWARE_OVERVIEW);
 
     /* Scale toggle button */
-    add_button(SPEED_PANEL_X + SPEED_PANEL_W - 68,
-               SPEED_PANEL_Y + 2, 64, 12,
+    add_button(SPEED_PANEL_X + SPEED_PANEL_W -
+               PANEL_CYCLE_MARGIN - SOFTWARE_CYCLE_WIDTH,
+               SPEED_PANEL_Y + 2, SOFTWARE_CYCLE_WIDTH, 12,
                app->bar_scale == SCALE_SHRINK ?
                    get_string(MSG_SHRINK) : get_string(MSG_EXPAND),
                BTN_SCALE_TOGGLE, TRUE);
 
-     /* Hardware type cycle button */
-    add_button(HARDWARE_PANEL_X + HARDWARE_PANEL_W - 84,
+    /* Hardware type cycle button */
+    add_button(HARDWARE_PANEL_X + HARDWARE_PANEL_W - PANEL_CYCLE_MARGIN - 82,
                HARDWARE_PANEL_Y + 2, 82, 12,
                get_hardware_page_label(),
                BTN_HARDWARE_CYCLE, TRUE);
@@ -819,13 +823,14 @@ void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title)
         RectFill(rp, x + 1, y + 1, x + w - 2, y + h - 2);
 
         if (gradients_available()) {
-            draw_gradient_3(x + 2, y + 2, w - 4, h - 4,
-                            COLOR_BUTTON_DARK, COLOR_TITLE_BG, COLOR_BACKGROUND);
+            /* Fade across the whole strip, right up to the title's backing. */
+            draw_gradient(x + 2, y + 2, w - 4, h - 4,
+                          COLOR_TITLE_BG, COLOR_BACKGROUND);
         }
 
         SetDrMd(rp, JAM1);
         if (title_len) {
-            WORD top = y + h - 5 - rp->Font->tf_Baseline;
+            WORD top = y + h - 6 - rp->Font->tf_Baseline;
             WORD bottom = top + rp->Font->tf_YSize + 2;
             WORD right = x + 5 + TextLength(rp, (CONST_STRPTR)title,
                                            title_len);
@@ -841,10 +846,10 @@ void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title)
             RectFill(rp, x + 3, top, right, bottom);
         }
         SetAPen(rp, shadow_text_color());
-        Move(rp, x + 5, y + h - 3);
+        Move(rp, x + 5, y + h - 4);
         Text(rp, (CONST_STRPTR)title, title_len);
         SetAPen(rp, COLOR_HIGHLIGHT);
-        Move(rp, x + 4, y + h - 4);
+        Move(rp, x + 4, y + h - 5);
         Text(rp, (CONST_STRPTR)title, title_len);
         SetDrMd(rp, JAM2);
     }
@@ -926,7 +931,7 @@ void draw_cycle_button(Button *btn)
 
     /* Draw the cycle marker as a crisp '>' glyph. */
     icon_x = btn->x + 4;
-    text_y = btn->y + (btn->height + 6) / 2;
+    text_y = btn->y + (btn->height + 6) / 2 - 1;
 
     SetAPen(rp, shadow_text_color());
     TextLength(rp, (CONST_STRPTR)">", 1);
