@@ -909,3 +909,22 @@ WD restore failed. Reboot before disk access.
 MSG_WD_FAILED (//55)
 WD check failed; controller restored.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED (//17)
+Integrated
+;
+MSG_NCR_DMA_BURST (//13)
+DMA burst
+;
+MSG_NCR_TRANSFERS (//17)
+%u transfers
+;
+MSG_NCR_WIDTH (//13)
+Data width
+;
+MSG_NCR_PARITY (//13)
+Parity check
+;
+MSG_NCR_DOUBLER (//13)
+Clock doubler
+;

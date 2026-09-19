@@ -909,3 +909,22 @@ B³±d przywracania WD. Zrestartuj przed u¿yciem dysku.
 MSG_WD_FAILED
 Sprawdzenie WD nieudane; kontroler przywrócony.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Zintegrowany
+;
+MSG_NCR_DMA_BURST
+Seria DMA
+;
+MSG_NCR_TRANSFERS
+%u transferów
+;
+MSG_NCR_WIDTH
+Szer. danych
+;
+MSG_NCR_PARITY
+Parzysto¶æ
+;
+MSG_NCR_DOUBLER
+Podw. zegara
+;

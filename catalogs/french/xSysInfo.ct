@@ -909,3 +909,22 @@ MSG_WD_RESTORE_FAILED
 MSG_WD_FAILED
 Échec du contrôle WD ; contrôleur restauré.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Intégré
+;
+MSG_NCR_DMA_BURST
+Rafale DMA
+;
+MSG_NCR_TRANSFERS
+%u transferts
+;
+MSG_NCR_WIDTH
+Largeur
+;
+MSG_NCR_PARITY
+Vérif. parité
+;
+MSG_NCR_DOUBLER
+Doubleur
+;

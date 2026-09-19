@@ -340,6 +340,12 @@ typedef enum {
     MSG_WD_CLOCK_FAILED,
     MSG_WD_RESTORE_FAILED,
     MSG_WD_FAILED,
+    MSG_DMA_INTEGRATED,
+    MSG_NCR_DMA_BURST,
+    MSG_NCR_TRANSFERS,
+    MSG_NCR_WIDTH,
+    MSG_NCR_PARITY,
+    MSG_NCR_DOUBLER,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

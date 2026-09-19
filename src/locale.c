@@ -354,6 +354,12 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_WD_CLOCK_FAILED */         "WD clock could not be measured.",
     /* MSG_WD_RESTORE_FAILED */       "WD restore failed. Reboot before disk access.",
     /* MSG_WD_FAILED */               "WD check failed; controller restored.",
+    /* MSG_DMA_INTEGRATED */        "Integrated",
+    /* MSG_NCR_DMA_BURST */         "DMA burst",
+    /* MSG_NCR_TRANSFERS */         "%u transfers",
+    /* MSG_NCR_WIDTH */             "Data width",
+    /* MSG_NCR_PARITY */            "Parity check",
+    /* MSG_NCR_DOUBLER */           "Clock doubler",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

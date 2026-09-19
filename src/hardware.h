@@ -250,6 +250,9 @@ typedef struct {
     GaryType gary_type;
 
     NCRType ncr_type;
+    struct {
+        UBYTE scid, sxfer, scntl0, scntl1, dmode, scntl3, stest1;
+    } ncr_config;
 
     BOOL ramsey_page_enabled;
     BOOL ramsey_burst_enabled;
@@ -317,6 +320,11 @@ void format_ramsey_rev_string(char *buffer, ULONG size);
 void detect_sdmac(void);
 void format_dma_string(char *buffer, ULONG size);
 void format_scsi_chip_string(char *buffer, ULONG size);
+enum {
+    NCR_DETAIL_ID, NCR_DETAIL_BURST, NCR_DETAIL_SYNC, NCR_DETAIL_WIDTH,
+    NCR_DETAIL_PARITY, NCR_DETAIL_DOUBLER, NCR_DETAIL_COUNT
+};
+void format_ncr_detail(unsigned detail, char *buffer, ULONG size);
 void format_resdmac_version(char *buffer, ULONG size);
 const char *get_ramsey_size_string(void);
 void detect_system_chips(void);

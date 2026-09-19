@@ -482,6 +482,19 @@ void export_hardware(BPTR fh)
         WRITE_LINE(fh, "    Configuration captured before the SCSI check;");
         WRITE_LINE(fh, "    sync setting describes the last selected target.");
     }
+    if (hw_info.ncr_type != NCR_NONE) {
+        static const char *labels[NCR_DETAIL_COUNT] = {
+            "SCSI ID", "DMA burst", "Sync / offset", "Data width",
+            "Parity check", "Clock doubler"
+        };
+        unsigned detail;
+        unsigned count = hw_info.ncr_type == NCR_53C770 ?
+                         NCR_DETAIL_COUNT : NCR_DETAIL_DOUBLER;
+        for (detail = 0; detail < count; detail++) {
+            format_ncr_detail(detail, buffer, sizeof(buffer));
+            write_formatted(fh, "    %-13s %s", labels[detail], buffer);
+        }
+    }
 
     WRITE_LINE(fh, "");
 }

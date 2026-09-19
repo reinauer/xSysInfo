@@ -909,3 +909,22 @@ WD-Wiederherstellung fehlgeschlagen. Jetzt neu starten.
 MSG_WD_FAILED
 WD-Prüfung gescheitert; Controller wiederhergestellt.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Integriert
+;
+MSG_NCR_DMA_BURST
+DMA-Burst
+;
+MSG_NCR_TRANSFERS
+%u Transfers
+;
+MSG_NCR_WIDTH
+Datenbreite
+;
+MSG_NCR_PARITY
+Paritätspr.
+;
+MSG_NCR_DOUBLER
+Taktverdoppl.
+;

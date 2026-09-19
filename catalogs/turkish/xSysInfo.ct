@@ -909,3 +909,22 @@ WD yüklenemedi. Diski kullanmadan yeniden baþlatýn.
 MSG_WD_FAILED
 WD kontrolü baþarýsýz; denetleyici geri yüklendi.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Tümleþik
+;
+MSG_NCR_DMA_BURST
+DMA çoðuþma
+;
+MSG_NCR_TRANSFERS
+%u aktarým
+;
+MSG_NCR_WIDTH
+Veri geniþl.
+;
+MSG_NCR_PARITY
+Eþlik kontr.
+;
+MSG_NCR_DOUBLER
+Saat katlama
+;

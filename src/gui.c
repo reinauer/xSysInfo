@@ -2412,6 +2412,21 @@ static void draw_hardware_panel_contents(void)
                 y += 8;
             }
         }
+        if (hw_info.ncr_type != NCR_NONE) {
+            static const LocaleStringID labels[NCR_DETAIL_COUNT] = {
+                MSG_SCSI_HOST_ID, MSG_NCR_DMA_BURST, MSG_WD_SYNC_OFFSET,
+                MSG_NCR_WIDTH, MSG_NCR_PARITY, MSG_NCR_DOUBLER
+            };
+            unsigned detail;
+            unsigned count = hw_info.ncr_type == NCR_53C770 ?
+                             NCR_DETAIL_COUNT : NCR_DETAIL_DOUBLER;
+            for (detail = 0; detail < count; detail++) {
+                format_ncr_detail(detail, buffer, sizeof(buffer));
+                draw_label_value(HARDWARE_PANEL_X + 18, y,
+                                 get_string(labels[detail]), buffer, 110);
+                y += 8;
+            }
+        }
     } else if (app->hardware_type == HARDWARE_CLOCK) {
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_CLOCK), hw_info.clock_string,

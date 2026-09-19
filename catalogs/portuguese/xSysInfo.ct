@@ -863,3 +863,22 @@ Falha no restauro WD. Reinicie antes de usar discos.
 MSG_WD_FAILED
 Falha na verificação WD; controlador restaurado.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Integrado
+;
+MSG_NCR_DMA_BURST
+Rajada DMA
+;
+MSG_NCR_TRANSFERS
+%u transf.
+;
+MSG_NCR_WIDTH
+Larg. dados
+;
+MSG_NCR_PARITY
+Verif. parid.
+;
+MSG_NCR_DOUBLER
+Duplic. clock
+;

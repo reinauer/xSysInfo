@@ -909,3 +909,22 @@ Ripristino WD fallito. Riavviare prima di usare dischi.
 MSG_WD_FAILED
 Controllo WD fallito; controller ripristinato.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Integrato
+;
+MSG_NCR_DMA_BURST
+Raffica DMA
+;
+MSG_NCR_TRANSFERS
+%u trasferimenti
+;
+MSG_NCR_WIDTH
+Larg. dati
+;
+MSG_NCR_PARITY
+Ctrl. parità
+;
+MSG_NCR_DOUBLER
+Raddoppio clk
+;

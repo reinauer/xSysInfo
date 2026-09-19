@@ -909,3 +909,22 @@ WD-hiba. Lemezhasználat elõtt indítsa újra a gépet.
 MSG_WD_FAILED
 A WD-ellenõrzés hibás; a vezérlõ visszaállítva.
 ;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Integrált
+;
+MSG_NCR_DMA_BURST
+DMA-löket
+;
+MSG_NCR_TRANSFERS
+%u átvitel
+;
+MSG_NCR_WIDTH
+Adatszélesség
+;
+MSG_NCR_PARITY
+Paritásell.
+;
+MSG_NCR_DOUBLER
+Órajelduplázó
+;

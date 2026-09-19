@@ -1155,6 +1155,35 @@ static BOOL detect_ncr53c770(unsigned char *revision)
     return FALSE;
 }
 
+/* Snapshot configuration only: no FIFO/status reads or controller writes.
+ * Offsets use the big-endian register maps. The 710 bank is at $DD0040,
+ * while the 770 bank is at $DD0000. This deliberately does not gate on
+ * SCRIPTS execution; values describe the configuration at detection time. */
+static void read_ncr_config(void)
+{
+    volatile UBYTE *base = (volatile UBYTE *)(hw_info.ncr_type == NCR_53C770 ?
+                                             0xdd0000 : 0xdd0040);
+    UBYTE old_timeout = *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG;
+
+    *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG = FAT_GARY_TIME_OUT_DSACK;
+    hw_info.ncr_config.scid = base[0x07];
+    hw_info.ncr_config.sxfer = base[0x06];
+    hw_info.ncr_config.scntl0 = base[0x03];
+    hw_info.ncr_config.scntl1 = base[0x02];
+    hw_info.ncr_config.dmode = base[0x3b];
+    if (hw_info.ncr_type == NCR_53C770) {
+        hw_info.ncr_config.scntl3 = base[0x00];
+        hw_info.ncr_config.stest1 = base[0x4e];
+    }
+    *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG = old_timeout;
+    debug("    ncr: SCID=%02x SXFER=%02x SCNTL0=%02x SCNTL1=%02x "
+          "DMODE=%02x SCNTL3=%02x STEST1=%02x\n",
+          hw_info.ncr_config.scid, hw_info.ncr_config.sxfer,
+          hw_info.ncr_config.scntl0, hw_info.ncr_config.scntl1,
+          hw_info.ncr_config.dmode, hw_info.ncr_config.scntl3,
+          hw_info.ncr_config.stest1);
+}
+
 /* Detect onboard NCR SCSI or the A3000 SDMAC revision. */
 void detect_sdmac(void)
 {
@@ -1169,12 +1198,14 @@ void detect_sdmac(void)
     hw_info.resdmac_version = 0;
     hw_info.ncr_rev = 0;
     hw_info.ncr_type = NCR_NONE;
+    memset(&hw_info.ncr_config, 0, sizeof(hw_info.ncr_config));
 
     if (hw_info.gary_type == FAT_GARY)
     { // you need fat gary to access ncr!
         /* The 53C770 has a different register map and revision register. */
         if (detect_ncr53c770(&hw_info.ncr_rev)) {
             hw_info.ncr_type = NCR_53C770;
+            read_ncr_config();
             return;
         }
 
@@ -1193,6 +1224,8 @@ void detect_sdmac(void)
 
         // Restore original timeout mode
         *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
+        if (hw_info.ncr_type != NCR_NONE)
+            read_ncr_config();
     }
 
     /* SDMAC access requires Fat Gary and Ramsey. */
@@ -1289,7 +1322,9 @@ void format_dma_string(char *buffer, ULONG size)
     const char *name = get_string(hw_info.resdmac_version ?
                                   MSG_RESDMAC : MSG_SDMAC);
 
-    if (!hw_info.sdmac_present)
+    if (hw_info.ncr_type != NCR_NONE)
+        copy_string(buffer, get_string(MSG_DMA_INTEGRATED), size);
+    else if (!hw_info.sdmac_present)
         copy_string(buffer, get_string(MSG_NONE), size);
     else if (hw_info.resdmac_version || !hw_info.sdmac_rev)
         copy_string(buffer, name, size);
@@ -1333,6 +1368,63 @@ void format_scsi_chip_string(char *buffer, ULONG size)
     snprintf(buffer, size, "%s rev %02X", get_string(name), hw_info.ncr_rev);
 }
 
+
+/* NCR53C710 Data Manual, chapter 4; SYM53C770 Data Manual, chapter 4.
+ * Report configuration rather than assuming the utility's board clocks.
+ * In particular, reading 710 SBCL returns bus signals, not its written
+ * synchronous divider, so a MHz rate cannot be recovered from that byte. */
+void format_ncr_detail(unsigned detail, char *buffer, ULONG size)
+{
+    BOOL wide_chip = hw_info.ncr_type == NCR_53C770;
+    unsigned value, offset, period;
+    const char *text = get_string(MSG_NA);
+
+    if (hw_info.ncr_type != NCR_NONE) {
+        switch (detail) {
+        case NCR_DETAIL_ID:
+            value = hw_info.ncr_config.scid;
+            if (wide_chip) {
+                value &= 15;
+            } else {
+                /* 710 SCID is a mask; arbitration uses its highest ID. */
+                if (!value) break;
+                for (offset = 0; value >>= 1; offset++) {}
+                value = offset;
+            }
+            snprintf(buffer, size, "%u", value);
+            return;
+        case NCR_DETAIL_BURST:
+            value = 1U << ((hw_info.ncr_config.dmode >> 6) + wide_chip);
+            snprintf(buffer, size, get_string(MSG_NCR_TRANSFERS), value);
+            return;
+        case NCR_DETAIL_SYNC:
+            offset = hw_info.ncr_config.sxfer & (wide_chip ? 31 : 15);
+            if (!offset) {
+                text = get_string(MSG_WD_ASYNC);
+                break;
+            }
+            if (!wide_chip && offset > 8) break; /* Reserved 710 offsets. */
+            period = 4 + ((hw_info.ncr_config.sxfer >> (wide_chip ? 5 : 4)) & 7);
+            /* Extra setup adds one clock to the send period on both chips. */
+            period += hw_info.ncr_config.scntl1 >> 7;
+            snprintf(buffer, size, "%u clk / %u", period, offset);
+            return;
+        case NCR_DETAIL_WIDTH:
+            value = wide_chip && (hw_info.ncr_config.scntl3 & 8) ? 16 : 8;
+            snprintf(buffer, size, "%u-bit", value);
+            return;
+        case NCR_DETAIL_PARITY:
+            text = get_string(hw_info.ncr_config.scntl0 & 8 ? MSG_ON : MSG_OFF);
+            break;
+        case NCR_DETAIL_DOUBLER:
+            if (wide_chip)
+                text = get_string((hw_info.ncr_config.stest1 & 12) == 12 ?
+                                  MSG_ON : MSG_OFF);
+            break;
+        }
+    }
+    copy_string(buffer, text, size);
+}
 
 /*
  * Detect Gary

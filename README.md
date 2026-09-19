@@ -89,6 +89,15 @@ ROM, active ROM, Workbench, SetPatch, and graphics system. Its cycle button
 opens the library, device, resource, and MMU lists. Total Chip and Fast RAM
 are shown in the hardware overview.
 
+Onboard NCR 53C710/53C770 controllers show their integrated DMA engine,
+SCSI ID, DMA burst length, sync period/offset, data width, and parity
+checking. The 53C770 also shows whether its clock doubler is active.
+These settings are read at startup without resetting the controller;
+they do not require the SCSI option. Sync and width may reflect the last
+selected target. Sync period is the send period in internal synchronous
+clock cycles, including any extra setup cycle, not a measured MHz rate.
+DMA burst length is expressed in bus transfers.
+
 On an A3000, the optional **SCSI** Shell option or Workbench ToolType runs
 a WD33C93 check once at startup. It resets the controller, identifies
 WD33C93/A/B-compatible chips, reads microcode where supported, and measures
