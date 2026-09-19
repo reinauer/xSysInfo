@@ -131,7 +131,7 @@ void measure_bus_frequency(void)
     if (!TimerBase || TimerBase->dd_Library.lib_Version < 36 ||
         SysBase->LibNode.lib_Version < 36 || hw_info.gary_type != FAT_GARY ||
         (hw_info.ramsey_rev != 0x0d && hw_info.ramsey_rev != 0x0f) ||
-        hw_info.cpu_type < CPU_68030 || hw_info.cpu_type > CPU_68EC060)
+        hw_info.cpu_type < CPU_68030 || hw_info.cpu_type > CPU_68LC060)
         return;
 
     short_eclock = ReadEClock(&now);
