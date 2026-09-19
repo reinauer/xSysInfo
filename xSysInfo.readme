@@ -3,7 +3,9 @@ Author:       stepan@coreboot.org (Stefan Reinauer)
 Uploader:     stepan@coreboot.org (Stefan Reinauer)
 Type:         util/moni
 Version:      [VERSION]
+Requires:     identify.library
 Architecture: m68k-amigaos
+Distribution: Freely Distributable
 
 xSysInfo is an Open Source system information program for 68k-based classic
 Amigas, and is an homage to the (in)famous and ubiquitous SysInfo program.

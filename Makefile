@@ -150,13 +150,15 @@ LHA_NAME = xsysinfo-$(FULL_VERSION).lha
 LHA_DIR = xSysInfo-$(FULL_VERSION)
 LHA_OPTS := $(shell if lha 2>&1 | grep 'archive-kanji-code' | grep -q 'latin1'; then echo '--system-kanji-code=utf8 --archive-kanji-code=latin1'; fi)
 
-lha: $(TARGET) TinySetPatch catalogs
+lha: $(TARGET) TinySetPatch catalogs xSysInfo.readme
 	@echo "  LHA   $(LHA_NAME)"
 	@rm -rf $(LHA_DIR)
 	@mkdir -p $(LHA_DIR)
 	@cp $(TARGET) $(LHA_DIR)/
 	@cp TinySetPatch $(LHA_DIR)/
-	@cp docs/readme.txt $(LHA_DIR)/
+	@awk -v version="$(FULL_VERSION)" \
+		'{ sub(/\[VERSION\]/, version); print }' \
+		xSysInfo.readme > $(LHA_DIR)/readme.txt
 	@cp docs/xSysInfo.info $(LHA_DIR)/
 	@cp LICENSE $(LHA_DIR)/
 	@for catalog in $(CATALOG_DIR)/*/xSysInfo.catalog; do \
