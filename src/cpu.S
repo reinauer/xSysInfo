@@ -60,6 +60,8 @@ RAMSEY_CTRL EQU $DE0003
 	XREF	_sample_ramsey_refreshes
 
 _DoFlops:
+	tst.l	d0
+	beq		end_fpu
 	cmp.l	#ASM_FPU_68881,d1		;is it 68881-code?
 	beq		m68881_fpu
 	cmp.l	#ASM_FPU_68882,d1		;is it 68882-code? (same as 68881)
@@ -86,7 +88,8 @@ m68881_fpu_loop:
 	fadd.x   fp2,fp0	; fb = fa + fd
 	fsub.x   fp1,fp0	; fc = fb - fa
 	fmul.x   fp2,fp0	; fd = fc * fa
-	dbne	d0,m68881_fpu_loop ;loop decrement
+	subq.l	#1,d0
+	bne		m68881_fpu_loop
 	bra 	end_fpu
 m68040_fpu:
 	MACHINE 68040
@@ -102,7 +105,8 @@ m68040_fpu_loop:
 	fadd.x   fp2,fp0	; fb = fa + fd
 	fsub.x   fp1,fp0	; fc = fb - fa
 	fmul.x   fp2,fp0	; fd = fc * fa
-	dbne	 d0,m68040_fpu_loop ;loop decrement
+	subq.l	#1,d0
+	bne		m68040_fpu_loop
 	bra 	 end_fpu
 m68060_fpu:
 	MACHINE 68060
@@ -118,7 +122,8 @@ m68060_fpu_loop:
 	fadd.x   fp2,fp0	; fb = fa + fd
 	fsub.x   fp1,fp0	; fc = fb - fa
 	fmul.x   fp2,fp0	; fd = fc * fa
-	dbne	d0,m68060_fpu_loop ;loop decrement
+	subq.l	#1,d0
+	bne		m68060_fpu_loop
 end_fpu:
 	MACHINE 68060
 	rts
