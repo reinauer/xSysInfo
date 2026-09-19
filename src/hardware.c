@@ -886,32 +886,31 @@ void detect_chipset(void)
 
 
         switch (hw_info.agnus_rev) {
-            case 0x0: //OCS PAL
+            case 0x00:
+            case 0x10: {
+                /* OCS timing is fixed. graphics.library determines PAL/NTSC
+                 * from the beam timing, covering A1000s whose VPOSR ID
+                 * disagrees with their video standard.
+                 * ECS upgrades must keep using their own ID below. */
+                BOOL is_pal = (GfxBase->DisplayFlags & PAL) != 0;
+
                 //get possible mirrored version (A1000)
                 tmp = *((volatile UWORD *)(CUSTOM_AGNUS_ID_MIRR));
                 tmp &= 0X7F00; //mask Bit 14-8
                 tmp = (tmp>>8); //shift to lower byte
-                debug("    chipset: OCS Agnus rev=$%02lx mirror=$%02lx\n",
-                      (ULONG)hw_info.agnus_rev, (ULONG)tmp);
+                debug("    chipset: OCS Agnus rev=$%02lx mirror=$%02lx "
+                      "DisplayFlags=$%04lx\n",
+                      (ULONG)hw_info.agnus_rev, (ULONG)tmp,
+                      (ULONG)GfxBase->DisplayFlags);
                 if (hw_info.agnus_rev == tmp)
-                    hw_info.agnus_type = AGNUS_OCS_PAL;
+                    hw_info.agnus_type = is_pal ?
+                        AGNUS_OCS_PAL : AGNUS_OCS_NTSC;
                 else
-                    hw_info.agnus_type = AGNUS_OCS_FAT_PAL;
+                    hw_info.agnus_type = is_pal ?
+                        AGNUS_OCS_FAT_PAL : AGNUS_OCS_FAT_NTSC;
                 hw_info.max_chip_ram = 512 * 1024;  /* 512K */
                 break;
-            case 0x10: //OCS NTSC
-                //get possible mirrored version (A1000)
-                tmp = *((volatile UWORD *)(CUSTOM_AGNUS_ID_MIRR));
-                tmp &= 0X7F00; //mask Bit 14-8
-                tmp = (tmp>>8); //shift to lower byte
-                debug("    chipset: OCS Agnus rev=$%02lx mirror=$%02lx\n",
-                      (ULONG)hw_info.agnus_rev, (ULONG)tmp);
-                if (hw_info.agnus_rev == tmp)
-                    hw_info.agnus_type = AGNUS_OCS_NTSC;
-                else
-                    hw_info.agnus_type = AGNUS_OCS_FAT_NTSC;
-                hw_info.max_chip_ram = 512 * 1024;  /* 512K */
-                break;
+            }
             case 0x20: //ECS PAL rev 4
             case 0x21: //ECS PAL rev 5
                 hw_info.agnus_type = AGNUS_ECS_PAL;
@@ -1277,10 +1276,10 @@ void detect_gary(void)
         testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT_MIRR));
         if (testVal1 == testVal2) {
             hw_info.gary_type = GARY_A1000;
-            /* An A1000 always has a DIP Agnus; the VPOSR mirror test in
-             * detect_chipset() can misread Fat Agnus on accelerated
-             * machines (issue #26). Note this also matches the German
-             * A2000-A, which uses the same DIP chipset. */
+            /* An OCS A1000 has a DIP Agnus; the VPOSR mirror test in
+             * detect_chipset() can misread Fat Agnus on expanded machines.
+             * This also matches the German A2000-A.
+             * Leave ECS upgrades such as the Rejuvenator unchanged. */
             if (hw_info.agnus_type == AGNUS_OCS_FAT_NTSC) {
                 hw_info.agnus_type = AGNUS_OCS_NTSC;
                 debug("    systemchips: A1000 Gary, correcting Agnus to DIP NTSC\n");
@@ -1398,7 +1397,7 @@ void detect_system_chips(void)
     hw_info.has_zorro_slots = TRUE;
     if (hw_info.gary_type == GARY_A1000) {
         /* The A1000 86-pin edge connector predates Zorro II; show plain
-         * ZORRO (issue #26). The German A2000-A is mislabelled by this
+         * ZORRO. The German A2000-A is mislabelled by this
          * (same chipset, real Zorro II slots), accepted as a corner case. */
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
                  "%s", get_string(MSG_SLOT_ZORRO));
