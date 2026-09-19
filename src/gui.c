@@ -2378,11 +2378,7 @@ static void draw_hardware_panel_contents(void)
                              get_string(MSG_RAMSEY_REFRESH), buffer, 110);
             y += 8;
         }
-        if (hw_info.sdmac_rev  && hw_info.gary_type == FAT_GARY) { //
-            snprintf(buffer, sizeof(buffer), "%s REV %02X", (hw_info.is_A4000T? get_string(MSG_NCR_53C710) : get_string(MSG_SDMAC)), hw_info.sdmac_rev);
-        } else {
-            copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
-        }
+        format_sdmac_string(buffer, sizeof(buffer));
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_SDMAC_REV), buffer,
                          HARDWARE_CHIPSET_VALUE_OFFSET);

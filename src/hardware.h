@@ -52,6 +52,10 @@
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
 #define SDMAC_WTC       ((volatile uint32_t *)0xDD0004)
 #define NCR_CTEST8_REG 0x00DD0061
+/* The A4000T 53C770 register bank starts at $DD0000, not $DD0040. */
+#define NCR770_CTEST3_REG 0x00DD0018
+#define NCR770_GPCNTL_REG 0x00DD0044
+#define NCR770_MACNTL_REG 0x00DD0045
 
 #ifndef AFB_68080
 /*
@@ -164,6 +168,13 @@ typedef enum{
     FAT_GARY
 }GaryType;
 
+/* Onboard A4000T SCSI controller */
+typedef enum {
+    NCR_NONE,
+    NCR_53C710,
+    NCR_53C770
+} NCRType;
+
 /* Native graphics capabilities enabled by graphics.library */
 typedef enum {
     NATIVE_GRAPHICS_OCS,
@@ -229,10 +240,10 @@ typedef struct {
     unsigned char gary_rev;         /* 0 = not present */
     unsigned char ramsey_rev;       /* 0 = not present */
     unsigned char ramsey_ctl;
-    unsigned char sdmac_rev;         /* 0 = not present */
+    unsigned char sdmac_rev;         /* 0 = not present unless ncr_type is set */
     GaryType gary_type;
 
-    BOOL is_A4000T;
+    NCRType ncr_type;
 
     BOOL ramsey_page_enabled;
     BOOL ramsey_burst_enabled;
@@ -299,6 +310,7 @@ void detect_gary(void);
 void detect_ramsey(void);
 void format_ramsey_rev_string(char *buffer, ULONG size);
 void detect_sdmac(void);
+void format_sdmac_string(char *buffer, ULONG size);
 void detect_system_chips(void);
 void detect_frequencies(void);
 void detect_kickstart(void);

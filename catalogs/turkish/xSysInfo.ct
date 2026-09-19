@@ -835,3 +835,6 @@ RTC tarihi
 MSG_RTC_TIME
 RTC saati
 ;
+MSG_NCR_53C770
+NCR 53C770
+;

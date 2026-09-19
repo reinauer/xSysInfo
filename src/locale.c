@@ -329,6 +329,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_HARDWARE_CLOCK */          "CLOCK",
     /* MSG_RTC_DATE */                "RTC date",
     /* MSG_RTC_TIME */                "RTC time",
+    /* MSG_NCR_53C770 */              "NCR 53C770",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

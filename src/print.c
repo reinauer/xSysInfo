@@ -191,18 +191,6 @@ static void format_ramsey_refresh(char *buffer, ULONG size)
     }
 }
 
-static void format_sdmac_string(char *buffer, ULONG size)
-{
-    if (hw_info.sdmac_rev && hw_info.gary_type == FAT_GARY) {
-        snprintf(buffer, size, "%s REV %02X",
-                 hw_info.is_A4000T ? get_string(MSG_NCR_53C710) :
-                                     get_string(MSG_SDMAC),
-                 hw_info.sdmac_rev);
-    } else {
-        snprintf(buffer, size, "N/A");
-    }
-}
-
 /*
  * Export header with date/time
  */

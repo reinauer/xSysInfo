@@ -1106,10 +1106,44 @@ void detect_ramsey(void)
     }
 }
 
-/*
- * Detect SDMAC
- */
-/* Returns 2 for SDMAC-02, 4 for SDMAC-04/ReSDMAC, 0 if not present/detection fails */
+/* Read-only 53C770 probe, following ncr7xx's stable register signature. */
+static BOOL detect_ncr53c770(unsigned char *revision)
+{
+    uint8_t prev_gpcntl = 0xff, prev_macntl = 0xff, prev_ctest3 = 0xff;
+    BOOL prev_valid = FALSE;
+    int attempt;
+
+    for (attempt = 0; attempt < 4; attempt++) {
+        uint8_t old_timeout, gpcntl, macntl, ctest3;
+        BOOL valid;
+
+        old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
+        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
+        gpcntl = *((volatile uint8_t *)NCR770_GPCNTL_REG);
+        macntl = *((volatile uint8_t *)NCR770_MACNTL_REG);
+        ctest3 = *((volatile uint8_t *)NCR770_CTEST3_REG);
+        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
+
+        /* GPIO0-3 inputs, GPIO4 output; MACNTL chip type 2 is 53C770. */
+        valid = ((gpcntl & 0x1f) == 0x0f) && ((macntl >> 4) == 2);
+        debug("    ncr770: GPCNTL=%02x MACNTL=%02x CTEST3=%02x candidate=%d\n",
+              gpcntl, macntl, ctest3, valid);
+        if (valid && prev_valid && gpcntl == prev_gpcntl &&
+            macntl == prev_macntl && ctest3 == prev_ctest3) {
+            *revision = ctest3 >> 4;
+            return TRUE;
+        }
+        prev_gpcntl = gpcntl;
+        prev_macntl = macntl;
+        prev_ctest3 = ctest3;
+        prev_valid = valid;
+        if (attempt < 3)
+            Delay(1);
+    }
+    return FALSE;
+}
+
+/* Detect onboard NCR SCSI or the A3000 SDMAC revision. */
 void detect_sdmac(void)
 {
     unsigned char sdmac_rev;
@@ -1119,10 +1153,16 @@ void detect_sdmac(void)
     int pass;
     uint8_t old_timeout;
     hw_info.sdmac_rev = 0;
-    hw_info.is_A4000T = FALSE;
+    hw_info.ncr_type = NCR_NONE;
 
     if (hw_info.gary_type == FAT_GARY)
     { // you need fat gary to access ncr!
+        /* The 53C770 has a different register map and revision register. */
+        if (detect_ncr53c770(&hw_info.sdmac_rev)) {
+            hw_info.ncr_type = NCR_53C770;
+            return;
+        }
+
         // Switch to DSACK timeout to avoid bus errors when probing
         old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
         *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
@@ -1133,14 +1173,16 @@ void detect_sdmac(void)
         if (sdmac_rev != 0 && sdmac_rev != 0xF)
         {
             hw_info.sdmac_rev = sdmac_rev;
-            hw_info.is_A4000T = TRUE;
+            hw_info.ncr_type = NCR_53C710;
         }
 
         // Restore original timeout mode
         *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
     }
 
-    if (hw_info.ramsey_rev > 0 && hw_info.gary_type == FAT_GARY && !hw_info.is_A4000T) { //you need fat gary and ramsey to access sdmac!
+    /* SDMAC access requires Fat Gary and Ramsey. */
+    if (hw_info.ramsey_rev > 0 && hw_info.gary_type == FAT_GARY &&
+        hw_info.ncr_type == NCR_NONE) {
         // Switch to DSACK timeout to avoid bus errors on A4000
         old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
         *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
@@ -1199,6 +1241,23 @@ sdmac_done:
         // Restore original timeout mode
         *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
     }
+}
+
+void format_sdmac_string(char *buffer, ULONG size)
+{
+    LocaleStringID name = MSG_SDMAC;
+
+    if (hw_info.gary_type != FAT_GARY ||
+        (!hw_info.sdmac_rev && hw_info.ncr_type == NCR_NONE)) {
+        snprintf(buffer, size, "%s", get_string(MSG_NA));
+        return;
+    }
+    if (hw_info.ncr_type == NCR_53C770)
+        name = MSG_NCR_53C770;
+    else if (hw_info.ncr_type == NCR_53C710)
+        name = MSG_NCR_53C710;
+
+    snprintf(buffer, size, "%s REV %02X", get_string(name), hw_info.sdmac_rev);
 }
 
 
