@@ -24,6 +24,7 @@
 #include "software.h"
 #include "hardware.h"
 #include "locale_str.h"
+#include "debug.h"
 
 /* Global software lists */
 SoftwareList libraries_list;
@@ -597,15 +598,20 @@ static void detect_graphics_system(void)
 
 void detect_system_software(void)
 {
+    /* The version follows SignalSemaphore and the private patch MinList. */
+    struct SetPatchSemaphore {
+        struct SignalSemaphore semaphore;
+        struct MinList patches;
+        UWORD version;
+        UWORD revision;
+    } const volatile *setpatch;
     /* TinySetPatch appends this record at byte 80 of its SetPatch semaphore. */
     struct TinySetPatchInfo {
         ULONG magic[2];
         UWORD version;
         UWORD revision;
     } const volatile *tinysetpatch;
-    struct SignalSemaphore *semaphore;
     struct Library *version_base;
-    ULONG setpatch = 0;
     STRPTR os_name;
 
     memset(&system_software, 0, sizeof(system_software));
@@ -624,23 +630,25 @@ void detect_system_software(void)
         if (system_software.os_id != IDOS_UNKNOWN && os_name)
             copy_string(system_software.os_name, (const char *)os_name,
                         sizeof(system_software.os_name));
-        setpatch = IdHardwareNumTags(IDHW_SETPATCHVER, TAG_DONE);
     }
     /* Older identify.library versions do not recognize the V48 ROMs. */
     if (!system_software.os_name[0] && SysBase->LibNode.lib_Version == 48)
         copy_string(system_software.os_name, "AmigaOS 3.3",
                     sizeof(system_software.os_name));
+    /* Identify caches a missing SetPatch result, including across runs of
+     * xSysInfo. Read the live marker so a later manual SetPatch is visible. */
+    Forbid();
+    setpatch = (const volatile struct SetPatchSemaphore *)
+        FindSemaphore((CONST_STRPTR)"\253 SetPatch \273");
     if (setpatch) {
-        system_software.has_setpatch_version = TRUE;
-        system_software.setpatch_version = setpatch & 0xffff;
-        system_software.setpatch_revision = setpatch >> 16;
-        Forbid();
-        semaphore = FindSemaphore((CONST_STRPTR)"\253 SetPatch \273");
-        if (semaphore) {
+        system_software.setpatch_version = setpatch->version;
+        system_software.setpatch_revision = setpatch->revision;
+        system_software.has_setpatch_version = setpatch->version != 0;
+        if (system_software.has_setpatch_version) {
             /* Older implementations have no extension; require both magic
              * words before interpreting the following version fields. */
             tinysetpatch = (const volatile struct TinySetPatchInfo *)
-                ((const UBYTE *)semaphore + 80);
+                ((const volatile UBYTE *)setpatch + 80);
             if (tinysetpatch->magic[0] == 0x54696e79UL &&
                 tinysetpatch->magic[1] == 0x53657450UL) {
                 system_software.is_tinysetpatch = TRUE;
@@ -648,8 +656,11 @@ void detect_system_software(void)
                 system_software.tinysetpatch_revision = tinysetpatch->revision;
             }
         }
-        Permit();
     }
+    Permit();
+    debug("  software: SetPatch semaphore $%08lx, version %lu.%lu\n",
+          (ULONG)setpatch, (ULONG)system_software.setpatch_version,
+          (ULONG)system_software.setpatch_revision);
     detect_graphics_system();
 }
 
