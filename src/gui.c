@@ -2723,12 +2723,9 @@ void switch_to_view(ViewMode view)
     redraw_current_view();
 }
 
-/* SetPointer sprite data must remain in Chip RAM for sprite DMA. */
-static UWORD __chip blank_pointer[] = {
-    0x0000, 0x0000,  /* Reserved */
-    0x0000, 0x0000,  /* 1 line of empty data */
-    0x0000, 0x0000   /* Reserved */
-};
+/* Position/control, one transparent row, and the sprite terminator. */
+#define BLANK_POINTER_SIZE (6 * sizeof(UWORD))
+static UWORD *blank_pointer;
 
 static void free_overlay_backup(void)
 {
@@ -2863,8 +2860,11 @@ static void show_status_overlay_centered(const char *message,
 
     save_overlay_area(dialog_x, dialog_y, dialog_w, dialog_h);
 
-    /* Hide mouse pointer with blank sprite */
-    SetPointer(app->window, blank_pointer, 1, 1, 0, 0);
+    /* Allocate explicitly: some toolchains lose __chip hunk flags. */
+    if (!blank_pointer)
+        blank_pointer = AllocMem(BLANK_POINTER_SIZE, MEMF_CHIP | MEMF_CLEAR);
+    if (blank_pointer)
+        SetPointer(app->window, blank_pointer, 1, 16, 0, 0);
 
     /* Draw shadow */
     //SetAPen(rp, COLOR_BUTTON_DARK);
@@ -2908,8 +2908,13 @@ void hide_status_overlay(void)
 {
     BOOL restored;
 
-    /* Restore mouse pointer */
-    ClearPointer(app->window);
+    if (blank_pointer) {
+        ClearPointer(app->window);
+        /* Let the copper switch pointers before releasing sprite data. */
+        WaitTOF();
+        FreeMem(blank_pointer, BLANK_POINTER_SIZE);
+        blank_pointer = NULL;
+    }
 
     restored = restore_overlay_area();
     if (!restored) {
