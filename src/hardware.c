@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 #include <exec/execbase.h>
+#include <exec/memory.h>
 #include <graphics/gfxbase.h>
 #include <hardware/cia.h>
 #include <hardware/custom.h>
@@ -311,6 +312,29 @@ BOOL detect_emu68_systems(void)
 }
 
 
+/* Distinguish a full 020 from an EC020 using RAM beyond 24-bit addressing.
+ * Trust Exec's memory map, including regions that are currently all in use;
+ * do not probe unallocated addresses or write to possible memory aliases. */
+static BOOL has_32bit_ram(void)
+{
+    struct MemHeader *mh;
+    BOOL found = FALSE;
+
+    Forbid();
+    for (mh = (struct MemHeader *)SysBase->MemList.lh_Head;
+         (struct Node *)mh != (struct Node *)&SysBase->MemList.lh_Tail;
+         mh = (struct MemHeader *)mh->mh_Node.ln_Succ) {
+        /* mh_Upper is exclusive. Also accept a region crossing 16 MiB. */
+        if ((ULONG)mh->mh_Upper > 0x01000000UL &&
+            (ULONG)mh->mh_Lower < (ULONG)mh->mh_Upper) {
+            found = TRUE;
+            break;
+        }
+    }
+    Permit();
+    return found;
+}
+
 /*
  * Detect CPU type and speed
  */
@@ -354,8 +378,11 @@ void detect_cpu(void)
             SetCacheBits(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
             if ((newBits & CACRF_IBE) == 0)
             {
-                // no 68030
-                if (*((volatile UWORD *)KICK_VERSION) == *((volatile UWORD *)KICK_VERSION_MIRR))
+                /* ROM decoding can mirror on a full 020 too. Registered
+                 * 32-bit RAM takes precedence over the mirror heuristic. */
+                if (!has_32bit_ram() &&
+                    *((volatile UWORD *)KICK_VERSION) ==
+                    *((volatile UWORD *)KICK_VERSION_MIRR))
                 { // do we have 24bit mirroring?
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC020");
                     hw_info.cpu_type = CPU_68EC020;
