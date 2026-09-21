@@ -138,11 +138,13 @@ typedef enum {
     BOARD_DISPLAY_COUNT
 } BoardDisplay;
 
-/* Display mode (from tooltype or command line) */
+/* Display mode (from icon tooltype) */
 typedef enum {
     DISPLAY_AUTO,       /* Auto-detect based on screen resolution */
     DISPLAY_WINDOW,     /* Force window on Workbench */
-    DISPLAY_SCREEN      /* Force custom screen */
+    DISPLAY_SCREEN,     /* Force custom screen using the default monitor */
+    DISPLAY_PAL,        /* Force PAL HIRES custom screen (V36+) */
+    DISPLAY_NTSC        /* Force NTSC HIRES custom screen (V36+) */
 } DisplayMode;
 
 /* Global application context */
@@ -153,7 +155,7 @@ typedef struct {
     struct RastPort *rp;            /* RastPort for drawing */
     struct TextFont *tf;            /* Current font */
     BOOL use_custom_screen;         /* TRUE if we opened our own screen */
-    BOOL is_pal;                    /* TRUE if PAL system */
+    BOOL is_pal;                    /* TRUE if PAL display timing */
     BOOL dark_mode;                 /* TRUE if DARK palette is requested */
     UWORD screen_height;            /* Actual screen height (200 or 256) */
     DisplayMode display_mode;       /* Requested display mode */

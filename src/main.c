@@ -265,6 +265,10 @@ static void parse_tooltypes(void)
                 app->display_mode = DISPLAY_SCREEN;
             } else if (match_icon_toolvalue(value, ICON_STR("AUTO"))) {
                 app->display_mode = DISPLAY_AUTO;
+            } else if (match_icon_toolvalue(value, ICON_STR("PAL"))) {
+                app->display_mode = DISPLAY_PAL;
+            } else if (match_icon_toolvalue(value, ICON_STR("NTSC"))) {
+                app->display_mode = DISPLAY_NTSC;
             }
         }
 
@@ -725,11 +729,14 @@ static BOOL open_display(void)
     struct Screen *wb_screen;
     BOOL use_window = FALSE;
     BOOL has_v36_intuition = (IntuitionBase->LibNode.lib_Version >= 36);
+    ULONG display_id = HIRES_KEY;
 
     /* Check display mode setting from tooltypes */
     if (app->display_mode == DISPLAY_WINDOW) {
         use_window = TRUE;
-    } else if (app->display_mode == DISPLAY_SCREEN) {
+    } else if (app->display_mode == DISPLAY_SCREEN ||
+               app->display_mode == DISPLAY_PAL ||
+               app->display_mode == DISPLAY_NTSC) {
         use_window = FALSE;
     } else {
         /* AUTO mode - detect based on RTG */
@@ -759,8 +766,17 @@ static BOOL open_display(void)
         }
     }
 
-    /* Determine if system is PAL or NTSC */
+    /* Use native timing unless a V36+ monitor mode is explicitly requested. */
     app->is_pal = (GfxBase->DisplayFlags & PAL) ? TRUE : FALSE;
+    if (has_v36_intuition) {
+        if (app->display_mode == DISPLAY_PAL) {
+            display_id |= PAL_MONITOR_ID;
+            app->is_pal = TRUE;
+        } else if (app->display_mode == DISPLAY_NTSC) {
+            display_id |= NTSC_MONITOR_ID;
+            app->is_pal = FALSE;
+        }
+    }
 
     if (use_window) {
         debug(XSYSINFO_NAME " open_display: opening window\n");
@@ -822,7 +838,8 @@ static BOOL open_display(void)
             }
         }
     } else {
-        debug(XSYSINFO_NAME " open_display: opening screen\n");
+        debug(XSYSINFO_NAME " open_display: opening screen, mode ID $%08lx\n",
+              display_id);
 
         /* Open custom screen */
         app->use_custom_screen = TRUE;
@@ -837,7 +854,7 @@ static BOOL open_display(void)
                 SA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
                 SA_Type, CUSTOMSCREEN,
                 SA_Font, (ULONG)&Topaz8Font,
-                SA_DisplayID, HIRES_KEY,
+                SA_DisplayID, display_id,
                 SA_Pens, (ULONG)default_pens,
                 SA_ShowTitle, FALSE,
                 TAG_DONE);
