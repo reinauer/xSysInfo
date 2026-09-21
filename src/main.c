@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <exec/execbase.h>
 #include <exec/memory.h>
@@ -139,7 +140,7 @@ typedef CONST_STRPTR IconString;
 #endif
 
 /* Forward declarations */
-static BOOL open_libraries(void);
+static BOOL open_libraries(const char *program_name);
 static void close_libraries(void);
 static BOOL open_display(void);
 static void close_display(void);
@@ -351,7 +352,7 @@ int main(int argc, char **argv)
 
     debug(XSYSINFO_NAME ": Opening libraries...\n");
     /* Open required libraries */
-    if (!open_libraries()) {
+    if (!open_libraries(wb_startup ? NULL : argv[0])) {
         ret = RETURN_FAIL;
         goto cleanup;
     }
@@ -565,10 +566,57 @@ cleanup:
     return ret;
 }
 
+/* Find the bundled library when LIBS: belongs to another boot disk. */
+static struct Library *open_bundled_identify(const char *program_name)
+{
+    struct Library *base = NULL;
+    BPTR program_dir = 0;
+    BPTR old_dir;
+    char path[256];
+
+    if (DOSBase->dl_lib.lib_Version >= 36) {
+        debug(XSYSINFO_NAME " open_libraries: trying PROGDIR:Libs/identify.library\n");
+        return OpenLibrary((CONST_STRPTR)"PROGDIR:Libs/identify.library",
+                           MIN_IDENTIFY_VERSION);
+    }
+
+    /* Kickstart 1.3 has no PROGDIR: or GetProgramDir(). */
+    if (wb_startup) {
+        program_dir = wb_startup->sm_ArgList[0].wa_Lock;
+    } else if (program_name) {
+        BPTR program_file = Lock((CONST_STRPTR)program_name, ACCESS_READ);
+
+        if (program_file) {
+            program_dir = ParentDir(program_file);
+            UnLock(program_file);
+        }
+    }
+    if (!program_dir)
+        return NULL;
+
+    old_dir = CurrentDir(program_dir);
+    /* libnix13's getcwd() builds an absolute path without NameFromLock().
+     * Reserve space for the library suffix and a directory separator. */
+    if (getcwd(path, sizeof(path) - sizeof("/Libs/identify.library"))) {
+        size_t len = strlen(path);
+
+        if (len && path[len - 1] != ':')
+            path[len++] = '/';
+        copy_string(path + len, "Libs/identify.library", sizeof(path) - len);
+        debug(XSYSINFO_NAME " open_libraries: trying %s\n", (LONG)path);
+        base = OpenLibrary((CONST_STRPTR)path, MIN_IDENTIFY_VERSION);
+    }
+    CurrentDir(old_dir);
+    if (!wb_startup)
+        UnLock(program_dir);
+
+    return base;
+}
+
 /*
  * Open required libraries
  */
-static BOOL open_libraries(void)
+static BOOL open_libraries(const char *program_name)
 {
     /* exec.library is always available via SysBase */
     // SysBase = *(struct ExecBase **)4;
@@ -596,11 +644,14 @@ static BOOL open_libraries(void)
     /* Open identify.library */
     debug(XSYSINFO_NAME " open_libraries: trying identify.library\n");
     IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
-    /*
-    if (!IdentifyBase) {
-        Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_IDENTIFY));
-    }
-    */
+    if (!IdentifyBase)
+        IdentifyBase = open_bundled_identify(program_name);
+
+    if (IdentifyBase)
+        debug(XSYSINFO_NAME " open_libraries: identify.library %u.%u opened\n",
+              IdentifyBase->lib_Version, IdentifyBase->lib_Revision);
+    else
+        debug(XSYSINFO_NAME " open_libraries: identify.library unavailable\n");
 
     app->IdentifyBase = IdentifyBase;
 
