@@ -159,7 +159,7 @@ CATALOG_DESC = catalogs/xSysInfo.cd
 CATALOG_DIR = catalogs/build
 CATALOG_LANGS = german:deutsch french:français italian:italiano \
 		turkish:türkçe polish:polski portuguese:português \
-		hungarian:magyar
+		hungarian:magyar spanish:español
 
 # Build all catalogs
 catalogs: $(FLEXCAT_BIN)

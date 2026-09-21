@@ -1,0 +1,931 @@
+## version $VER: xSysInfo.catalog 1.0 (21.09.2026)
+## language español
+## codeset 4
+;
+; Spanish translation for xSysInfo
+;
+; Header strings
+;
+MSG_TAGLINE
+Programa de Información de Sistemas Amiga
+;
+MSG_CONTACT_LABEL
+Contacto:
+;
+; Section headers
+;
+MSG_SYSTEM_SOFTWARE
+SOFTWARE DEL SISTEMA
+;
+MSG_INTERNAL_HARDWARE
+HARDWARE
+;
+MSG_SPEED_COMPARISONS
+COMPARACIÓN DE VELOCIDAD
+;
+MSG_MEMORY_INFO
+INFORMACIÓN DE MEMORIA
+;
+MSG_BOARDS_INFO
+TARJETAS AUTOCONFIG
+;
+MSG_DRIVES_INFO
+INFORMACIÓN DE UNIDADES
+;
+MSG_SCSI_INFO
+INFORMACIÓN DE DISPOSITIVOS SCSI
+;
+; Software type cycle
+;
+MSG_LIBRARIES
+LIBRERÍAS
+;
+MSG_DEVICES
+DISPOSIT.
+;
+MSG_RESOURCES
+RECURSOS
+;
+MSG_MMU_ENTRIES
+LEER MMU
+;
+; Scale toggle
+;
+MSG_EXPAND
+MÁS
+;
+MSG_SHRINK
+MENOS
+;
+; Hardware labels
+;
+MSG_CLOCK
+Reloj
+;
+MSG_DMA_GFX
+DMA/Gfx
+;
+MSG_MODE
+Modo
+;
+MSG_DISPLAY
+Pantalla
+;
+MSG_CPU_MHZ
+CPU/MHz
+;
+MSG_FPU
+FPU
+;
+MSG_MMU
+MMU
+;
+MSG_VBR
+VBR
+;
+MSG_SSP
+SSP
+;
+MSG_COMMENT
+Comentario
+;
+MSG_HORIZ_KHZ
+Horiz kHz
+;
+MSG_ECLOCK_HZ
+EClock Hz
+;
+MSG_RAMSEY_REV
+Ramsey rev
+;
+MSG_GARY_REV
+Gary rev
+;
+MSG_CARD_SLOT
+Ranura
+;
+MSG_VERT_HZ
+Vert Hz
+;
+MSG_SUPPLY_HZ
+Alim. Hz
+;
+; Cache labels
+;
+MSG_ICACHE
+ICache
+;
+MSG_DCACHE
+DCache
+;
+MSG_IBURST
+IBurst
+;
+MSG_DBURST
+DBurst
+;
+MSG_CBACK
+CBack
+;
+MSG_SUPER_SCALAR
+SuperS/BranchC/StoreB
+;
+; Speed comparison labels
+;
+MSG_DHRYSTONES
+Dhrystones
+;
+MSG_MIPS
+MIPS
+;
+MSG_MFLOPS
+MFLOPS
+;
+MSG_MEM_SPEED_UNIT
+MB/s
+;
+; Reference system names
+;
+MSG_REF_A600
+A600  68000  7MHz
+;
+MSG_REF_B2000
+B2000 68000  7MHz
+;
+MSG_REF_A1200
+A1200 EC020 14MHz
+;
+MSG_REF_A2500
+A2500 68020 14MHz
+;
+MSG_REF_A3000
+A3000 68030 25MHz
+;
+MSG_REF_A4000
+A4000 68040 25MHz
+;
+MSG_REF_YOU
+Tú
+;
+; Memory view labels
+;
+MSG_START_ADDRESS
+DIRECCIÓN INICIAL
+;
+MSG_END_ADDRESS
+DIRECCIÓN FINAL
+;
+MSG_TOTAL_SIZE
+TAMAÑO TOTAL
+;
+MSG_MEMORY_TYPE
+TIPO DE MEMORIA
+;
+MSG_PRIORITY
+PRIORIDAD
+;
+MSG_LOWER_BOUND
+LÍMITE INFERIOR
+;
+MSG_UPPER_BOUND
+LÍMITE SUPERIOR
+;
+MSG_FIRST_ADDRESS
+PRIMERA DIRECCIÓN
+;
+MSG_AMOUNT_FREE
+DISPONIBLE
+;
+MSG_LARGEST_BLOCK
+BLOQUE MÁS GRANDE
+;
+MSG_NUM_CHUNKS
+NÚMERO DE BLOQUES
+;
+MSG_NODE_NAME
+NODO
+;
+MSG_MEMORY_SPEED
+VELOCIDAD DE MEMORIA
+;
+; Drives view labels
+;
+MSG_DISK_ERRORS
+NÚM. ERRORES DE DISCO
+;
+MSG_UNIT_NUMBER
+NÚMERO DE UNIDAD
+;
+MSG_DISK_STATE
+ESTADO DEL DISCO
+;
+MSG_TOTAL_BLOCKS
+NÚMERO TOTAL DE BLOQUES
+;
+MSG_BLOCKS_USED
+BLOQUES UTILIZADOS
+;
+MSG_BYTES_PER_BLOCK
+TAMAÑO DE BLOQUE
+;
+MSG_DISK_TYPE
+TIPO DE UNIDAD/DISCO
+;
+MSG_VOLUME_NAME
+VOLUMEN
+;
+MSG_DEVICE_NAME
+DISPOSITIVO
+;
+MSG_SURFACES
+SUPERFICIES
+;
+MSG_SECTORS_PER_SIDE
+SECTORES POR CARA
+;
+MSG_RESERVED_BLOCKS
+BLOQUES RESERVADOS
+;
+MSG_LOWEST_CYLINDER
+CILINDRO INFERIOR
+;
+MSG_HIGHEST_CYLINDER
+CILINDRO SUPERIOR
+;
+MSG_NUM_BUFFERS
+NÚMERO DE BUFFERS
+;
+MSG_SPEED
+VELOCIDAD DE UNIDAD
+;
+MSG_DRIVES_NO_DRIVES_FOUND
+No hay unidades.
+;
+MSG_DASH_PLACEHOLDER
+---
+;
+MSG_DISK_NO_DISK_INSERTED
+No hay disco
+;
+; Boards view labels
+;
+MSG_BOARD_ADDRESS
+Dirección
+;
+MSG_BOARD_SIZE
+Tamaño
+;
+MSG_BOARD_TYPE
+Tipo
+;
+MSG_PRODUCT
+Producto
+;
+MSG_MANUFACTURER
+Fabricante
+;
+MSG_SERIAL_NO
+Núm. serie
+;
+MSG_BOARDS_NO_BOARDS_FOUND
+No hay placas de ampliación
+;
+; Button labels
+;
+MSG_BTN_QUIT
+CERRAR
+;
+MSG_BTN_MEMORY
+MEMORIA
+;
+MSG_BTN_DRIVES
+UNID
+;
+MSG_BTN_BOARDS
+PLACAS
+;
+MSG_BTN_SPEED
+VELOC.
+;
+MSG_BTN_PRINT
+IMPR.
+;
+MSG_BTN_PREV
+ANT
+;
+MSG_BTN_NEXT
+SIG
+;
+MSG_BTN_EXIT
+SALIR
+;
+MSG_BTN_SCSI
+SCSI
+;
+MSG_BTN_OK
+OK
+;
+MSG_BTN_CANCEL
+CANCELAR
+;
+MSG_BTN_ALL
+TODO
+;
+; Status and values
+;
+MSG_NA
+N/D
+;
+MSG_NONE
+Ninguno
+;
+MSG_UNKNOWN
+Desconocido
+;
+MSG_YES
+Sí
+;
+MSG_NO
+No
+;
+MSG_ON
+Activo
+;
+MSG_OFF
+Inactivo
+;
+MSG_IN_USE
+En uso
+;
+MSG_CLOCK_FOUND
+Reloj presente
+;
+MSG_CLOCK_NOT_FOUND
+No encontrado
+;
+MSG_DISK_OK
+Disco OK, lectura/escritura
+;
+MSG_DISK_WRITE_PROTECTED
+Disco OK, protegido contra escritura
+;
+MSG_DISK_NO_DISK
+No hay disco
+;
+; Hardware modes
+;
+MSG_MODE_PAL
+PAL
+;
+MSG_MODE_NTSC
+NTSC
+;
+MSG_SLOT_PCMCIA
+PCMCIA
+;
+; Zorro types
+;
+MSG_ZORRO_II
+Zorro II
+;
+MSG_ZORRO_III
+Zorro III
+;
+; Memory types
+;
+MSG_CHIP_RAM
+Chip RAM
+;
+MSG_FAST_RAM
+Fast RAM
+;
+MSG_SLOW_RAM
+Slow RAM
+;
+MSG_ROM
+ROM
+;
+MSG_24BIT_RAM
+RAM de 24 bits
+;
+MSG_32BIT_RAM
+RAM de 32 bits
+;
+MSG_MEM_SPEED_HEADER
+Chip  Fast  ROM
+;
+; SCSI Types
+;
+MSG_SCSI_TYPE_DISK
+Disco
+;
+MSG_SCSI_TYPE_TAPE
+Cinta
+;
+MSG_SCSI_TYPE_PRINTER
+Impresora
+;
+MSG_SCSI_TYPE_PROCESSOR
+Procesador
+;
+MSG_SCSI_TYPE_WORM
+WORM
+;
+MSG_SCSI_TYPE_CDROM
+CD
+;
+MSG_SCSI_TYPE_SCANNER
+Escáner
+;
+MSG_SCSI_TYPE_OPTICAL
+Óptico
+;
+MSG_SCSI_TYPE_CHANGER
+Cargador
+;
+MSG_SCSI_TYPE_COMM
+Comun.
+;
+; SCSI Versions
+;
+MSG_SCSI_VER_1
+SCSI-1
+;
+MSG_SCSI_VER_2
+SCSI-2
+;
+MSG_SCSI_VER_3
+SCSI-3
+;
+; SCSI View Headers
+;
+MSG_SCSI_ID
+ID
+;
+MSG_SCSI_TYPE
+Tipo
+;
+MSG_SCSI_MANUF
+Fabric
+;
+MSG_SCSI_MODEL
+Modelo
+;
+MSG_SCSI_REV
+Rev
+;
+MSG_SCSI_MAXBLOCKS
+Máx.bloq.
+;
+MSG_SCSI_ANSI
+ANSI
+;
+MSG_SCSI_REAL
+Real
+;
+MSG_SCSI_FORMAT
+Formato
+;
+MSG_SCSI_NO_DEVICES
+No hay unidades SCSI
+;
+; Filesystem types
+;
+MSG_OFS
+Old File System
+;
+MSG_FFS
+Fast File System
+;
+MSG_INTL_OFS
+Intl Old File System
+;
+MSG_INTL_FFS
+Intl Fast File System
+;
+MSG_DCACHE_OFS
+DC Old File System
+;
+MSG_DCACHE_FFS
+DC Fast File System
+;
+MSG_LNFS_OFS
+LNFS Old File System
+;
+MSG_LNFS_FFS
+LNFS Fast File System
+;
+MSG_SFS
+Smart File System
+;
+MSG_PFS
+Professional File System
+;
+MSG_UNKNOWN_FS
+Sistema de archivos desconocido
+;
+; Requester dialogs
+;
+MSG_ENTER_FILENAME
+Nombre de archivo o INTRO
+;
+MSG_MEASURING_SPEED
+Midiendo velocidad
+;
+; Error messages
+;
+MSG_ERR_NO_IDENTIFY
+Imposible abrir identify.library v13+
+;
+MSG_ERR_NO_MEMORY
+Memoria insuficiente
+;
+MSG_ERR_NO_SCREEN
+Imposible abrir pantalla
+;
+MSG_ERR_NO_WINDOW
+Imposible abrir ventana
+;
+; Comments based on system speed
+;
+MSG_COMMENT_WARP11
+¡WARP 11!
+;
+MSG_COMMENT_LUDICROUS
+¡Velocidad absurda!
+;
+MSG_COMMENT_RIDICULOUS
+¡Velocidad ridícula!
+;
+MSG_COMMENT_BLAZING
+¡Rapidísimo!
+;
+MSG_COMMENT_VERY_FAST
+¡Muy rápido!
+;
+MSG_COMMENT_FAST
+Sistema rápido
+;
+MSG_COMMENT_GOOD
+Buena velocidad
+;
+MSG_COMMENT_CLASSIC
+Amiga clásico
+;
+MSG_COMMENT_DEFAULT
+¡Qué podría decir!
+;
+; Hardware toggle
+;
+MSG_HARDWARE_STD
+RESUMEN
+;
+MSG_HARDWARE_CPU
+CPU
+;
+MSG_HARDWARE_EXT
+CHIPSET
+;
+MSG_RAMSEY_CTRL
+Control Ramsey
+;
+MSG_SDMAC_REV
+Chip SCSI
+;
+MSG_RAMSEY_PAGE
+Modo página
+;
+MSG_RAMSEY_BURST
+Ráfaga
+;
+MSG_RAMSEY_WRAP
+Wrap
+;
+MSG_RAMSEY_SIZE
+Tamaño RAM
+;
+MSG_RAMSEY_SKIP
+Saltar
+;
+MSG_RAMSEY_REFRESH
+Refresco
+;
+MSG_1M
+Chips 1Mx4
+;
+MSG_256K
+Chips 256Kx4
+;
+MSG_GARY_A1000
+A1000
+;
+MSG_GARY_A500
+Gary
+;
+MSG_GAYLE
+Gayle
+;
+MSG_FAT_GARY
+Fat Gary
+;
+MSG_GARY_UNKNOWN
+Desconocido
+;
+MSG_EXT_INFO
+Info ampliada para A3000/4000
+;
+MSG_NV_RAM
+NV-RAM (BattMem):
+;
+MSG_AMNESIA
+Amnesia
+;
+MSG_SHARED_AMNESIA
+Amn. compart.
+;
+MSG_TIMEOUT
+T. espera
+;
+MSG_SCAN_LUN
+Buscar LUNs
+;
+MSG_SYNC_TRANS
+Sinc.
+;
+MSG_FAST_SYNC
+Sinc. rápida
+;
+MSG_QUEUING
+En cola
+;
+MSG_SCSI_HOST_ID
+ID SCSI
+;
+MSG_LONG
+Largo
+;
+MSG_SHORT
+Corto
+;
+MSG_NCR_53C710
+NCR 53C710
+;
+MSG_SDMAC
+Super DMAC
+;
+MSG_MSM6242B
+OKI MSM6242B
+;
+MSG_RP5C01A
+RICOH RP5C01A
+;
+MSG_MK48T02
+ST MK48T02
+;
+MSG_SOUND_SYSTEM
+Sonido
+;
+MSG_PAULA_UNKNOWN
+Paula desconocida
+;
+MSG_PAULA_ORIG
+Paula 8364
+;
+MSG_PAULA_SAGA
+SAGA Arne
+;
+MSG_DENISE_OCS
+Denise 8362 (OCS)
+;
+MSG_DENISE_ECS
+Denise 8373 (ECS)
+;
+MSG_DENISE_LISA
+Lisa 4203
+;
+MSG_DENISE_SAGA
+SAGA
+;
+MSG_DENISE_UNKNOWN
+Denise desconocida
+;
+MSG_AGNUS_ALICE_PAL
+Alice 8374
+;
+MSG_AGNUS_ALICE_NTSC
+Alice 8374
+;
+MSG_AGNUS_ECS_2MB_PAL
+FatAgnus 8375/72B (ECS)
+;
+MSG_AGNUS_ECS_2MB_NTSC
+FatAgnus 8375/72B (ECS)
+;
+MSG_AGNUS_ECS_B_PAL
+FatAgnus 8372B/75 (ECS)
+;
+MSG_AGNUS_ECS_B_NTSC
+FatAgnus 8372B/75 (ECS)
+;
+MSG_AGNUS_ECS_PAL
+FatAgnus 8372 (ECS)
+;
+MSG_AGNUS_ECS_NTSC
+FatAgnus 8372 (ECS)
+;
+MSG_AGNUS_OCS_FAT_PAL
+FatAgnus 8371 (OCS)
+;
+MSG_AGNUS_OCS_FAT_NTSC
+FatAgnus 8370 (OCS)
+;
+MSG_AGNUS_OCS_PAL
+Agnus 8367 (OCS)
+;
+MSG_AGNUS_OCS_NTSC
+Agnus 8361 (OCS)
+;
+MSG_AGNUS_SAGA
+Agnus SAGA
+;
+MSG_AGNUS_UNKNOWN
+Agnus desconocido
+;
+MSG_UNCERTAIN
+incierto
+;
+MSG_MMU_SIZE
+Tamaño pág. MMU
+;
+MSG_MMU_ADDRESS_HINT
+¡Direcciones en hex!
+;
+MSG_MMU_FLAGS1_HINT
+WP=Prot.escr. U=Usado M=Modificado G=Global
+;
+MSG_MMU_FLAGS2_HINT
+TT=Traducido UPx=Pág.usuarioX CI=SinCaché
+;
+MSG_MMU_FLAGS3_HINT
+IM=Impreciso NS=No-serie CB=CopyBack
+;
+MSG_MMU_FLAGS4_HINT
+SO=Supervisor BL=Vacío SH=Compart. INV=Inválido
+;
+MSG_MMU_FLAGS5_HINT
+SNG=Pág.única RP=Reparable IO=Espacio E/S
+;
+MSG_MMU_FLAGS6_HINT
+Ux=UsuarioX SW=Interc. MAP=Remap. BN=Agrupado
+;
+MSG_MMU_FLAGS7_HINT
+IND=Indirecto +=más indicadores
+;
+; A1000 86-pin edge connector (predates Zorro II)
+;
+MSG_SLOT_ZORRO
+Zorro
+;
+MSG_SOFTWARE_OVERVIEW
+RESUMEN
+;
+MSG_OPERATING_SYSTEM
+SO
+;
+MSG_ACTIVE_ROM
+ROM activa
+;
+MSG_WORKBENCH
+Workbench
+;
+MSG_SETPATCH
+SetPatch
+;
+MSG_GRAPHICS_SYSTEM
+Gráficos
+;
+MSG_NATIVE_GRAPHICS
+AmigaOS (nativo)
+;
+; Boards display cycle (button labels, max 10 characters)
+;
+MSG_BOARD_NAMES
+NOMBRES
+;
+MSG_BOARD_DECIMAL
+DEC
+;
+MSG_BOARD_HEX
+HEX
+;
+MSG_UNKNOWN_OS
+SO desconocido
+;
+MSG_BUS_MHZ
+Bus MHz
+;
+;
+; Hardware clock page
+;
+MSG_HARDWARE_CLOCK
+RELOJ
+;
+MSG_RTC_DATE
+Fecha RTC
+;
+MSG_RTC_TIME
+Hora RTC
+;
+MSG_NCR_53C770
+NCR 53C770
+;
+; Cache toggle button labels
+;
+MSG_BTN_ON
+ON
+;
+MSG_BTN_OFF
+OFF
+;
+; Ramsey RAM geometry
+MSG_1MX1
+Chips 1Mx1
+;
+; DMA and SCSI controller details
+MSG_DMA_CHIP
+Chip DMA
+;
+MSG_DMA_VERSION
+Firmware
+;
+MSG_RESDMAC
+ReSDMAC
+;
+MSG_WD33C93_FAMILY
+Familia WD33C93
+;
+; Optional WD SCSI check
+MSG_WD33C93
+WD33C93
+;
+MSG_WD33C93A
+WD33C93A
+;
+MSG_WD33C93B
+WD33C93B
+;
+MSG_WD_MICROCODE
+Microcódigo
+;
+MSG_WD_CLOCK
+Reloj SCSI
+;
+MSG_WD_MODE
+Modo E/S
+;
+MSG_WD_SYNC_OFFSET
+Sinc./despl.
+;
+MSG_WD_POLLED
+Sondeo
+;
+MSG_WD_BUS
+Bus WD
+;
+MSG_WD_ASYNC
+Asíncrono
+;
+MSG_WD_BUSY
+Controlador SCSI ocupado; comprobación omitida.
+;
+MSG_WD_UNAVAILABLE
+Comprobación WD no disponible en esta configuración.
+;
+MSG_WD_CLOCK_FAILED
+No se pudo medir el reloj WD.
+;
+MSG_WD_RESTORE_FAILED
+Fallo al restaurar WD. Reinicie antes de usar discos.
+;
+MSG_WD_FAILED
+Falló la comprobación WD; controlador restaurado.
+;
+; NCR SCSI configuration snapshot
+MSG_DMA_INTEGRATED
+Integrado
+;
+MSG_NCR_DMA_BURST
+Ráfaga DMA
+;
+MSG_NCR_TRANSFERS
+%u transferencias
+;
+MSG_NCR_WIDTH
+Ancho datos
+;
+MSG_NCR_PARITY
+Verif.paridad
+;
+MSG_NCR_DOUBLER
+Duplic. reloj
+;
