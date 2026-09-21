@@ -55,6 +55,8 @@ Examples:
       Include WD SCSI check results in a full report.
 
 Graphical interface:
+In full-screen mode, click the top-left corner to quit from any page.
+
 The System Software tile defaults to an overview of the OS,
 physical ROM, active ROM, Workbench, SetPatch, and graphics system.
 Use its cycle button for the library, device, resource, and MMU lists.

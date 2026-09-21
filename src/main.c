@@ -1084,6 +1084,7 @@ static void main_loop(void)
     struct IntuiMessage *msg;
     ULONG signals;
     ULONG win_signal, clock_signal;
+    BOOL close_corner_pressed = FALSE;
 
     win_signal = 1L << app->window->UserPort->mp_SigBit;
 
@@ -1123,8 +1124,16 @@ static void main_loop(void)
                     app->running = FALSE;
                     break;
 
-                case IDCMP_MOUSEBUTTONS:
+                case IDCMP_MOUSEBUTTONS: {
+                    /* Full-screen shortcut, sized like a close gadget. */
+                    BOOL in_close_corner = app->use_custom_screen &&
+                        mx >= 0 && mx < 20 && my >= 0 && my < 12;
+
                     if (code == SELECTDOWN) {
+                        close_corner_pressed = in_close_corner;
+                        if (close_corner_pressed)
+                            break;
+
                         ButtonID btn = handle_click(mx, my);
                         if (btn != BTN_NONE) {
                             if (btn == BTN_SOFTWARE_SCROLLBAR) {
@@ -1139,6 +1148,13 @@ static void main_loop(void)
                         }
                     } else if (code == SELECTUP) {
                         app->scrollbar_dragging = FALSE;
+                        if (close_corner_pressed) {
+                            close_corner_pressed = FALSE;
+                            if (in_close_corner)
+                                app->running = FALSE;
+                            break;
+                        }
+
                         /* Release pressed button */
                         if (app->pressed_button != -1) {
                             ButtonID btn = (ButtonID)app->pressed_button;
@@ -1152,6 +1168,7 @@ static void main_loop(void)
                         }
                     }
                     break;
+                }
 
                 case IDCMP_MOUSEMOVE:
                     if (app->scrollbar_dragging) {
