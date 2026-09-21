@@ -105,15 +105,18 @@ Workbench icon ToolTypes:
 These settings come from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line.
 The supplied icon contains DISPLAY=auto, plus disabled examples
-(DISPLAY=window), (DISPLAY=screen), (DARK), (DEBUG), and (SCSI).
+(DISPLAY=window), (DISPLAY=screen), (DISPLAY=pal), (DISPLAY=ntsc),
+(DARK), (DEBUG), and (SCSI).
 
   ToolType        Description
   --------------  ------------------------------------------------------
   DISPLAY=auto    Default. Open a window if the Workbench screen
                   is wider than 640 pixels or taller than 512 pixels;
-                  otherwise use a separate PAL or NTSC screen.
+                  otherwise use a separate screen with system defaults.
   DISPLAY=window  Open a window on the Workbench screen.
-  DISPLAY=screen  Open a separate PAL or NTSC screen.
+  DISPLAY=screen  Open a separate screen with system defaults.
+  DISPLAY=pal     Open a separate PAL HIRES screen (640 x 256).
+  DISPLAY=ntsc    Open a separate NTSC HIRES screen (640 x 200).
   DARK            Use the dark blue palette. Omit this entry to use the
                   default gray palette.
   DEBUG           Enable diagnostic output. Omit this entry to leave
@@ -124,6 +127,10 @@ The supplied icon contains DISPLAY=auto, plus disabled examples
 Keep exactly one DISPLAY entry enabled to select the display mode; put
 parentheses around the other choices. Remove the parentheses from (DARK),
 (DEBUG), or (SCSI) to enable an option, and restore them to disable it.
+
+AUTO and SCREEN respect AmigaOS Mode Promotion. PAL and NTSC explicitly
+select native timing on AmigaOS 2.0 or later. On Kickstart 1.3, they
+behave like SCREEN, using the system's native PAL or NTSC mode.
 
 Web page:
         https://github.com/reinauer/xSysInfo/blob/main/README.md
