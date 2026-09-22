@@ -1172,7 +1172,7 @@ static void format_cpu_value(char *buffer, size_t size)
     if (hw_info.cpu_mhz > 0)
         format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, FALSE);
     else
-        copy_string(mhz_buf, get_string(MSG_NA), sizeof(mhz_buf));
+        copy_string(mhz_buf, get_string(MSG_DASH_PLACEHOLDER), sizeof(mhz_buf));
 
     if (hw_info.cpu_revision[0] != '\0' &&
         strcmp(hw_info.cpu_revision, "N/A") != 0) {
@@ -1185,10 +1185,13 @@ static void format_cpu_value(char *buffer, size_t size)
 
 static void format_fpu_value(char *buffer, size_t size)
 {
-    if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_mhz > 0) {
+    if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_type != FPU_UNKNOWN) {
         char mhz_buf[16];
 
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, FALSE);
+        if (hw_info.fpu_mhz > 0)
+            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, FALSE);
+        else
+            copy_string(mhz_buf, get_string(MSG_DASH_PLACEHOLDER), sizeof(mhz_buf));
         if (hw_info.fpu_enabled) {
             snprintf(buffer, size, "%s %s", hw_info.fpu_string, mhz_buf);
         } else {
