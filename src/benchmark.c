@@ -326,34 +326,69 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
 {
     const ULONG samples = 64;
     const ULONG short_loops = fpu ? 2 : 16;
-    ULONG loops = short_loops;
+    ULONG loops = short_loops * 2;
     ULONG frequency = 0, ticks = 0, shorter = 0, total = 0, result = 0, i = 0;
     ULONG short_total = 0, long_total = 0, low = ~0UL, high = 0;
     ULONG loop_total = 0, sample_loops = 0;
+    ULONG min_delta = 0, max_ticks = 0, next_loops;
     FrequencyFailure failure = {0};
     const char *reason = NULL;
     BOOL measuring = FALSE;
 
     Forbid();
-    /* Double until the measured interval reaches 100 us. Only the loop
-     * work doubles, not the fixed timer/setup cost. This targets less than
-     * 200 us including the extra timer read outside the measured interval.
-     * Start small so calibration itself also releases interrupts often. */
+    /* Require at least 50 us of loop work after subtracting the short
+     * sample, even at the smallest count used below. Timer/setup overhead
+     * must not make calibration accept a nearly empty interval. Keep the
+     * measured intervals within 200 us; a complete Disable/Enable window
+     * also includes the timer work outside those timestamps. */
     for (;;) {
+        shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
+        if (!shorter)
+            goto done;
+        min_delta = (frequency - 1) / 20000 + 1;
+        max_ticks = frequency / 5000;
+        if (shorter >= max_ticks) {
+            reason = "timer overhead leaves no loop interval";
+            goto done;
+        }
         ticks = frequency_sample(loops, fpu, &frequency, &failure);
         if (!ticks)
             goto done;
-        if (ticks >= frequency / 10000)
+        if (ticks > max_ticks) {
+            reason = "calibration sample exceeds 200 us";
+            goto done;
+        }
+        sample_loops = loops - 3 * (loops / 16);
+        if (ticks > shorter &&
+            (uint64_t)(ticks - shorter) * (sample_loops - short_loops) >=
+            (uint64_t)min_delta * (loops - short_loops))
             break;
         if (loops >= 65536) {
             reason = "calibration loop limit";
             goto done;
         }
-        loops *= 2;
-    }
-    if (loops == short_loops) {
-        reason = "timer overhead leaves no loop interval";
-        goto done;
+        next_loops = loops * 2;
+        if (next_loops > 65536)
+            next_loops = 65536;
+        if (ticks > shorter) {
+            /* Reserve 10 us for timer variation when limiting growth.
+             * Slower CPUs can use a count between successive doublings. */
+            ULONG budget = max_ticks - ((frequency - 1) / 100000 + 1);
+            if (shorter >= budget) {
+                reason = "insufficient loop interval within 200 us";
+                goto done;
+            }
+            uint64_t limit = short_loops +
+                (uint64_t)(budget - shorter) * (loops - short_loops) /
+                (ticks - shorter);
+            if (next_loops > limit)
+                next_loops = limit;
+        }
+        if (next_loops <= loops) {
+            reason = "insufficient loop interval within 200 us";
+            goto done;
+        }
+        loops = next_loops;
     }
     measuring = TRUE;
     for (i = 0; i < samples; i++) {
@@ -376,7 +411,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
             reason = "long sample not longer than short sample";
             goto done;
         }
-        if (ticks > frequency / 5000) {
+        if (ticks > max_ticks) {
             reason = "sample exceeds 200 us";
             goto done;
         }
@@ -386,6 +421,10 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
         if (ticks - shorter > high) high = ticks - shorter;
         total += ticks - shorter;
         loop_total += sample_loops - short_loops;
+    }
+    if (total < samples * min_delta) {
+        reason = "average loop interval below 50 us";
+        goto done;
     }
     result = (uint64_t)total * reference_loops * 1000000 /
              ((uint64_t)loop_total * frequency);
@@ -398,6 +437,8 @@ done:
           loops - 3 * (loops / 16), loops, i, frequency);
     debug("      ticks short/long: %lu/%lu, delta range %lu..%lu\n",
           short_total, long_total, i ? low : 0, high);
+    debug("      minimum loop delta %lu ticks, sample limit %lu ticks\n",
+          min_delta, max_ticks);
     if (!result) {
         debug("      attempt %lu/3 rejected at %s %lu: %s\n", attempt,
               (ULONG)(!measuring ? "calibration" :
