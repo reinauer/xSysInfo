@@ -41,7 +41,7 @@ MSG_LIBRARIES
 LIBRERÍAS
 ;
 MSG_DEVICES
-DISPOSIT.
+DISPOSIT
 ;
 MSG_RESOURCES
 RECURSOS
@@ -302,13 +302,13 @@ MSG_BTN_DRIVES
 UNID
 ;
 MSG_BTN_BOARDS
-PLACAS
+EXPANS
 ;
 MSG_BTN_SPEED
-VELOC.
+VELOC
 ;
 MSG_BTN_PRINT
-IMPR.
+IMPR
 ;
 MSG_BTN_PREV
 ANT
@@ -444,7 +444,7 @@ MSG_SCSI_TYPE_CHANGER
 Cargador
 ;
 MSG_SCSI_TYPE_COMM
-Comun.
+Red
 ;
 ; SCSI Versions
 ;
@@ -475,7 +475,7 @@ MSG_SCSI_REV
 Rev
 ;
 MSG_SCSI_MAXBLOCKS
-Máx.bloq.
+Máx.bloq
 ;
 MSG_SCSI_ANSI
 ANSI
@@ -573,7 +573,7 @@ MSG_COMMENT_CLASSIC
 Amiga clásico
 ;
 MSG_COMMENT_DEFAULT
-¡Qué podría decir!
+¡Sin palabras!
 ;
 ; Hardware toggle
 ;
@@ -641,7 +641,7 @@ MSG_AMNESIA
 Amnesia
 ;
 MSG_SHARED_AMNESIA
-Amn. compart.
+Amn. compart
 ;
 MSG_TIMEOUT
 T. espera
@@ -650,7 +650,7 @@ MSG_SCAN_LUN
 Buscar LUNs
 ;
 MSG_SYNC_TRANS
-Sinc.
+Sinc
 ;
 MSG_FAST_SYNC
 Sinc. rápida
@@ -686,7 +686,7 @@ MSG_SOUND_SYSTEM
 Sonido
 ;
 MSG_PAULA_UNKNOWN
-Paula desconocida
+Paula desconocido
 ;
 MSG_PAULA_ORIG
 Paula 8364
@@ -707,7 +707,7 @@ MSG_DENISE_SAGA
 SAGA
 ;
 MSG_DENISE_UNKNOWN
-Denise desconocida
+Denise desconocido
 ;
 MSG_AGNUS_ALICE_PAL
 Alice 8374
@@ -831,10 +831,10 @@ MSG_HARDWARE_CLOCK
 RELOJ
 ;
 MSG_RTC_DATE
-Fecha RTC
+Fecha reloj
 ;
 MSG_RTC_TIME
-Hora RTC
+Hora reloj
 ;
 MSG_NCR_53C770
 NCR 53C770
@@ -884,7 +884,7 @@ MSG_WD_MODE
 Modo E/S
 ;
 MSG_WD_SYNC_OFFSET
-Sinc./despl.
+Sinc./despl
 ;
 MSG_WD_POLLED
 Sondeo
