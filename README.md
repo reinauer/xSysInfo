@@ -50,6 +50,12 @@ Start `xSysInfo` from its Workbench icon or run it from the Shell on a real
 Amiga or emulator. With no command-line options, it opens the graphical
 interface.
 
+**NOTE:** Without `identify.library`, Amiga model identification, Zorro
+board names and PCI device listings are unavailable. OS name and RTG
+graphics system detection are also limited. CPU/FPU and chipset details,
+memory and drive information, and benchmarks remain available.
+Install `identify.library` in `LIBS:`. It is included on the bootable ADF.
+
 ### Command-line options
 
 Use `xSysInfo [options]`. Options are case-insensitive keywords, entered
