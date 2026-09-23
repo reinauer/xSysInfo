@@ -799,6 +799,129 @@ static void debug_dhrystone_location(const char *name, APTR address)
           TypeOfMem(address));
 }
 
+/* Forbid() is held by the caller. Calibration keeps interrupts enabled so
+ * an initially unknown iteration time cannot lose E-clock overflows. */
+static ULONG dhrystone_sample(ULONG loops, BOOL disable_interrupts,
+                             ULONG *frequency, const char **failure)
+{
+    struct EClockVal start, end;
+    ULONG first_rate, last_rate;
+
+    if (disable_interrupts) Disable();
+    first_rate = ReadEClock(&start);
+    Dhry_Run(loops);
+    last_rate = ReadEClock(&end);
+    if (disable_interrupts) Enable();
+
+    if (!first_rate)
+        *failure = "zero EClock frequency";
+    else if (first_rate != last_rate ||
+             (*frequency && first_rate != *frequency))
+        *failure = "EClock frequency changed";
+    else if (end.ev_hi != start.ev_hi + (end.ev_lo < start.ev_lo))
+        *failure = "invalid EClock interval";
+    else if (end.ev_lo == start.ev_lo)
+        *failure = "EClock did not advance";
+    if (*failure)
+        return 0;
+
+    *frequency = first_rate;
+    return end.ev_lo - start.ev_lo;
+}
+
+static ULONG run_dhrystone_chunks(void)
+{
+    const ULONG max_loops = 5000000UL;
+    const ULONG max_chunks = 128;
+    ULONG loops = 1000, frequency = 0, ticks = 0;
+    ULONG calibration_loops = 0, calibration_ticks = 0;
+    ULONG target_ticks = 0, limit_ticks = 0, chunks = 0, total_loops = 0;
+    ULONG shortest = ~0UL, longest = 0, attempt;
+    uint64_t total_ticks = 0, next_loops, goal_ticks;
+    const char *failure = NULL;
+
+    if (!Dhry_Initialize()) return 0;
+
+    Forbid();
+    for (attempt = 0; attempt < 3; attempt++) {
+        ticks = dhrystone_sample(loops, FALSE, &frequency, &failure);
+        if (!ticks) goto done;
+        /* Aim for at least 10 ms of calibration on fast processors. */
+        if (ticks >= frequency / 100 || loops == max_loops || attempt == 2)
+            break;
+        next_loops = (uint64_t)loops * frequency / (100ULL * ticks) + 1;
+        loops = next_loops > max_loops ? max_loops : (ULONG)next_loops;
+    }
+    calibration_loops = loops;
+    calibration_ticks = ticks;
+
+    /* Target 75 ms, with a 90 ms rejection limit. Also bound both by the
+     * 16-bit hardware period if a machine reports an unusual E-clock rate.
+     * Enable() between chunks lets timer.device account for overflows. */
+    limit_ticks = (uint64_t)frequency * 90 / 1000;
+    if (limit_ticks > 0xff00) limit_ticks = 0xff00;
+    target_ticks = (uint64_t)frequency * 75 / 1000;
+    if (target_ticks >= limit_ticks) target_ticks = limit_ticks * 3 / 4;
+    if (!target_ticks || (uint64_t)ticks >= (uint64_t)loops * limit_ticks) {
+        failure = "iteration too long for EClock chunk";
+        goto done;
+    }
+    next_loops = (uint64_t)loops * target_ticks / ticks;
+    loops = next_loops > max_loops ? max_loops : (ULONG)next_loops;
+    if (!loops) loops = 1;
+    goal_ticks = (uint64_t)frequency * 2;
+
+    /* Keep the initialized records between chunks. Only the timed work
+     * contributes to the score; pending interrupts run outside it while
+     * task switching remains forbidden. */
+    while (total_ticks < goal_ticks && total_loops < max_loops &&
+           chunks < max_chunks) {
+        if (loops > max_loops - total_loops)
+            loops = max_loops - total_loops;
+        ticks = dhrystone_sample(loops, TRUE, &frequency, &failure);
+        if (!ticks) goto done;
+        if (ticks >= limit_ticks) {
+            failure = "chunk exceeds EClock timing limit";
+            goto done;
+        }
+        total_loops += loops;
+        total_ticks += ticks;
+        chunks++;
+        if (ticks < shortest) shortest = ticks;
+        if (ticks > longest) longest = ticks;
+
+        /* Calibration can include interrupt work. Converge on the target
+         * using measured chunks, limiting growth to twice the loop count. */
+        next_loops = (uint64_t)loops * target_ticks / ticks;
+        if (next_loops > (uint64_t)loops * 2) next_loops = (uint64_t)loops * 2;
+        if (next_loops > max_loops) next_loops = max_loops;
+        loops = next_loops ? (ULONG)next_loops : 1;
+    }
+    if (chunks == max_chunks && total_ticks < goal_ticks &&
+        total_loops < max_loops)
+        failure = "chunk limit before sufficient elapsed time";
+done:
+    Permit();
+    if (calibration_ticks)
+        debug("  bench: Dhrystone calibration: %lu loops in %lu us\n",
+              calibration_loops,
+              (ULONG)((uint64_t)calibration_ticks * 1000000 / frequency));
+    if (failure) {
+        debug("  bench: Dhrystone timing rejected: %s\n", (ULONG)failure);
+        debug("    chunk %lu, loops %lu, ticks %lu, EClock %lu Hz\n",
+              chunks + 1, loops, ticks, frequency);
+        return 0;
+    }
+    debug("  bench: finished Dhrystone with %lu chunks and %lu loops in %lu us\n",
+          chunks, total_loops, (ULONG)(total_ticks * 1000000 / frequency));
+    debug("    chunk time min/max: %lu/%lu us, target %lu us\n",
+          (ULONG)((uint64_t)shortest * 1000000 / frequency),
+          (ULONG)((uint64_t)longest * 1000000 / frequency),
+          (ULONG)((uint64_t)target_ticks * 1000000 / frequency));
+    uint64_t result = (uint64_t)total_loops * frequency / total_ticks;
+    return result > ULONG_MAX ? ULONG_MAX : (ULONG)result;
+}
+
 /* Run the original Dhrystone 2.1 benchmark. */
 ULONG run_dhrystone(void)
 {
@@ -824,6 +947,9 @@ ULONG run_dhrystone(void)
               (ULONG)hw_info.icache_enabled, (ULONG)hw_info.dcache_enabled,
               (ULONG)hw_info.iburst_enabled, (ULONG)hw_info.dburst_enabled);
     }
+
+    if (frequency_eclock_available())
+        return run_dhrystone_chunks();
 
     for (attempt = 0; attempt < max_attempts; attempt++) {
         if (!Dhry_Initialize()) {
