@@ -571,8 +571,13 @@ ULONG get_mhz_cpu(void)
             // check whether it is fast mem!
             if ((long unsigned int)test >= 0x200000 && (long unsigned int)test < 0xC00000)
             {
-                // real fastmem!
-                tmp *= 204;
+                /* MC68000UM, sections 8.4/8.8 and 9.4/9.8:
+                 * zero-wait-state SUBQ.L (8 clocks) + taken Bcc (10).
+                 * Differencing cancels the final, non-taken branch. */
+                if (frequency_eclock_available())
+                    tmp = (uint64_t)loop * 18 * 100;
+                else
+                    tmp *= 204;
             }
             else
             { // chip or ranger mem
