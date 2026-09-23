@@ -295,7 +295,7 @@ PCI_PATCH = patches/identify-drop-empty-pci-vendors.patch
 PCI_DB = $(PCI_BUILD_DIR)/pci.db
 
 # MD5 checksums for verification
-OPENPCI_MD5 = bed411a86be2ccb22e0806a5c54147bd
+OPENPCI_MD5 = 503e64676537e6f7fe9ed58271d533b2
 MMULIB_MD5 = 1e63e42c9d2895d22f896b6d90c26353
 MU_MANUAL_MD5 = 98ce060266ec1ac2dece921f431253b1
 
@@ -343,10 +343,11 @@ endef
 $(VASM_PPC_ARCHIVE): | $(DOWNLOAD_DIR)
 	@echo "  DOWNLOAD $@"
 	@curl -fLsS https://codeload.github.com/AmigaPorts/vasm/tar.gz/$(VASM_PPC_REV) -o $@.tmp
-	@if ! $(call verify_md5_cmd,$@.tmp,$(VASM_PPC_MD5)); then \
+	@if $(call verify_md5_cmd,$@.tmp,$(VASM_PPC_MD5)); then \
+		mv $@.tmp $@; \
+	else \
 		$(call md5_fail_msg,$@.tmp,$(VASM_PPC_MD5)); rm -f $@.tmp; exit 1; \
 	fi
-	@mv $@.tmp $@
 
 $(abspath $(VASM_PPC_DIR)/vasmppc_std): $(VASM_PPC_ARCHIVE)
 	@mkdir -p $(VASM_PPC_DIR)
