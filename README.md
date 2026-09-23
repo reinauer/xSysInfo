@@ -20,6 +20,12 @@
 
 To build `xSysInfo`, you will need a GCC cross-compiler for m68k-amigaos (e.g., `m68k-amigaos-gcc`). The build process also requires `make`, `curl`, `md5sum`, `lha`, Python 3, `patch`, and `vasmm68k_mot` (VASM) to handle external dependencies and assemble the PCI database.
 
+Building Identify also requires `vc` with its `+kick13` configuration,
+`vlink`, and the Amiga NDK headers and libraries. If `vasmppc_std` is
+missing, the Makefile builds it from pinned sources using a host C compiler
+and `tar`. The standard amiga-gcc toolchain layout is used by default;
+`NDK_PATH` and `NDK_LIB_PATH` can override the NDK locations.
+
 1.  **Clone the repository**:
     ```bash
     git clone https://github.com/reinauer/xsysinfo.git
@@ -173,10 +179,10 @@ they behave like `SCREEN`, using the system's native PAL or NTSC mode.
 
 *   [FlexCat](https://github.com/adtools/flexcat): Builds the localization
     catalogs from the source submodule.
-*   [Identify](http://identify.shredzone.org/): Identifies hardware and
-    software. Developer headers come from the source submodule; the runtime
-    library comes from
-    [IdentifyUsr.lha](https://aminet.net/util/libs/IdentifyUsr.lha).
+*   [Identify](https://github.com/reinauer/identify/tree/xsysinfo): Identifies
+    hardware and software. The source submodule tracks our `xsysinfo` branch,
+    which includes the pending Codefloe PRs #28–32. Developer headers and the
+    floppy's 68000-compatible runtime library come from that pinned source.
 *   [PCI IDs](https://github.com/pciutils/pciids): Supplies the PCI identification
     data through identify's nested submodule. The disk's `pci.db` is built
     locally with [the empty-vendor pruning patch](https://codefloe.com/shred/identify/commit/19f91eac2debe6085794203c541ffcf098181f03).

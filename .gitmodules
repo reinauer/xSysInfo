@@ -1,6 +1,7 @@
 [submodule "3rdparty/identify"]
 	path = 3rdparty/identify
 	url = https://github.com/reinauer/identify
+	branch = xsysinfo
 [submodule "3rdparty/flexcat"]
 	path = 3rdparty/flexcat
 	url = https://github.com/reinauer/flexcat

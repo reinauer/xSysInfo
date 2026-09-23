@@ -18,6 +18,7 @@ PYTHON  ?= python3
 
 # NDK include path (override with: make NDK_PATH=/your/path)
 NDK_PATH ?= $(shell realpath $$(dirname $$(which $(CC)))/../m68k-amigaos/ndk-include)
+NDK_LIB_PATH ?= $(abspath $(NDK_PATH)/../ndk/lib/libs)
 
 # Cached MMU runtime libraries and developer files
 DOWNLOAD_DIR = downloads
@@ -32,6 +33,19 @@ FD2PRAGMA_TYPES = $(HOME)/.fd2pragma.types
 # Include paths for the downloaded developer files
 IDENTIFY_INC = 3rdparty/identify/reference
 MMU_INC = $(MMU_DIR)/Include
+IDENTIFY_BUILD_DIR = build/identify
+IDENTIFY_LIBRARY = $(IDENTIFY_BUILD_DIR)/identify.library_000
+OPENPCI_DIR = $(DOWNLOAD_DIR)/openpci68k
+OPENPCI_INC = $(OPENPCI_DIR)/Include
+OPENPCI_SDK_FILES = $(addprefix $(OPENPCI_INC)/libraries/,openpci.i pcitags.i pcimemory.i)
+
+# Identify embeds a small WarpUP routine, assembled even in its 68000 build.
+VASM_PPC_REV = 291f6f08226c8843711e1319864526e6cd57ce06
+VASM_PPC_ARCHIVE = $(DOWNLOAD_DIR)/vasm-$(VASM_PPC_REV).tar.gz
+VASM_PPC_MD5 = ec476359c4d400a443f23245baf977f0
+VASM_PPC_DIR = build/vasm-$(VASM_PPC_REV)
+VASM_PPC ?= $(or $(shell command -v vasmppc_std 2>/dev/null),$(abspath $(VASM_PPC_DIR)/vasmppc_std))
+HOST_CC ?= cc
 
 #LTO ?= -flto=auto
 CFLAGS = -Os -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -Wextra \
@@ -86,7 +100,7 @@ ASM_OBJS = $(ASM_SRCS:.S=.o)
 
 TARGET = xSysInfo
 
-.PHONY: all clean identify mmu catalogs lha TinySetPatch
+.PHONY: all clean identify identify-library mmu catalogs lha TinySetPatch
 
 # FlexCat uses the Unix target on both Linux and macOS.
 FLEXCAT_BIN = 3rdparty/flexcat/src/bin_unix/flexcat
@@ -138,6 +152,7 @@ MMU_HEADERS = $(MMU_INC)/proto/mmu.h $(MMU_INC)/inline/mmu.h \
 	$(MMU_INC)/inline/mmu_protos.h
 MMU_SDK_FILES = $(MMU_DIR)/fd/mmu_lib.fd $(MMU_DIR)/fd/mmu_resource.fd \
 	$(MMU_INC)/clib/mmu_protos.h $(MMU_INC)/pragmas/mmu_pragmas.h \
+	$(MMU_INC)/mmu/mmubase.i \
 	$(addprefix $(MMU_INC)/mmu/,alerts.h config.h context.h descriptor.h \
 		exceptions.h mmubase.h mmutags.h)
 
@@ -234,7 +249,7 @@ clean:
 	@echo "  CLEAN"
 	@rm -f $(OBJS) $(ASM_OBJS) $(STACK_OBJ) $(TARGET) TinySetPatch $(STACK)
 	@rm -rf $(CATALOG_DIR)
-	@rm -rf $(PCI_BUILD_DIR)
+	@rm -rf $(PCI_BUILD_DIR) $(IDENTIFY_BUILD_DIR)
 	@rm -f $(VERSION_STAMP)
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
@@ -270,7 +285,6 @@ DISK_TITLE = $(shell printf '%s' "xSysInfo-$(FULL_VERSION)" | \
 	sed 's/-dirty$$//' | cut -c1-30)
 
 # Downloads directory and files
-IDENTIFY_USR_LHA = $(DOWNLOAD_DIR)/IdentifyUsr.lha
 OPENPCI_LHA = $(DOWNLOAD_DIR)/openpci68k.lha
 
 # Build the floppy's smaller PCI database without modifying the submodule.
@@ -281,7 +295,6 @@ PCI_PATCH = patches/identify-drop-empty-pci-vendors.patch
 PCI_DB = $(PCI_BUILD_DIR)/pci.db
 
 # MD5 checksums for verification
-IDENTIFY_USR_MD5 = f8bd9feb9fa595bea979755224d08c5c
 OPENPCI_MD5 = bed411a86be2ccb22e0806a5c54147bd
 MMULIB_MD5 = 1e63e42c9d2895d22f896b6d90c26353
 MU_MANUAL_MD5 = 98ce060266ec1ac2dece921f431253b1
@@ -326,19 +339,19 @@ echo "Expected MD5: $(2)"; \
 echo "Got MD5: $$actual"
 endef
 
-# Download and verify IdentifyUsr.lha
-$(IDENTIFY_USR_LHA): | $(DOWNLOAD_DIR)
-	@if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(IDENTIFY_USR_MD5)); then \
-		echo "$@ already downloaded and verified"; \
-	else \
-		echo "Downloading IdentifyUsr.lha..."; \
-		curl -sL http://aminet.net/util/libs/IdentifyUsr.lha -o $@; \
-		if $(call verify_md5_cmd,$@,$(IDENTIFY_USR_MD5)); then \
-			echo "$@: OK"; \
-		else \
-			$(call md5_fail_msg,$@,$(IDENTIFY_USR_MD5)); rm -f $@; exit 1; \
-		fi \
+# Build the missing PowerPC assembler from a pinned source archive.
+$(VASM_PPC_ARCHIVE): | $(DOWNLOAD_DIR)
+	@echo "  DOWNLOAD $@"
+	@curl -fLsS https://codeload.github.com/AmigaPorts/vasm/tar.gz/$(VASM_PPC_REV) -o $@.tmp
+	@if ! $(call verify_md5_cmd,$@.tmp,$(VASM_PPC_MD5)); then \
+		$(call md5_fail_msg,$@.tmp,$(VASM_PPC_MD5)); rm -f $@.tmp; exit 1; \
 	fi
+	@mv $@.tmp $@
+
+$(abspath $(VASM_PPC_DIR)/vasmppc_std): $(VASM_PPC_ARCHIVE)
+	@mkdir -p $(VASM_PPC_DIR)
+	@tar -xzf $< -C $(VASM_PPC_DIR) --strip-components=1
+	@$(MAKE) -s -C $(VASM_PPC_DIR) CPU=ppc SYNTAX=std CC="$(HOST_CC)" vasmppc_std
 
 # Download and verify openpci68k.lha
 $(OPENPCI_LHA): | $(DOWNLOAD_DIR)
@@ -385,22 +398,36 @@ $(MU_MANUAL_LHA): | $(DOWNLOAD_DIR)
 # Refresh timestamps because archive members predate the downloaded archive.
 $(MMU_LIBS): $(MMULIB_LHA)
 	@echo "  UNPACK $@"
+	@mkdir -p $(dir $@)
 	@lha xqfw=$(DOWNLOAD_DIR) $< $(patsubst $(DOWNLOAD_DIR)/%,%,$@)
 	@touch $@
 
 $(MMU_SDK_FILES): $(MU_MANUAL_LHA)
 	@echo "  UNPACK $@"
+	@mkdir -p $(dir $@)
 	@lha xqfw=$(DOWNLOAD_DIR) $< $(patsubst $(DOWNLOAD_DIR)/%,%,$@)
 	@touch $@
 
+$(OPENPCI_SDK_FILES): $(OPENPCI_LHA)
+	@echo "  UNPACK $@"
+	@mkdir -p $(dir $@)
+	@lha xqfw=$(OPENPCI_DIR) $< $(patsubst $(OPENPCI_DIR)/%,%,$@)
+	@touch $@
+
+# Keep the runtime tied to the checked-out source, using the 68000 variant
+# on every floppy. Let Identify's makefile handle incremental dependencies.
+identify-library: $(FLEXCAT_BIN) $(MMU_SDK_FILES) $(OPENPCI_SDK_FILES) $(PCI_IDS) $(VASM_PPC)
+	@echo "  BUILD identify.library (68000)"
+	@$(MAKE) -s -C 3rdparty/identify \
+		OBJP="$(abspath $(IDENTIFY_BUILD_DIR))" \
+		NDK_I="$(NDK_PATH)" NDK_H="$(NDK_PATH)" NDK_LIB="$(NDK_LIB_PATH)" \
+		AMIGA_INCLUDES="$(abspath $(MMU_INC)) $(abspath $(OPENPCI_INC))" \
+		PATH="$(dir $(VASM_PPC)):$(dir $(abspath $(FLEXCAT_BIN))):$(PATH)" \
+		"$(abspath $(IDENTIFY_LIBRARY))"
+
 # Download and prepare libraries and developer files.
-download-libs: $(IDENTIFY_USR_LHA) $(OPENPCI_LHA) $(MMU_LIBS) $(MMU_SDK_FILES)
+download-libs: $(OPENPCI_LHA) $(MMU_LIBS) $(MMU_SDK_FILES)
 	@mkdir -p 3rdparty/identify/build
-	# Extract Identify library (use 68000-compatible version)
-	@echo "  UNPACK $(IDENTIFY_USR_LHA)"
-	@lha xq $(IDENTIFY_USR_LHA) Identify/libs/identify.library_000
-	@mv Identify/libs/identify.library_000 3rdparty/identify/build/identify.library
-	@rm -rf Identify
 	# Extract OpenPCI library
 	@echo "  UNPACK $(OPENPCI_LHA)"
 	@lha xq $(OPENPCI_LHA) Libs/openpci.library
@@ -417,14 +444,14 @@ TinySetPatch: $(TINYSETPATCH_SRC) $(TINYSETPATCH_DIR)/Makefile Makefile
 		VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
 	@cp $(TINYSETPATCH_BIN) $@
 
-disk: $(TARGET) download-libs $(PCI_DB) TinySetPatch $(STACK)
+disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK)
 	@echo "  DISK"
 	@xdftool $(DISK) format "$(DISK_TITLE)"
 	@xdftool $(DISK) write $(TARGET) $(TARGET)
 	@xdftool $(DISK) write docs/$(TARGET).info $(TARGET).info
 	@xdftool $(DISK) write docs/Disk.info Disk.info
 	@xdftool $(DISK) makedir Libs
-	@xdftool $(DISK) write 3rdparty/identify/build/identify.library Libs/identify.library
+	@xdftool $(DISK) write $(IDENTIFY_LIBRARY) Libs/identify.library
 	@xdftool $(DISK) write 3rdparty/identify/build/openpci.library Libs/openpci.library
 	@for lib in $(MMU_LIB_NAMES); do \
 		xdftool $(DISK) write $(MMU_LIB_DIR)/$$lib.library Libs/$$lib.library; \
