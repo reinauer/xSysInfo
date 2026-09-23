@@ -750,7 +750,15 @@ ULONG get_mhz_fpu(void)
             tmp *= 79;
             break;
         case FPU_68882:
-            tmp *= 79;
+            if (frequency_eclock_available()) {
+                /* Use the same empirical 68882 calibration for all CPUs
+                 * and cache settings: 90 net cycles per iteration after
+                 * subtracting the measured integer loop overhead.
+                 * This is a loop calibration, not a general FDIV timing. */
+                tmp = (uint64_t)loop * 90 * 100;
+            } else {
+                tmp *= 79;
+            }
             break;
         default:
             break;
