@@ -291,7 +291,6 @@ OPENPCI_LHA = $(DOWNLOAD_DIR)/openpci68k.lha
 PCI_BUILD_DIR = build/pci
 PCI_IDS = 3rdparty/identify/pciids/pci.ids
 PCI_GENERATOR = 3rdparty/identify/update-pci.py
-PCI_PATCH = patches/identify-drop-empty-pci-vendors.patch
 PCI_DB = $(PCI_BUILD_DIR)/pci.db
 
 # MD5 checksums for verification
@@ -308,11 +307,10 @@ pci-db: $(PCI_DB)
 $(PCI_IDS):
 	@git -C 3rdparty/identify submodule update --init pciids
 
-$(PCI_DB): $(PCI_IDS) $(PCI_GENERATOR) $(PCI_PATCH) Makefile
+$(PCI_DB): $(PCI_IDS) $(PCI_GENERATOR) Makefile
 	@echo "  PCI   $@"
 	@mkdir -p $(PCI_BUILD_DIR)/pciids $(PCI_BUILD_DIR)/src/identify/pci
 	@cp $(PCI_GENERATOR) $(PCI_BUILD_DIR)/update-pci.py
-	@cd $(PCI_BUILD_DIR) && patch -f -p1 -i "$(abspath $(PCI_PATCH))"
 	@cp $(PCI_IDS) $(PCI_BUILD_DIR)/pciids/pci.ids
 	@cd $(PCI_BUILD_DIR) && $(PYTHON) update-pci.py
 	@$(VASM) -esc -Fbin -o $@.tmp $(PCI_BUILD_DIR)/src/identify/pci/database.s

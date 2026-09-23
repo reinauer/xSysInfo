@@ -18,7 +18,7 @@
 
 ## Building `xSysInfo`
 
-To build `xSysInfo`, you will need a GCC cross-compiler for m68k-amigaos (e.g., `m68k-amigaos-gcc`). The build process also requires `make`, `curl`, `md5sum`, `lha`, Python 3, `patch`, and `vasmm68k_mot` (VASM) to handle external dependencies and assemble the PCI database.
+To build `xSysInfo`, you will need a GCC cross-compiler for m68k-amigaos (e.g., `m68k-amigaos-gcc`). The build process also requires `make`, `curl`, `md5sum`, `lha`, Python 3, and `vasmm68k_mot` (VASM) to handle external dependencies and assemble the PCI database.
 
 Building Identify also requires `vc` with its `+kick13` configuration,
 `vlink`, and the Amiga NDK headers and libraries. If `vasmppc_std` is
@@ -185,7 +185,8 @@ they behave like `SCREEN`, using the system's native PAL or NTSC mode.
     floppy's 68000-compatible runtime library come from that pinned source.
 *   [PCI IDs](https://github.com/pciutils/pciids): Supplies the PCI identification
     data through identify's nested submodule. The disk's `pci.db` is built
-    locally with [the empty-vendor pruning patch](https://codefloe.com/shred/identify/commit/19f91eac2debe6085794203c541ffcf098181f03).
+    locally using Identify's generator, which omits vendors without devices
+    on our `xsysinfo` branch.
     The full database is available separately in
     [IdentifyPci.lha](https://aminet.net/util/libs/IdentifyPci.lha).
 *   [openpci68k.lha](https://aminet.net/driver/other/openpci68k.lha): Supplies
