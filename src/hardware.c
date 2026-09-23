@@ -644,6 +644,11 @@ void detect_mmu(void)
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
                     break;
                 case CPU_68040:
+                    /* Emulators can provide a 040 FPU without an MMU. */
+                    if (hw_info.fpu_type != FPU_NONE &&
+                        hw_info.fpu_type != FPU_UNKNOWN)
+                        break;
+                    /* Fall through. */
                 case CPU_68LC040:
                     hw_info.cpu_type = CPU_68EC040;
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
@@ -755,6 +760,11 @@ void detect_mmu(void)
                 snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
                 break;
             case CPU_68040:
+                /* Emulators can provide a 040 FPU without an MMU. */
+                if (hw_info.fpu_type != FPU_NONE &&
+                    hw_info.fpu_type != FPU_UNKNOWN)
+                    break;
+                /* Fall through. */
             case CPU_68LC040:
                 hw_info.cpu_type = CPU_68EC040;
                 snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
