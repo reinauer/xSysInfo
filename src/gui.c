@@ -1210,7 +1210,7 @@ static void refresh_hardware_benchmark_rows(void)
         return;
     }
 
-    y = HARDWARE_PANEL_Y + 24 + 5 * 8;
+    y = HARDWARE_PANEL_Y + 24 + 7 * 8;
 
     format_cpu_value(buffer, sizeof(buffer));
     draw_hardware_overview_row(y, get_string(MSG_CPU_MHZ), buffer);
@@ -2013,6 +2013,12 @@ static void draw_hardware_panel_contents(void)
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
         y += 8;
 
+        /* Mode */
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_MODE), hw_info.mode_string,
+                         HARDWARE_OVERVIEW_VALUE_OFFSET);
+        y += 8;
+
         /* DMA/Gfx */
         switch (hw_info.agnus_type) {
             case AGNUS_OCS_NTSC:
@@ -2078,12 +2084,6 @@ static void draw_hardware_panel_contents(void)
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
         y += 8;
 
-        /* Mode */
-        draw_label_value(HARDWARE_PANEL_X + 4, y,
-                         get_string(MSG_MODE), hw_info.mode_string,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-        y += 8;
-
         /* Display */
 
         switch (hw_info.denise_type) {
@@ -2132,6 +2132,37 @@ static void draw_hardware_panel_contents(void)
         }
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_SOUND_SYSTEM), buffer,
+                         HARDWARE_OVERVIEW_VALUE_OFFSET);
+        y += 8;
+
+        /* Ramsey */
+        format_ramsey_rev_string(buffer, sizeof(buffer));
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_RAM_CONTROLLER), buffer,
+                         HARDWARE_OVERVIEW_VALUE_OFFSET);
+        y += 8;
+
+        /* Gary */
+        switch (hw_info.gary_type) {
+            case GARY_A1000:
+                copy_string(buffer, get_string(MSG_GARY_A1000), sizeof(buffer));
+                break;
+            case GARY_A500:
+                copy_string(buffer, get_string(MSG_GARY_A500), sizeof(buffer));
+                break;
+            case GAYLE:
+                snprintf(buffer, sizeof(buffer), "%s %02X", get_string(MSG_GAYLE), hw_info.gary_rev);
+                break;
+            case FAT_GARY:
+                copy_string(buffer, get_string(MSG_FAT_GARY), sizeof(buffer));
+                break;
+            case GARY_UNKNOWN:
+            default:
+                copy_string(buffer, get_string(MSG_GARY_UNKNOWN), sizeof(buffer));
+                break;
+        }
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+                         get_string(MSG_DECODING), buffer,
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
         y += 8;
 
@@ -2203,37 +2234,6 @@ static void draw_hardware_panel_contents(void)
         snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.supply_freq);
         draw_label_value(HARDWARE_PANEL_X + 4, y,
                          get_string(MSG_SUPPLY_HZ), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-        y += 8;
-
-        /* Ramsey */
-        format_ramsey_rev_string(buffer, sizeof(buffer));
-        draw_label_value(HARDWARE_PANEL_X + 4, y,
-                         get_string(MSG_RAMSEY_REV), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-        y += 8;
-
-        /* Gary */
-        switch (hw_info.gary_type) {
-            case GARY_A1000:
-                copy_string(buffer, get_string(MSG_GARY_A1000), sizeof(buffer));
-                break;
-            case GARY_A500:
-                copy_string(buffer, get_string(MSG_GARY_A500), sizeof(buffer));
-                break;
-            case GAYLE:
-                snprintf(buffer, sizeof(buffer), "%s %02X", get_string(MSG_GAYLE), hw_info.gary_rev);
-                break;
-            case FAT_GARY:
-                copy_string(buffer, get_string(MSG_FAT_GARY), sizeof(buffer));
-                break;
-            case GARY_UNKNOWN:
-            default:
-                copy_string(buffer, get_string(MSG_GARY_UNKNOWN), sizeof(buffer));
-                break;
-        }
-        draw_label_value(HARDWARE_PANEL_X + 4, y,
-                         get_string(MSG_GARY_REV), buffer,
                          HARDWARE_OVERVIEW_VALUE_OFFSET);
         y += 8;
 
@@ -2324,7 +2324,7 @@ static void draw_hardware_panel_contents(void)
         /* Ramsey */
         format_ramsey_rev_string(buffer, sizeof(buffer));
         draw_label_value(HARDWARE_PANEL_X + 4, y,
-                         get_string(MSG_RAMSEY_REV), buffer,
+                         get_string(MSG_RAM_CONTROLLER), buffer,
                          HARDWARE_CHIPSET_VALUE_OFFSET);
         y += 8;
         if (hw_info.ramsey_rev) {

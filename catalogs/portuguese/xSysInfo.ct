@@ -88,11 +88,11 @@ Horiz kHz
 MSG_ECLOCK_HZ
 EClock Hz
 ;
-MSG_RAMSEY_REV
-Rev. Ramsey
+MSG_RAM_CONTROLLER
+Ctrl. RAM
 ;
-MSG_GARY_REV
-Rev. Gary
+MSG_DECODING
+Descodif.
 ;
 MSG_CARD_SLOT
 Slot de Cartão

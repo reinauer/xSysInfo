@@ -231,6 +231,7 @@ void export_hardware(BPTR fh)
     write_formatted(fh, "%-16s %s", "Clock:", hw_info.clock_string);
     write_formatted(fh, "%-16s %s", "Amiga:",
                     hw_info.amiga_model_string);
+    write_formatted(fh, "%-16s %s", "Mode:", hw_info.mode_string);
 
     /* DMA/Gfx */
     switch (hw_info.agnus_type)
@@ -295,8 +296,6 @@ void export_hardware(BPTR fh)
     }
     write_formatted(fh, "%-16s %s", "DMA/Gfx:", buffer);
 
-    write_formatted(fh, "%-16s %s", "Mode:", hw_info.mode_string);
-
     /* Display */
     switch (hw_info.denise_type)
     {
@@ -326,6 +325,12 @@ void export_hardware(BPTR fh)
 
     format_paula_string(buffer, sizeof(buffer));
     write_formatted(fh, "%-16s %s", "Sound:", buffer);
+
+    format_ramsey_rev_string(buffer, sizeof(buffer));
+    write_formatted(fh, "%-16s %s", "RAM ctrl.:", buffer);
+
+    format_gary_string(buffer, sizeof(buffer));
+    write_formatted(fh, "%-16s %s", "Decoding:", buffer);
 
     {
         char mhz_buf[16];
@@ -387,12 +392,6 @@ void export_hardware(BPTR fh)
     snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.eclock_freq);
     write_formatted(fh, "%-16s %s Hz", "EClock:", buffer);
 
-    format_ramsey_rev_string(buffer, sizeof(buffer));
-    write_formatted(fh, "%-16s %s", "Ramsey Rev:", buffer);
-
-    format_gary_string(buffer, sizeof(buffer));
-    write_formatted(fh, "%-16s %s", "Gary Rev:", buffer);
-
     write_formatted(fh, "%-16s %s", "Card Slot:", hw_info.card_slot_string);
 
     snprintf(buffer, sizeof(buffer), "%lu Hz", (unsigned long)hw_info.vert_freq);
@@ -422,7 +421,7 @@ void export_hardware(BPTR fh)
     WRITE_LINE(fh, "");
     WRITE_LINE(fh, "Extended Hardware:");
     format_ramsey_rev_string(buffer, sizeof(buffer));
-    write_formatted(fh, "  Ramsey Rev:     %s", buffer);
+    write_formatted(fh, "  RAM ctrl.:      %s", buffer);
 
     if (hw_info.ramsey_rev) {
         write_formatted(fh, "  Ramsey Control:");

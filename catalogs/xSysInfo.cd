@@ -94,11 +94,11 @@ Horiz kHz
 MSG_ECLOCK_HZ (//)
 EClock Hz
 ;
-MSG_RAMSEY_REV (//)
-Ramsey rev
+MSG_RAM_CONTROLLER (//)
+RAM ctrl.
 ;
-MSG_GARY_REV (//)
-Gary rev
+MSG_DECODING (//)
+Decoding
 ;
 MSG_CARD_SLOT (//)
 Card Slot

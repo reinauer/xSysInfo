@@ -96,11 +96,11 @@ Vízsz. kHz
 MSG_ECLOCK_HZ
 EClock Hz
 ;
-MSG_RAMSEY_REV
-Ramsey rev
+MSG_RAM_CONTROLLER
+RAM-vez.
 ;
-MSG_GARY_REV
-Gary rev
+MSG_DECODING
+Dekódolás
 ;
 MSG_CARD_SLOT
 Busztípus

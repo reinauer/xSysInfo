@@ -95,11 +95,11 @@ Horiz kHz
 MSG_ECLOCK_HZ
 EClock Hz
 ;
-MSG_RAMSEY_REV
-Ramsey rev
+MSG_RAM_CONTROLLER
+Ctrl. RAM
 ;
-MSG_GARY_REV
-Gary rev
+MSG_DECODING
+Decodif.
 ;
 MSG_CARD_SLOT
 Ranura
