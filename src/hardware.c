@@ -1493,7 +1493,7 @@ void detect_gary(void)
         A safe register to read is DMACONR. If this register is mirrored A1000 is there.
 
         A600/A1200 have an undocumented revision register at DE1000, but the 8-bit code is
-        "morsed" only via the highest byte
+        shifted out one bit at a time via bit 7
 
         If this is "FF" or unstable, a A500/2000 is present.
     */
@@ -1571,6 +1571,8 @@ void detect_gary(void)
     now we read the GAYLE_ID: Write a zero to the ID-register and read it back 8 times!
     */
 
+    /* Keep other tasks from restarting the serial ID read. */
+    Forbid();
     for (j=0;j<4;++j) {
         val = 0;
         //test for mirroring (A500)
@@ -1580,10 +1582,11 @@ void detect_gary(void)
             tmp = *((volatile unsigned char *)(GAYLE_ID));
             if (i == 0 && tmp == tmp2) { //a500 gary!
                 hw_info.gary_type = GARY_A500;
+                Permit();
                 return;
             }
-            //mask
-            tmp &= 0x80>>i;
+            /* Every read supplies the next ID bit in bit 7. */
+            tmp &= 0x80;
             val = val|(tmp>>i);
         }
         if (j==0) {
@@ -1592,10 +1595,12 @@ void detect_gary(void)
         else {
             if (val2 != val) { //inconsistent results -> A500 gary
                 hw_info.gary_type = GARY_A500;
+                Permit();
                 return;
             }
         }
     }
+    Permit();
     if (val!=0xFF && val !=0) {
         hw_info.gary_type = GAYLE;
         hw_info.gary_rev = val;
