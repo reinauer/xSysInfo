@@ -316,9 +316,10 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
 
 /* Return the equivalent runtime in microseconds for reference_loops, so
  * the CPU/FPU calibration factors use the same units as the legacy path.
- * Subtract a short loop to remove fixed timer/setup costs. Keep that loop
- * small: ReadEClock can take tens of microseconds on real hardware, leaving
- * very little useful work when subtracting two nearly equal samples.
+ * Estimate the slope between two established loop runs, so fixed timer,
+ * setup and cache costs cancel even if a tiny loop behaves differently.
+ * Keep the baseline well below the long run to leave useful loop work
+ * after subtraction. Also time a tiny loop to quantify the old bias.
  * Sum E-clock ticks before conversion to avoid rounding each sample.
  */
 static ULONG __attribute__((optimize("Os")))
@@ -326,9 +327,13 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
 {
     const ULONG samples = 64;
     const ULONG short_loops = fpu ? 2 : 16;
+    const ULONG max_loops = 2097152;
     ULONG loops = short_loops * 2;
     ULONG frequency = 0, ticks = 0, shorter = 0, total = 0, result = 0, i = 0;
     ULONG short_total = 0, long_total = 0, low = ~0UL, high = 0;
+    ULONG baseline_loops = 0, baseline = 0, baseline_total = 0;
+    ULONG uncorrected = 0;
+    LONG bias_us = 0;
     ULONG loop_total = 0, sample_loops = 0;
     ULONG min_delta = 0, max_ticks = 0, next_loops;
     FrequencyFailure failure = {0};
@@ -336,17 +341,18 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
     BOOL measuring = FALSE;
 
     Forbid();
-    /* Require at least 50 us of loop work after subtracting the short
+    /* Require at least 1 ms of loop work after subtracting the baseline
      * sample, even at the smallest count used below. Timer/setup overhead
-     * must not make calibration accept a nearly empty interval. Keep the
-     * measured intervals within 200 us; a complete Disable/Enable window
-     * also includes the timer work outside those timestamps. */
+     * must not make calibration accept a nearly empty interval. Longer
+     * samples reduce E-clock quantization and residual setup/cache bias.
+     * Keep measured intervals within 2 ms; a complete Disable/Enable
+     * window also includes timer work outside those timestamps. */
     for (;;) {
         shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
         if (!shorter)
             goto done;
-        min_delta = (frequency - 1) / 20000 + 1;
-        max_ticks = frequency / 5000;
+        min_delta = (frequency - 1) / 1000 + 1;
+        max_ticks = frequency / 500;
         if (shorter >= max_ticks) {
             reason = "timer overhead leaves no loop interval";
             goto done;
@@ -355,27 +361,30 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
         if (!ticks)
             goto done;
         if (ticks > max_ticks) {
-            reason = "calibration sample exceeds 200 us";
+            reason = "calibration sample exceeds 2 ms";
             goto done;
         }
         sample_loops = loops - 3 * (loops / 16);
+        baseline_loops = loops / 16;
+        if (baseline_loops < short_loops)
+            baseline_loops = short_loops;
         if (ticks > shorter &&
-            (uint64_t)(ticks - shorter) * (sample_loops - short_loops) >=
+            (uint64_t)(ticks - shorter) * (sample_loops - baseline_loops) >=
             (uint64_t)min_delta * (loops - short_loops))
             break;
-        if (loops >= 65536) {
+        if (loops >= max_loops) {
             reason = "calibration loop limit";
             goto done;
         }
         next_loops = loops * 2;
-        if (next_loops > 65536)
-            next_loops = 65536;
+        if (next_loops > max_loops)
+            next_loops = max_loops;
         if (ticks > shorter) {
-            /* Reserve 10 us for timer variation when limiting growth.
+            /* Reserve 100 us for timer variation when limiting growth.
              * Slower CPUs can use a count between successive doublings. */
-            ULONG budget = max_ticks - ((frequency - 1) / 100000 + 1);
+            ULONG budget = max_ticks - ((frequency - 1) / 10000 + 1);
             if (shorter >= budget) {
-                reason = "insufficient loop interval within 200 us";
+                reason = "insufficient loop interval within 2 ms";
                 goto done;
             }
             uint64_t limit = short_loops +
@@ -385,7 +394,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
                 next_loops = limit;
         }
         if (next_loops <= loops) {
-            reason = "insufficient loop interval within 200 us";
+            reason = "insufficient loop interval within 2 ms";
             goto done;
         }
         loops = next_loops;
@@ -396,57 +405,88 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
          * the same E-clock phase. Each adjacent AB/BA pair uses the same
          * count, and no sample exceeds the calibrated length. */
         sample_loops = loops - ((i / 2) & 3) * (loops / 16);
+        shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
         /* Balance sample order so the long loop does not always benefit
-         * from the preceding short loop warming the timer/cache paths. */
+         * from the preceding baseline warming the timer/cache paths. */
         if (i & 1) {
             ticks = frequency_sample(sample_loops, fpu, &frequency, &failure);
-            shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
+            baseline = frequency_sample(baseline_loops, fpu, &frequency, &failure);
         } else {
-            shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
+            baseline = frequency_sample(baseline_loops, fpu, &frequency, &failure);
             ticks = frequency_sample(sample_loops, fpu, &frequency, &failure);
         }
         if (failure.reason)
             goto done;
-        if (ticks <= shorter) {
-            reason = "long sample not longer than short sample";
+        if (baseline <= shorter) {
+            reason = "baseline sample not longer than tiny sample";
+            goto done;
+        }
+        if (ticks <= baseline) {
+            reason = "long sample not longer than baseline";
             goto done;
         }
         if (ticks > max_ticks) {
-            reason = "sample exceeds 200 us";
+            reason = "sample exceeds 2 ms";
             goto done;
         }
         short_total += shorter;
+        baseline_total += baseline;
         long_total += ticks;
-        if (ticks - shorter < low) low = ticks - shorter;
-        if (ticks - shorter > high) high = ticks - shorter;
-        total += ticks - shorter;
-        loop_total += sample_loops - short_loops;
+        if (ticks - baseline < low) low = ticks - baseline;
+        if (ticks - baseline > high) high = ticks - baseline;
+        total += ticks - baseline;
+        loop_total += sample_loops - baseline_loops;
     }
     if (total < samples * min_delta) {
-        reason = "average loop interval below 50 us";
+        reason = "average loop interval below 1 ms";
         goto done;
     }
-    result = (uint64_t)total * reference_loops * 1000000 /
-             ((uint64_t)loop_total * frequency);
+    /* Convert the accumulated interval before scaling by reference_loops
+     * to avoid overflow at large counts. This loses less than 1 us over
+     * the entire batch, whose useful work is at least 64 ms. */
+    result = ((uint64_t)total * 1000000 / frequency) * reference_loops /
+             loop_total;
     if (!result)
         reason = "loop interval rounds to zero";
 done:
     Permit();
-    debug("    clock %s: %lu short, %lu..%lu long, %lu pairs, EClock %lu Hz\n",
+    if (g_debug_enabled && result) {
+        /* Compare against the tiny baseline without assuming a nominal MHz.
+         * The intercept estimates the fixed cost missed by that baseline.
+         * Divide before converting to microseconds to keep products in range. */
+        LONG bias_ticks = (LONG)(baseline_total - short_total) -
+            (LONG)((uint64_t)total * samples * (baseline_loops - short_loops) /
+                   loop_total);
+        uncorrected = ((uint64_t)(long_total - short_total) * 1000000 /
+                       frequency) * reference_loops /
+                      (loop_total + samples * (baseline_loops - short_loops));
+        bias_us = (uint64_t)(bias_ticks < 0 ? -bias_ticks : bias_ticks) *
+                  1000000 / ((uint64_t)frequency * samples);
+        if (bias_ticks < 0)
+            bias_us = -bias_us;
+    }
+    debug("    clock %s: %lu short, %lu..%lu long, %lu triples, EClock %lu Hz\n",
           (ULONG)(fpu ? "FPU" : "CPU"), short_loops,
           loops - 3 * (loops / 16), loops, i, frequency);
     debug("      ticks short/long: %lu/%lu, delta range %lu..%lu\n",
           short_total, long_total, i ? low : 0, high);
+    debug("      baseline: %lu loops, %lu ticks total\n",
+          baseline_loops, baseline_total);
+    if (result)
+        debug("      normalized us tiny/slope: %lu/%lu; fixed bias %ld us\n",
+              uncorrected, result, bias_us);
     debug("      minimum loop delta %lu ticks, sample limit %lu ticks\n",
           min_delta, max_ticks);
     if (!result) {
         debug("      attempt %lu/3 rejected at %s %lu: %s\n", attempt,
               (ULONG)(!measuring ? "calibration" :
-                      i < samples ? "pair" : "conversion"),
+                      i < samples ? "triple" : "conversion"),
               measuring && i < samples ? i + 1 : 0,
               (ULONG)(failure.reason ? failure.reason : reason));
         debug("      loops short/long: %lu/%lu, ticks short/long: %lu/%lu\n",
               short_loops, measuring ? sample_loops : loops, shorter, ticks);
+        if (measuring)
+            debug("      baseline loops/ticks: %lu/%lu\n", baseline_loops, baseline);
         if (failure.reason)
             debug("      EClock Hz expected/start/end: %lu/%lu/%lu; "
                   "ticks %08lx:%08lx -> %08lx:%08lx\n",
