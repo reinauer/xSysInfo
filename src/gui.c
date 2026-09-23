@@ -1167,46 +1167,36 @@ static void draw_hardware_overview_row(WORD y, const char *label,
 
 static void format_cpu_value(char *buffer, size_t size)
 {
-    char mhz_buf[16];
+    char mhz_buf[16] = "";
 
-    if (hw_info.cpu_mhz > 0)
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, FALSE);
-    else
-        copy_string(mhz_buf, get_string(MSG_DASH_PLACEHOLDER), sizeof(mhz_buf));
+    if (hw_info.cpu_mhz > 0) {
+        mhz_buf[0] = ' ';
+        format_scaled(mhz_buf + 1, sizeof(mhz_buf) - 1,
+                      hw_info.cpu_mhz, FALSE);
+    }
 
     if (hw_info.cpu_revision[0] != '\0' &&
         strcmp(hw_info.cpu_revision, "N/A") != 0) {
-        snprintf(buffer, size, "%s (%s) %s",
+        snprintf(buffer, size, "%s (%s)%s",
                  hw_info.cpu_string, hw_info.cpu_revision, mhz_buf);
     } else {
-        snprintf(buffer, size, "%s %s", hw_info.cpu_string, mhz_buf);
+        snprintf(buffer, size, "%s%s", hw_info.cpu_string, mhz_buf);
     }
 }
 
 static void format_fpu_value(char *buffer, size_t size)
 {
-    if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_type != FPU_UNKNOWN) {
+    if (hw_info.fpu_type != FPU_NONE && !hw_info.fpu_enabled) {
+        snprintf(buffer, size, "%s (%s)",
+                 hw_info.fpu_string, get_string(MSG_OFF));
+    } else if (hw_info.fpu_type != FPU_NONE &&
+               hw_info.fpu_type != FPU_UNKNOWN && hw_info.fpu_mhz > 0) {
         char mhz_buf[16];
 
-        if (hw_info.fpu_mhz > 0)
-            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, FALSE);
-        else
-            copy_string(mhz_buf, get_string(MSG_DASH_PLACEHOLDER), sizeof(mhz_buf));
-        if (hw_info.fpu_enabled) {
-            snprintf(buffer, size, "%s %s", hw_info.fpu_string, mhz_buf);
-        } else {
-            snprintf(buffer, size, "%s %s (%s)",
-                     hw_info.fpu_string, mhz_buf, get_string(MSG_OFF));
-        }
+        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, FALSE);
+        snprintf(buffer, size, "%s %s", hw_info.fpu_string, mhz_buf);
     } else {
-        /* The (Off) suffix only makes sense when an FPU is present;
-         * a plain 68000 has nothing to switch off (issue #26). */
-        if (hw_info.fpu_enabled || hw_info.fpu_type == FPU_NONE) {
-            snprintf(buffer, size, "%s", hw_info.fpu_string);
-        } else {
-            snprintf(buffer, size, "%s (%s)",
-                     hw_info.fpu_string, get_string(MSG_OFF));
-        }
+        snprintf(buffer, size, "%s", hw_info.fpu_string);
     }
 }
 
