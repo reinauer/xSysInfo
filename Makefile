@@ -229,7 +229,7 @@ $(STACK_OBJ): $(STACK_SRC)
 	@echo "  CC    $@"
 	@$(CC) $(STACK_CFLAGS) -c -o $@ $<
 
-$(OBJS): src/%.o: src/%.c src/xsysinfo.h $(IDENTIFY_HEADERS) $(MMU_HEADERS)
+$(OBJS): src/%.o: src/%.c src/xsysinfo.h src/debug.h $(IDENTIFY_HEADERS) $(MMU_HEADERS)
 	@echo "  CC    $@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 

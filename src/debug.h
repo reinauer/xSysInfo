@@ -9,31 +9,32 @@
 #define DEBUG_H
 
 #include <proto/dos.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 /* Global debug flag - set via /D command line switch */
 extern BOOL g_debug_enabled;
 
-/* Debug output macro - only prints if debugging is enabled */
+/* Use our Kickstart 1.3-compatible C runtime: DOS VPrintf needs V36.
+ * Keep diagnostics unbuffered so the last line survives a failed probe.
+ */
+static inline void debug_printf(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+    fflush(stdout);
+}
 
-#ifdef __KICK13__
-    #define debug(fmt, ...) \
-        do { \
-            if (g_debug_enabled) { \
-                printf((const char *)fmt, ##__VA_ARGS__); \
-            } \
-        } while (0)
+#define debug(fmt, ...) \
+    do { \
+        if (g_debug_enabled) \
+            debug_printf((const char *)(fmt), ##__VA_ARGS__); \
+    } while (0)
 
-    #define Printf(fmt, ...) \
-        do { \
-            printf((const char *)fmt, ##__VA_ARGS__); \
-        } while (0)
-#else
-    #define debug(fmt, ...) \
-        do { \
-            if (g_debug_enabled) { \
-                Printf((CONST_STRPTR)fmt, ##__VA_ARGS__); \
-            } \
-        } while (0)
-#endif /*__KICK13__*/
+/* These error messages must also work before the display is opened. */
+#undef Printf
+#define Printf(fmt, ...) debug_printf((const char *)(fmt), ##__VA_ARGS__)
 
 #endif /* DEBUG_H */
