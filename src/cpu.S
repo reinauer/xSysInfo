@@ -392,8 +392,12 @@ m68020_mmu:
         clr.l $104(a7)               	;dummy for read
 
 
-        pflusha
         pmove.l tc,$f8(a7)            	;try to read translation control
+        ; An active MMU already proves its presence. Keep mappings used
+        ; by SuperKickstart, relocated code and stacks intact.
+        tst.l $f8(a7)
+        bmi .continue
+        pflusha
         movec.l d2,cacr                 ;flush the cache
         pmove.l $104(a7),tc         	;try to write it
         pflusha                         ;this might generate an exception for the EC30
@@ -469,8 +473,12 @@ m68030_mmu:
         lea .continue(pc),a1            ;jump address in case of fault
         clr.l $104(a7)               	;dummy for read
 
-        pflusha
         pmove.l tc,$f8(a7)            	;try to read translation control
+        ; Do not replace a live mapping just to distinguish an EC030.
+        ; A3000 SuperKickstart depends on the currently enabled MMU.
+        tst.l $f8(a7)
+        bmi .continue
+        pflusha
         movec.l d2,cacr                 ;flush the cache
         pmove.l $104(a7),tc         	;try to write it
         pflusha                         ;this might generate an exception for the EC30
