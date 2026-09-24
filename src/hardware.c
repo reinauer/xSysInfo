@@ -577,8 +577,10 @@ struct Library *open_mmu_library(void)
     Forbid();
     patched = FindSemaphore((CONST_STRPTR)"\253 SetPatch \273") != NULL;
     Permit();
-    if (!patched)
+    if (!patched) {
+        debug("    MMU: skipping mmu.library, SetPatch marker missing\n");
         return NULL;
+    }
     return OpenLibrary((CONST_STRPTR)"mmu.library", 40L);
 }
 
@@ -601,8 +603,13 @@ void detect_mmu(void)
     // first: try mmu.lib
     if ((MMUBase = open_mmu_library()))
     { // check for mmu.lib
+            ULONG library_mmu_type = (UBYTE)GetMMUType();
+            debug("    MMU: mmu.library %lu.%lu returned type $%02lx\n",
+                  (ULONG)MMUBase->lib_Version,
+                  (ULONG)MMUBase->lib_Revision, library_mmu_type);
+
             fallBack = FALSE;
-            switch (GetMMUType())
+            switch (library_mmu_type)
             {
             case MUTYPE_68851:
                 if (hw_info.cpu_type == CPU_68030) {
@@ -711,6 +718,8 @@ void detect_mmu(void)
         if (cpuType >= ASM_CPU_68020 && cpuType != ASM_CPU_68080)
         {
             mmuResult = GetMMU(cpuType);
+            debug("    MMU: fallback probe CPU %lu, AttnFlags=$%04lx, result=%lu\n",
+                  cpuType, (ULONG)SysBase->AttnFlags, mmuResult);
         }
 
         if (mmuResult > 0)
