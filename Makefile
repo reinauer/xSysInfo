@@ -66,6 +66,7 @@ SRCS = src/main.c \
        src/battmem.c \
        src/hardware.c \
        src/wdprobe.c \
+       src/probeclock.c \
        src/benchmark.c \
        src/busclock.c \
        src/clock.c \
@@ -239,6 +240,8 @@ $(BENCH_OBJS): CFLAGS += -O2
 $(DHRY_OBJS): CFLAGS += -falign-functions=16 -falign-loops=16 -fno-lto
 $(DHRY_OBJS): src/dhry.h Makefile
 src/benchmark.o: src/dhry.h
+src/probeclock.o src/benchmark.o src/wdprobe.o: src/probeclock.h
+src/probeclock.o: src/hardware.h src/cpu.h
 src/drives.o src/print.o src/main.o src/gui.o: src/drives.h
 
 $(ASM_OBJS): src/%.o: src/%.S

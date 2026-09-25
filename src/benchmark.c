@@ -19,6 +19,7 @@
 
 #include "xsysinfo.h"
 #include "benchmark.h"
+#include "probeclock.h"
 #include "hardware.h"
 #include "debug.h"
 #include "cpu.h"
@@ -239,11 +240,8 @@ ULONG read_benchmark_clock(struct EClockVal *val)
     return hw_info.is_pal ? 50 : 60;
 }
 
-/* Use short interrupt-disabled windows for clock estimates on V36+.
- * Forbid stays active across the samples, while Enable lets pending device
- * interrupts run between them. The Kickstart 1.3 TOD clock is too coarse
- * for these windows, so it keeps the existing interrupt-enabled timing.
- */
+/* Dhrystone chunks still require the OS E-clock implementation. CPU/FPU
+ * estimates can also use a temporarily allocated CIA timer on older OSes. */
 static BOOL frequency_eclock_available(void)
 {
     return TimerBase && TimerBase->dd_Library.lib_Version >= 36 &&
@@ -266,7 +264,7 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
     const char *reason = NULL;
 
     Disable();
-    first_rate = ReadEClock(&start);
+    first_rate = start_probe_clock(&start);
     if (fpu) {
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
@@ -286,7 +284,7 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
             :
             : "cc");
     }
-    last_rate = ReadEClock(&end);
+    last_rate = read_probe_clock(&end);
     Enable();
 
     if (!first_rate)
@@ -514,11 +512,13 @@ static ULONG frequency_loop_time(ULONG reference_loops, BOOL fpu)
 /*
  * Returns the CPU-frequencies in MHz scaled by 100
 */
-ULONG get_mhz_cpu(void)
+static ULONG get_mhz_cpu(BOOL precise)
 {
 
     ULONG multiplier, loop, maxMultiplier, startMultiplier;
     uint64_t count = 0, tmp, mhz = 0;
+    const ULONG min_measure = !precise && SysBase->LibNode.lib_Version < 36 ?
+                              1000000UL : MIN_MHZ_MEASURE;
     APTR test; //for testing the memtype we are running in
 
     // correction factors for fast CPUs!
@@ -542,18 +542,23 @@ ULONG get_mhz_cpu(void)
         }
 
 
-    for (multiplier = startMultiplier; multiplier <= maxMultiplier && count < MIN_MHZ_MEASURE; multiplier *= 2)
+    for (multiplier = startMultiplier; multiplier <= maxMultiplier && count < min_measure; multiplier *= 2)
     {
         loop = CPULOOPS * multiplier;
-        count = frequency_eclock_available() ?
+        count = precise ?
                 frequency_loop_time(loop, FALSE) : measure_loop_overhead(loop);
         /* A failed measurement must not masquerade as a nominal clock. */
-        if (!count && frequency_eclock_available())
+        if (!count && precise)
             return 0;
-        if (multiplier >= maxMultiplier || count >= MIN_MHZ_MEASURE) {
+        if (multiplier >= maxMultiplier || count >= min_measure) {
             break;
         }
     }
+
+    /* Do not report a one-tick result if the coarse fallback cannot reach
+     * its one-second target within the existing loop limit. */
+    if (count < min_measure)
+        return 0;
 
     tmp = BASE_FACTOR * (uint64_t)multiplier;
 
@@ -574,7 +579,7 @@ ULONG get_mhz_cpu(void)
                 /* MC68000UM, sections 8.4/8.8 and 9.4/9.8:
                  * zero-wait-state SUBQ.L (8 clocks) + taken Bcc (10).
                  * Differencing cancels the final, non-taken branch. */
-                if (frequency_eclock_available())
+                if (precise)
                     tmp = (uint64_t)loop * 18 * 100;
                 else
                     tmp *= 204;
@@ -593,7 +598,7 @@ ULONG get_mhz_cpu(void)
             /* MC68030 manual, sections 11.3.4, 11.6.9 and 11.6.15:
              * cached SUBQ.L (2 clocks) + taken Bcc (6 clocks).
              * Differencing cancels the final, non-taken branch. */
-            if (frequency_eclock_available() && hw_info.icache_enabled)
+            if (precise && hw_info.icache_enabled)
                 tmp = (uint64_t)loop * 8 * 100;
             else
                 tmp *= 88;
@@ -670,7 +675,7 @@ ULONG get_mhz_cpu(void)
 /*
  * Returns the FPU frequency in MHz scaled by 100
 */
-ULONG get_mhz_fpu(void)
+static ULONG get_mhz_fpu(BOOL precise)
 {
 
     /* make some sanity tests:
@@ -703,14 +708,16 @@ ULONG get_mhz_fpu(void)
         break;
     }
 
+    const ULONG min_measure = !precise && SysBase->LibNode.lib_Version < 36 ?
+                              1000000UL : MIN_MHZ_MEASURE;
     ULONG loop, multiplier, overhead;
     ULONG E_Freq;
     struct EClockVal start, end;
     uint64_t count = 0, tmp, mhz = 0;
-    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier *= 2)
+    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < min_measure; multiplier *= 2)
     {
         loop = FPULOOPS * multiplier;
-        if (frequency_eclock_available()) {
+        if (precise) {
             count = frequency_loop_time(loop, TRUE);
             overhead = frequency_loop_time(loop, FALSE);
             if (!overhead || count <= overhead)
@@ -723,9 +730,10 @@ ULONG get_mhz_fpu(void)
                 "1:\t\tfdiv.x fp1,fp1\n\t"
                 "subq.l\t#1,%0\n\t"
                 "bne.s\t1b\n\t"
+                "fmove.l fp1,d1"
                 : "+d"(loop)
                 :
-                : "cc", "fp1");
+                : "cc", "d1", "fp1");
 
             E_Freq = read_benchmark_clock(&end);
             Permit();
@@ -733,13 +741,14 @@ ULONG get_mhz_fpu(void)
             count = EClock_Diff_in_ms(&start, &end, E_Freq);
             overhead = measure_loop_overhead(loop);
         }
-        if (count > overhead) {
-            count -= (uint64_t) overhead;
-        }
-        if (multiplier >= MAX_MULTIPLY || count >= MIN_MHZ_MEASURE) {
+        count = count > overhead ? count - overhead : 0;
+        if (multiplier >= MAX_MULTIPLY || count >= min_measure) {
             break;
         }
     }
+
+    if (count < min_measure)
+        return 0;
 
     tmp = BASE_FACTOR * (uint64_t) multiplier;
     debug("    fpu_mhz: results: %lu %lu %lu\n", (ULONG)count, (ULONG)tmp, overhead);
@@ -755,7 +764,7 @@ ULONG get_mhz_fpu(void)
             tmp *= 79;
             break;
         case FPU_68882:
-            if (frequency_eclock_available()) {
+            if (precise) {
                 /* Use the same empirical 68882 calibration for all CPUs
                  * and cache settings: 90 net cycles per iteration after
                  * subtracting the measured integer loop overhead.
@@ -1347,7 +1356,7 @@ void run_memory_speed_tests(void)
         (volatile ULONG *)0xF80000, buffer_size, iterations);
 }
 
-static ULONG cpu_frequency_config(void)
+static ULONG cpu_frequency_config(BOOL precise)
 {
     refresh_cache_status();
     return ((ULONG)hw_info.cpu_type << 8) |
@@ -1358,18 +1367,19 @@ static ULONG cpu_frequency_config(void)
            (!!hw_info.copyback_enabled << 4) |
            (!!hw_info.super_scalar_enabled << 5) |
            (!!hw_info.mmu_enabled << 6) |
-           (frequency_eclock_available() << 7);
+           (precise << 7);
 }
 
 void measure_processor_frequencies(void)
 {
     static ULONG previous_config, previous_mhz;
-    ULONG config = cpu_frequency_config();
+    BOOL precise = acquire_probe_clock();
+    ULONG config = cpu_frequency_config(precise);
     ULONG mhz;
 
     debug("  bench: calc cpu frequency...\n");
-    mhz = get_mhz_cpu();
-    if (cpu_frequency_config() != config) {
+    mhz = get_mhz_cpu(precise);
+    if (cpu_frequency_config(precise) != config) {
         /* A setting changed during the measurement; neither result applies. */
         mhz = previous_mhz = 0;
         debug("    cpu_mhz: configuration changed during measurement\n");
@@ -1386,7 +1396,9 @@ void measure_processor_frequencies(void)
     }
     hw_info.cpu_mhz = mhz;
     debug("  bench: calc fpu frequency...\n");
-    hw_info.fpu_mhz = hw_info.fpu_enabled ? get_mhz_fpu() : 0;
+    hw_info.fpu_mhz = hw_info.fpu_enabled ? get_mhz_fpu(precise) : 0;
+    if (precise)
+        release_probe_clock();
 }
 
 /*

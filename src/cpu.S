@@ -57,7 +57,14 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_GetRamseyRev
 	XDEF	_GetRamseyCtrl
 	XDEF	_RunRamseyProbe
+	XDEF	_ProbeClockInterrupt
 	XREF	_sample_ramsey_refreshes
+
+; CIA timer interrupts are masked while the probe clock is owned.
+; AddICRVector still requires a valid interrupt server.
+_ProbeClockInterrupt:
+	moveq	#0,d0
+	rts
 
 _DoFlops:
 	tst.l	d0
