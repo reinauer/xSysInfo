@@ -82,8 +82,8 @@ one WD33C93 check at startup. It resets the controller, identifies
 WD33C93/A/B-compatible chips, reads microcode where supported, and
 measures the input clock. Stop all disk activity before launching with
 SCSI enabled. Normal Shell and Workbench launches leave the check
-disabled. When enabled, it has no confirmation prompt. AmigaOS 2.0 or
-later is required for its timer.
+disabled. When enabled, it has no confirmation prompt. On Kickstart 1.3,
+the check uses an available CIA interval timer.
 
 The bootable floppy image enables it with xSysInfo SCSI in its
 Startup-Sequence. The check runs before xSysInfo enumerates drives;
