@@ -70,7 +70,7 @@ MSG_MODE
 Modalità
 ;
 MSG_DISPLAY
-Visualizzazione
+Video
 ;
 MSG_CPU_MHZ
 CPU/MHz
@@ -559,7 +559,7 @@ MSG_COMMENT_RIDICULOUS
 Velocità ridicola!
 ;
 MSG_COMMENT_BLAZING
-Incredibilmente veloce!
+Velocissimo!
 ;
 MSG_COMMENT_VERY_FAST
 Molto veloce!
@@ -717,16 +717,16 @@ MSG_AGNUS_ALICE_NTSC
 Alice 8374
 ;
 MSG_AGNUS_ECS_2MB_PAL
-FatAgnus 8375/72B (ECS)
+Agnus 8375/72B (ECS)
 ;
 MSG_AGNUS_ECS_2MB_NTSC
-FatAgnus 8375/72B (ECS)
+Agnus 8375/72B (ECS)
 ;
 MSG_AGNUS_ECS_B_PAL
-FatAgnus 8372B/75 (ECS)
+Agnus 8372B/75 (ECS)
 ;
 MSG_AGNUS_ECS_B_NTSC
-FatAgnus 8372B/75 (ECS)
+Agnus 8372B/75 (ECS)
 ;
 MSG_AGNUS_ECS_PAL
 FatAgnus 8372 (ECS)

@@ -2122,11 +2122,11 @@ static void draw_hardware_panel_contents(void)
                       get_string(MSG_PAULA_ORIG));
                 break;
             case PAULA_SAGA:
-                snprintf(buffer, sizeof(buffer), "%s (ID: %02X)",
+                snprintf(buffer, sizeof(buffer), "%s %02X",
                       get_string(MSG_PAULA_SAGA),hw_info.paula_rev);
                 break;
             case PAULA_UNKNOWN:
-                snprintf(buffer, sizeof(buffer), "%s (ID: %02X)",
+                snprintf(buffer, sizeof(buffer), "%s %02X",
                       get_string(MSG_PAULA_UNKNOWN),hw_info.paula_rev);
                 break;
         }

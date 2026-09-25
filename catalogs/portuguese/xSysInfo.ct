@@ -95,7 +95,7 @@ MSG_DECODING
 Descodif.
 ;
 MSG_CARD_SLOT
-Slot de Cartão
+Slot
 ;
 MSG_VERT_HZ
 Vert Hz
@@ -587,7 +587,7 @@ MSG_GARY_UNKNOWN
 Desconhecido
 ;
 MSG_EXT_INFO
-Informação adicional para A3000/4000
+Detalhes A3000/4000
 ;
 MSG_NV_RAM
 NV-RAM (BattMem):
@@ -662,7 +662,7 @@ MSG_DENISE_SAGA
 SAGA
 ;
 MSG_DENISE_UNKNOWN
-Denise desconhecida
+Denise desconhec.
 ;
 MSG_AGNUS_ALICE_PAL
 Alice 8374
@@ -671,16 +671,16 @@ MSG_AGNUS_ALICE_NTSC
 Alice 8374
 ;
 MSG_AGNUS_ECS_2MB_PAL
-FatAgnus 8375/72B (ECS)
+Agnus 8375/72B (ECS)
 ;
 MSG_AGNUS_ECS_2MB_NTSC
-FatAgnus 8375/72B (ECS)
+Agnus 8375/72B (ECS)
 ;
 MSG_AGNUS_ECS_B_PAL
-FatAgnus 8372B/75 (ECS)
+Agnus 8372B/75 (ECS)
 ;
 MSG_AGNUS_ECS_B_NTSC
-FatAgnus 8372B/75 (ECS)
+Agnus 8372B/75 (ECS)
 ;
 MSG_AGNUS_ECS_PAL
 FatAgnus 8372 (ECS)
