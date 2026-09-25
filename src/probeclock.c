@@ -5,6 +5,9 @@
 #include <exec/interrupts.h>
 #include <hardware/cia.h>
 #include <resources/cia.h>
+/* Some SDK inlines require an implicit base as well as the explicit
+ * resource argument. Both must select the same CIA resource. */
+#define CIA_BASE_NAME resource
 #include <proto/cia.h>
 #include <proto/exec.h>
 #include <proto/timer.h>
@@ -39,21 +42,20 @@ BOOL acquire_probe_clock(void)
     timer_interrupt.is_Node.ln_Name = (char *)"xSysInfo probe clock";
     timer_interrupt.is_Code = ProbeClockInterrupt;
     for (chip = 0; chip < 2; chip++) {
-        struct Library *candidate = (struct Library *)
-            OpenResource((CONST_STRPTR)(chip ? CIABNAME : CIAANAME));
         volatile struct CIA *cia = (volatile struct CIA *)
             (chip ? 0xbfd000 : 0xbfe001);
-        if (!candidate)
+        resource = (struct Library *)
+            OpenResource((CONST_STRPTR)(chip ? CIABNAME : CIAANAME));
+        if (!resource)
             continue;
         for (bit = CIAICRB_TA; bit <= CIAICRB_TB; bit++) {
             /* AddICRVector enables the bit. Mask it before interrupts can
              * run; this timer is polled, including under Kickstart 1.3. */
             Disable();
-            if (AddICRVector(candidate, bit, &timer_interrupt)) {
+            if (AddICRVector(resource, bit, &timer_interrupt)) {
                 Enable();
                 continue;
             }
-            resource = candidate;
             timer_bit = bit;
             AbleICR(resource, 1 << bit);
             control = bit ? &cia->ciacrb : &cia->ciacra;
@@ -74,6 +76,7 @@ BOOL acquire_probe_clock(void)
             return TRUE;
         }
     }
+    resource = NULL;
     debug("    probe clock: no free CIA interval timer\n");
     return FALSE;
 }
