@@ -343,14 +343,14 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
      * sample, even at the smallest count used below. Timer/setup overhead
      * must not make calibration accept a nearly empty interval. Longer
      * samples reduce E-clock quantization and residual setup/cache bias.
-     * Keep measured intervals within 2 ms; a complete Disable/Enable
-     * window also includes timer work outside those timestamps. */
+     * Keep measured intervals within 2 ms, or 4 ms on a 68000/010. The
+     * slower CPUs need room for timer overhead as well as 1 ms of work. */
     for (;;) {
         shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
         if (!shorter)
             goto done;
         min_delta = (frequency - 1) / 1000 + 1;
-        max_ticks = frequency / 500;
+        max_ticks = frequency / (hw_info.cpu_type <= CPU_68010 ? 250 : 500);
         if (shorter >= max_ticks) {
             reason = "timer overhead leaves no loop interval";
             goto done;
@@ -359,7 +359,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
         if (!ticks)
             goto done;
         if (ticks > max_ticks) {
-            reason = "calibration sample exceeds 2 ms";
+            reason = "calibration sample exceeds time limit";
             goto done;
         }
         sample_loops = loops - 3 * (loops / 16);
@@ -382,7 +382,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
              * Slower CPUs can use a count between successive doublings. */
             ULONG budget = max_ticks - ((frequency - 1) / 10000 + 1);
             if (shorter >= budget) {
-                reason = "insufficient loop interval within 2 ms";
+                reason = "insufficient loop interval within time limit";
                 goto done;
             }
             uint64_t limit = short_loops +
@@ -392,7 +392,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
                 next_loops = limit;
         }
         if (next_loops <= loops) {
-            reason = "insufficient loop interval within 2 ms";
+            reason = "insufficient loop interval within time limit";
             goto done;
         }
         loops = next_loops;
@@ -415,16 +415,15 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
         }
         if (failure.reason)
             goto done;
-        if (baseline <= shorter) {
-            reason = "baseline sample not longer than tiny sample";
-            goto done;
-        }
+        /* The short sample only diagnoses fixed overhead. Its 68000 loop
+         * can be close enough to the baseline for timer noise to invert
+         * their order; the measured slope uses long minus baseline. */
         if (ticks <= baseline) {
             reason = "long sample not longer than baseline";
             goto done;
         }
         if (ticks > max_ticks) {
-            reason = "sample exceeds 2 ms";
+            reason = "sample exceeds time limit";
             goto done;
         }
         short_total += shorter;
