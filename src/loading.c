@@ -120,8 +120,8 @@ static void start_scroller(void)
     NewList(&control->port.mp_MsgList);
     AddPort(&control->port);
 
-    /* Wake at each VBlank ahead of the loading CLI, then sleep again.
-     * Equal priority makes animation depend on DOS's task time slices. */
+    /* Initialize the splash ahead of the CLI. Once its VBlank server is
+     * installed, the background process lowers its priority. */
     if (!CreateProc((STRPTR)control->task_name, 1, segment, 4096)) {
         RemPort(&control->port);
         FreeMem(control, sizeof(*control));
@@ -170,6 +170,10 @@ LONG loading_entry(const char *arguments, LONG length)
 #define SCROLL_WIDTH ((sizeof(message) - 1) * 8)
 #define LARGE_GLYPH_ROWS 9
 
+_Static_assert(PLASMA_ROW_WORDS * sizeof(UWORD) == 200 &&
+               PLASMA_ROWS % 8 == 0,
+               "VBlank WAIT copy requires 200-byte rows in groups of eight");
+
 static const char logo[] = "xSysInfo";
 static const char version[] = "v" XSYSINFO_VERSION;
 static const char message[] = "  Loading xSysInfo v" XSYSINFO_VERSION
@@ -181,6 +185,7 @@ static struct UCopList *plasma_list;
 static UBYTE glyph_mask[LARGE_GLYPH_ROWS * 320];
 static UWORD sine_vertical[120];
 static BYTE sine_horizontal[90];
+static UBYTE horizontal_wait[PLASMA_ROWS + 90];
 static UWORD *color_ramp;
 static volatile UWORD vertical_phase;
 static unsigned int horizontal_phase;
@@ -225,6 +230,12 @@ static void init_plasma_waves(void)
         sine_horizontal[45 + i] = -horizontal_quarter[i];
         sine_horizontal[89 - i] = -horizontal_quarter[i];
     }
+    for (i = 0; i < PLASMA_ROWS + 90; ++i) {
+        horizontal_wait[i] = 0x2f + sine_horizontal[repeat];
+        if (++repeat == 90)
+            repeat = 0;
+    }
+    repeat = 0;
     for (i = 106; i < 152; ++i) {
         color_ramp[i] = plasma_palette[level];
         if (++repeat == 3) {
@@ -377,16 +388,26 @@ static UWORD *find_plasma_target(struct cprlist *active)
 
 static void scroll_vblank_tick(void)
 {
+    unsigned int stride = scroll_row_stride;
+    UBYTE *line = scroll_plane + 175 * stride + 40;
+    const UBYTE *pixel = scroll_pixels[0] + scroll_column;
     unsigned int row;
 
-    for (row = 175; row <= 182; ++row) {
-        UBYTE *line = scroll_plane + row * scroll_row_stride;
-        UBYTE next = scroll_pixels[row - 175][scroll_column];
-        unsigned int byte;
-        for (byte = 0; byte < 39; ++byte) {
-            line[byte] = (line[byte] << 1) | (line[byte + 1] >> 7);
-        }
-        line[39] = (line[39] << 1) | next;
+    for (row = 0; row < 8; ++row) {
+        UBYTE *end = line;
+        ULONG next = *pixel;
+
+        /* Shift from right to left, carrying each word's top bit into
+         * its neighbour. The new pixel starts in X. One memory shift
+         * replaces the byte loop's two reads, shifts, OR and write. */
+        __asm__ volatile (
+            "lsr.b #1,%1\n"
+            ".rept 20\n"
+            "roxl.w -(%0)\n"
+            ".endr\n"
+            : "+a" (end), "+d" (next) : : "cc", "memory");
+        line += stride;
+        pixel += SCROLL_WIDTH;
     }
     if (++scroll_column == SCROLL_WIDTH)
         scroll_column = 0;
@@ -400,7 +421,6 @@ void plasma_vblank_tick(void)
     struct cprlist *active;
     UWORD *anchor;
     UWORD *target;
-    unsigned int row, wave_row;
 
     ++vblank_ticks;
     if (!scroll_plane)
@@ -417,14 +437,27 @@ void plasma_vblank_tick(void)
              active->start == mapped_start && anchor == mapped_anchor ?
              mapped_color_data : NULL;
     if (target) {
-        wave_row = horizontal_phase;
-        for (row = 0; row < PLASMA_ROWS; ++row) {
-            UWORD *wait = target - 3 + row * PLASMA_ROW_WORDS;
-            *wait = (*wait & 0xff00) |
-                    (0x2f + sine_horizontal[wave_row]);
-            if (++wave_row == 90)
-                wave_row = 0;
-        }
+        UBYTE *wait = (UBYTE *)(target - 3) + 1;
+        const UBYTE *wave = horizontal_wait + horizontal_phase;
+        unsigned int groups = PLASMA_ROWS / 8 - 1;
+
+        /* Preserve each WAIT's vertical byte. Eight rows per DBRA keep
+         * address arithmetic and branch fetches out of the Chip RAM bus
+         * budget; all offsets are one 200-byte Copper row apart. */
+        __asm__ volatile (
+            "1:\n"
+            "move.b (%1)+,(%0)\n"
+            "move.b (%1)+,200(%0)\n"
+            "move.b (%1)+,400(%0)\n"
+            "move.b (%1)+,600(%0)\n"
+            "move.b (%1)+,800(%0)\n"
+            "move.b (%1)+,1000(%0)\n"
+            "move.b (%1)+,1200(%0)\n"
+            "move.b (%1)+,1400(%0)\n"
+            "lea 1600(%0),%0\n"
+            "dbra %2,1b\n"
+            : "+a" (wait), "+a" (wave), "+d" (groups)
+            : : "cc", "memory");
     }
 
     /* Half-speed waves share the VBlank clock, independent of DOS scheduling.
@@ -440,52 +473,64 @@ void plasma_vblank_tick(void)
 static void update_plasma(void)
 {
     volatile struct Custom *hw = (volatile struct Custom *)0xdff000;
+    static UWORD *painted_target;
+    static unsigned int painted_phase = 120;
     struct cprlist *active;
     UWORD *anchor;
     UWORD *target;
     unsigned int column, phase;
 
-    /* Acquire before forbidding: OwnBlitter may wait for another owner.
-     * Keep the display list alive until the last DMA write has finished. */
-    OwnBlitter();
-    WaitBlit();
     Forbid();
     active = GfxBase->ActiView ? GfxBase->ActiView->LOFCprList : NULL;
-    anchor = plasma_list && plasma_list->FirstCopList ?
+    anchor = plasma_list->FirstCopList ?
              plasma_list->FirstCopList->CopLStart : NULL;
     if (active != mapped_copper ||
         (active && active->start != mapped_start) || anchor != mapped_anchor) {
         target = find_plasma_target(active);
-        /* Publish one consistent mapping to VBlank, including NULL when
-         * the layout is unsuitable. Retry only when the display changes. */
         Disable();
         mapped_copper = active;
         mapped_start = active ? active->start : NULL;
         mapped_anchor = anchor;
         mapped_color_data = target;
         Enable();
+        painted_target = NULL;
     }
     target = active ? mapped_color_data : NULL;
     phase = vertical_phase;
+    Permit();
+    if (!target || (target == painted_target && phase == painted_phase))
+        return;
 
-    if (target) {
+    /* The vertical wave advances only every second frame. Do not redraw
+     * an unchanged phase, or hold off DOS for an entire 49-blit batch.
+     * Acquire before Forbid: OwnBlitter may wait for another owner. */
+    for (column = 0; column < PLASMA_COLUMNS; ++column) {
+        OwnBlitter();
+        WaitBlit();
+        Forbid();
+        active = GfxBase->ActiView ? GfxBase->ActiView->LOFCprList : NULL;
+        if (!active || active != mapped_copper ||
+            active->start != mapped_start ||
+            plasma_list->FirstCopList->CopLStart != mapped_anchor) {
+            DisownBlitter();
+            Permit();
+            return;
+        }
         hw->bltcon0 = 0x09f0;
         hw->bltcon1 = 0;
         hw->bltafwm = 0xffff;
         hw->bltalwm = 0xffff;
         hw->bltamod = 0;
         hw->bltdmod = (PLASMA_ROW_WORDS - 1) * 2;
-        for (column = 0; column < PLASMA_COLUMNS; ++column) {
-            WaitBlit();
-            hw->bltapt = (APTR)&color_ramp[vertical_offset(phase,
-                                                          column)];
-            hw->bltdpt = (APTR)(target + column * 2);
-            hw->bltsize = (PLASMA_ROWS << 6) | 1;
-        }
+        hw->bltapt = (APTR)&color_ramp[vertical_offset(phase, column)];
+        hw->bltdpt = (APTR)(target + column * 2);
+        hw->bltsize = (PLASMA_ROWS << 6) | 1;
         WaitBlit();
+        DisownBlitter();
+        Permit();
     }
-    DisownBlitter();
-    Permit();
+    painted_target = target;
+    painted_phase = phase;
 }
 
 static void free_plasma_list(void)
@@ -727,6 +772,10 @@ static void loading_scroller_entry(void)
     vblank_server.is_Code = plasma_vblank_server;
     AddIntServer(INTB_VERTB, &vblank_server);
 
+    /* Keep the short VBlank animation independent of loading. Expensive
+     * vertical-wave blits use idle time instead of preempting DOS and
+     * decompression whenever the CLI is runnable. */
+    SetTaskPri(FindTask(NULL), -1);
     while (!(SetSignal(0, 0) & SIGBREAKF_CTRL_C)) {
         WaitTOF();
         if (SetSignal(0, 0) & SIGBREAKF_CTRL_C)
