@@ -50,6 +50,12 @@ VASM_PPC_MD5 = ec476359c4d400a443f23245baf977f0
 VASM_PPC_DIR = build/vasm-$(VASM_PPC_REV)
 VASM_PPC ?= $(or $(shell command -v vasmppc_std 2>/dev/null),$(abspath $(VASM_PPC_DIR)/vasmppc_std))
 HOST_CC ?= cc
+HOST_CXX ?= c++
+CMAKE ?= cmake
+LPACKER_DIR = 3rdparty/L-Packer
+LPACKER_BUILD_DIR = build/lpacker
+LPACKER = $(LPACKER_BUILD_DIR)/L-Packer
+DISK_FILES_DIR = build/floppy
 
 #LTO ?= -flto=auto
 CFLAGS = -Os -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -Wextra \
@@ -118,9 +124,6 @@ DHRY_LINK_SCRIPT = src/dhrystone.ld
 ASM_OBJS = $(ASM_SRCS:.S=.o)
 
 TARGET = xSysInfo
-CLASSIC_MAIN_OBJ = build/main-classic.o
-DISK_TARGET = build/xSysInfo-floppy
-DISK_OBJS = $(filter-out src/main.o src/mui_gui.o,$(OBJS)) $(CLASSIC_MAIN_OBJ)
 
 .PHONY: all clean identify identify-library identify-release mmu catalogs lha TinySetPatch
 
@@ -140,7 +143,7 @@ $(VERSION_STAMP): FORCE_VERSION
 		'$(PROG_VERSION)' '$(PROG_REVISION)' > $@.tmp
 	@if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
 
-$(OBJS) $(CLASSIC_MAIN_OBJ) $(STACK_OBJ) src/loading.o: $(VERSION_STAMP)
+$(OBJS) $(STACK_OBJ) src/loading.o: $(VERSION_STAMP)
 
 $(MUI_STAMP): FORCE_VERSION
 	@mkdir -p $(dir $@)
@@ -253,18 +256,6 @@ lha: $(TARGET) TinySetPatch identify-library catalogs xSysInfo.readme docs/Insta
 	@rm -rf $(LHA_DIR) $(LHA_DIR).info
 	@echo "Created $(LHA_NAME)"
 
-# The floppy never ships MUI libraries. Link a separate classic executable
-# without changing the normal build or racing with LHA packaging under -j.
-$(DISK_TARGET): $(DISK_OBJS) $(ASM_OBJS) $(DHRY_LINK_SCRIPT)
-	@echo "  LINK  $@"
-	@$(CC) $(LDFLAGS) -Wl,-T,$(DHRY_LINK_SCRIPT) -o $@ $(DISK_OBJS) $(ASM_OBJS) $(LIBS)
-	@$(STRIP) $@
-
-$(CLASSIC_MAIN_OBJ): src/main.c $(IDENTIFY_HEADERS) $(MMU_HEADERS) src/battmem.h src/debug.h
-	@mkdir -p $(dir $@)
-	@echo "  CC    $@"
-	@$(CC) $(CFLAGS) -UXSYSINFO_MUI -c -o $@ $<
-
 $(TARGET): $(OBJS) $(ASM_OBJS) $(DHRY_LINK_SCRIPT)
 	@echo "  LINK  $@"
 	@$(CC) $(LDFLAGS) -Wl,-T,$(DHRY_LINK_SCRIPT) -o $@ $(OBJS) $(ASM_OBJS) $(LIBS)
@@ -304,8 +295,8 @@ $(DHRY_OBJS): src/dhry.h Makefile
 src/benchmark.o: src/dhry.h
 src/probeclock.o src/benchmark.o src/wdprobe.o: src/probeclock.h
 src/probeclock.o: src/hardware.h src/cpu.h
-src/drives.o src/print.o src/main.o $(CLASSIC_MAIN_OBJ) src/gui.o: src/drives.h
-src/main.o $(CLASSIC_MAIN_OBJ): src/loading.h
+src/drives.o src/print.o src/main.o src/gui.o: src/drives.h
+src/main.o: src/loading.h
 
 $(ASM_OBJS): src/%.o: src/%.S
 	@echo "  ASM   $@"
@@ -316,9 +307,9 @@ clean:
 	@rm -f $(OBJS) $(ASM_OBJS) $(STACK_OBJ) src/loading.o \
 		$(TARGET) TinySetPatch $(STACK) \
 		$(LOADING_LOADER)
-	@rm -rf $(CATALOG_DIR)
+	@rm -rf $(CATALOG_DIR) $(LPACKER_BUILD_DIR) $(DISK_FILES_DIR)
 	@rm -rf $(PCI_BUILD_DIR) $(IDENTIFY_BUILD_DIR) $(IDENTIFY_RELEASE_BUILD_DIR)
-	@rm -f $(VERSION_STAMP) $(MUI_STAMP) src/mui_gui.o $(CLASSIC_MAIN_OBJ) $(DISK_TARGET)
+	@rm -f $(VERSION_STAMP) $(MUI_STAMP) src/mui_gui.o
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
 	@$(MAKE) -s -C 3rdparty/identify clean
@@ -326,20 +317,20 @@ clean:
 
 # Dependencies
 src/gui.o src/format.o src/mui_gui.o: src/format.h src/cache.h
-src/main.o $(CLASSIC_MAIN_OBJ) src/display.o src/mui_gui.o: src/display.h
+src/main.o src/display.o src/mui_gui.o: src/display.h
 src/display.o: src/loading.h
-src/main.o $(CLASSIC_MAIN_OBJ) src/mui_gui.o: src/mui_gui.h
+src/main.o src/mui_gui.o: src/mui_gui.h
 src/format.o: src/hardware.h src/software.h src/memory.h src/benchmark.h src/clock.h src/wdprobe.h src/locale_str.h
 src/mui_gui.o: src/hardware.h src/software.h src/memory.h src/drives.h src/boards.h src/scsi.h src/benchmark.h src/clock.h src/print.h src/locale_str.h
 $(OBJS): src/battmem.h
-src/main.o $(CLASSIC_MAIN_OBJ) src/gui.o: src/clock.h
+src/main.o src/gui.o: src/clock.h
 src/clock.o: src/clock.c src/clock.h src/hardware.h
-src/main.o $(CLASSIC_MAIN_OBJ): src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
+src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
 src/gui.o: src/gui.c src/bayer-16x16.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
 src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
 src/ppc.o: src/hardware.h
 src/wdprobe.o: src/wdprobe.c src/wdprobe.h src/hardware.h src/locale_str.h
-src/main.o $(CLASSIC_MAIN_OBJ) src/gui.o src/hardware.o src/print.o: src/wdprobe.h
+src/main.o src/gui.o src/hardware.o src/print.o: src/wdprobe.h
 src/benchmark.o: src/benchmark.c src/xsysinfo.h src/benchmark.h src/hardware.h
 src/busclock.o: src/busclock.c src/busclock.h src/hardware.h src/cpu.h src/debug.h
 src/memory.o: src/memory.c src/xsysinfo.h src/memory.h src/hardware.h src/locale_str.h
@@ -532,18 +523,33 @@ TinySetPatch: $(TINYSETPATCH_SRC) $(TINYSETPATCH_DIR)/Makefile Makefile
 		VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
 	@cp $(TINYSETPATCH_BIN) $@
 
-disk: $(DISK_TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
-	$(LOADING_LOADER)
+# Keep the host packer current when its submodule changes.
+.PHONY: lpacker
+lpacker:
+	@$(CMAKE) -S $(LPACKER_DIR) -B $(LPACKER_BUILD_DIR) \
+		-DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$(HOST_CC)" \
+		-DCMAKE_CXX_COMPILER="$(HOST_CXX)"
+	+@$(CMAKE) --build $(LPACKER_BUILD_DIR)
+
+# Pack copies only: the LHA and standalone program use the original files.
+disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
+	$(LOADING_LOADER) lpacker
+	@mkdir -p $(DISK_FILES_DIR)/Libs
+	@$(LPACKER) $(TARGET) $(DISK_FILES_DIR)/$(TARGET) -zx0
+	@$(LPACKER) $(IDENTIFY_LIBRARY) $(DISK_FILES_DIR)/Libs/identify.library -library -zx0
+	@$(LPACKER) 3rdparty/identify/build/openpci.library $(DISK_FILES_DIR)/Libs/openpci.library -library -zx0
+	@set -e; for lib in $(MMU_LIB_NAMES); do \
+		$(LPACKER) $(MMU_LIB_DIR)/$$lib.library \
+			$(DISK_FILES_DIR)/Libs/$$lib.library -library -zx0; \
+	done
 	@echo "  DISK"
 	@xdftool $(DISK) format "$(DISK_TITLE)"
-	@xdftool $(DISK) write $(DISK_TARGET) $(TARGET)
+	@xdftool $(DISK) write $(DISK_FILES_DIR)/$(TARGET) $(TARGET)
 	@xdftool $(DISK) write docs/$(TARGET).info $(TARGET).info
 	@xdftool $(DISK) write docs/Disk.info Disk.info
 	@xdftool $(DISK) makedir Libs
-	@xdftool $(DISK) write $(IDENTIFY_LIBRARY) Libs/identify.library
-	@xdftool $(DISK) write 3rdparty/identify/build/openpci.library Libs/openpci.library
-	@for lib in $(MMU_LIB_NAMES); do \
-		xdftool $(DISK) write $(MMU_LIB_DIR)/$$lib.library Libs/$$lib.library; \
+	@set -e; for lib in identify openpci $(MMU_LIB_NAMES); do \
+		xdftool $(DISK) write $(DISK_FILES_DIR)/Libs/$$lib.library Libs/$$lib.library; \
 	done
 	@xdftool $(DISK) makedir S
 	@xdftool $(DISK) write Startup-Sequence S/Startup-Sequence

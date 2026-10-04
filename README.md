@@ -156,8 +156,9 @@ runtime. Without it, xSysInfo opens the regular interface. The MUI code
 is built by default; build without it using `make MUI=0`. Switching this
 option rebuilds the affected code without requiring `make clean`. The build
 needs the MUI developer headers (`MUI_INC` can override their location).
-The floppy target always uses a separate classic-only executable to save
-space, while the normal executable and LHA follow the `MUI` build option.
+The floppy and LHA use the same executable and follow the `MUI` build option.
+The floppy packs xSysInfo and its libraries with ZX0 to save space; the LHA
+contains the original, unpacked files.
 MUI runtime libraries are not bundled in either artifact.
 Use `xSysInfo DEBUG MUI` to diagnose fallback: it reports whether MUI support
 was omitted from the executable, the library could not be opened, or MUI
@@ -234,6 +235,9 @@ they behave like `SCREEN`, using the system's native PAL or NTSC mode.
 *   [MuManual.lha](https://aminet.net/docs/misc/MuManual.lha): Supplies MMU
     developer headers and function descriptions used to generate compiler
     bindings.
+*   [L-Packer](https://github.com/reinauer/L-Packer): Built from the source
+    submodule with CMake 3.16 or newer and native C/C++ compilers. Packs the
+    floppy executable with `-zx0` and libraries with `-library -zx0`.
 *   [TinySetPatch](https://github.com/reinauer/TinySetPatch): Built from the
     source submodule for CPU support and system initialization when booting
     the disk image.

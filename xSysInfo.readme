@@ -110,9 +110,10 @@ Overview, CPU, Chipset, SCSI, and Clock tabs. The Clock page shows the
 battery-backed clock live.
 CPU caches are switched with checkmarks, SCSI devices open in their
 own window, and Project/Save report asks for a file name.
-MUI libraries must be installed separately. The floppy uses a classic-only
-executable; the normal build and LHA include MUI support by default.
-Build without MUI support using make MUI=0.
+MUI libraries must be installed separately. The floppy and LHA use the
+same executable, with MUI support included by default. Build without MUI
+support using make MUI=0. The floppy packs xSysInfo and its libraries with
+ZX0 to save space; the LHA contains the original, unpacked files.
 
 Workbench icon ToolTypes:
 These settings come from the program's icon when xSysInfo starts from
