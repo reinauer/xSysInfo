@@ -8,3 +8,7 @@
 [submodule "3rdparty/TinySetPatch"]
 	path = 3rdparty/TinySetPatch
 	url = https://github.com/reinauer/TinySetPatch
+[submodule "3rdparty/L-Packer"]
+	path = 3rdparty/L-Packer
+	url = https://github.com/reinauer/L-Packer.git
+	branch = library
