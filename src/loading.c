@@ -188,10 +188,6 @@ static struct cprlist *mapped_copper;
 static UWORD *mapped_start;
 static UWORD *mapped_anchor;
 static UWORD *mapped_color_data;
-static struct cprlist *interrupt_copper;
-static UWORD *interrupt_start;
-static UWORD *interrupt_anchor;
-static UWORD *interrupt_color_data;
 static struct Interrupt vblank_server;
 static volatile UWORD vblank_ticks;
 static UWORD scroll_column;
@@ -334,7 +330,7 @@ static UWORD *find_blitter_target(struct cprlist *list)
 
 /* CopLStart can point to a different part of the merged list when Intuition
  * adds another screen. Use it as a quick hint, then search the full list. */
-static UWORD *find_interrupt_target(struct cprlist *active)
+static UWORD *find_plasma_target(struct cprlist *active)
 {
     struct cprlist *block;
     UWORD *anchor;
@@ -414,16 +410,12 @@ void plasma_vblank_tick(void)
     active = GfxBase->ActiView ? GfxBase->ActiView->LOFCprList : NULL;
     anchor = plasma_list && plasma_list->FirstCopList ?
              plasma_list->FirstCopList->CopLStart : NULL;
-    if (active != interrupt_copper ||
-        (active && active->start != interrupt_start) ||
-        anchor != interrupt_anchor ||
-        (!interrupt_color_data && !(vblank_ticks & 7))) {
-        interrupt_copper = active;
-        interrupt_start = active ? active->start : NULL;
-        interrupt_anchor = anchor;
-        interrupt_color_data = find_interrupt_target(active);
-    }
-    target = interrupt_color_data;
+    /* The task locates and validates the Copper layout. Never scan it in
+     * VBlank: a failed search used to stall every eighth scroll pixel.
+     * Skip plasma writes until the task has mapped a changed display. */
+    target = active && active == mapped_copper &&
+             active->start == mapped_start && anchor == mapped_anchor ?
+             mapped_color_data : NULL;
     if (target) {
         wave_row = horizontal_phase;
         for (row = 0; row < PLASMA_ROWS; ++row) {
@@ -461,12 +453,17 @@ static void update_plasma(void)
     active = GfxBase->ActiView ? GfxBase->ActiView->LOFCprList : NULL;
     anchor = plasma_list && plasma_list->FirstCopList ?
              plasma_list->FirstCopList->CopLStart : NULL;
-    if (active && (active != mapped_copper || active->start != mapped_start ||
-                   anchor != mapped_anchor || !mapped_color_data)) {
+    if (active != mapped_copper ||
+        (active && active->start != mapped_start) || anchor != mapped_anchor) {
+        target = find_plasma_target(active);
+        /* Publish one consistent mapping to VBlank, including NULL when
+         * the layout is unsuitable. Retry only when the display changes. */
+        Disable();
         mapped_copper = active;
-        mapped_start = active->start;
+        mapped_start = active ? active->start : NULL;
         mapped_anchor = anchor;
-        mapped_color_data = find_blitter_target(active);
+        mapped_color_data = target;
+        Enable();
     }
     target = active ? mapped_color_data : NULL;
     phase = vertical_phase;
