@@ -92,9 +92,13 @@ static void format_mmu_value(char *buffer, size_t size)
         copy_string(mmu_value, hw_info.mmu_string, sizeof(mmu_value));
     }
 
-    if (hw_info.mmu_enabled) {
+    if (hw_info.mmu_translation == MMU_TRANSLATION_ENABLED) {
         snprintf(buffer, size, "%s (%s)",
                  mmu_value, get_string(MSG_IN_USE));
+    } else if (hw_info.mmu_translation == MMU_TRANSLATION_UNKNOWN &&
+               hw_info.mmu_type != MMU_NONE) {
+        snprintf(buffer, size, "%s (%s)",
+                 mmu_value, get_string(MSG_UNKNOWN));
     } else {
         copy_string(buffer, mmu_value, size);
     }

@@ -366,8 +366,12 @@ static void export_hardware(ReportOutput *fh)
     format_fpu_string(buffer, sizeof(buffer));
     write_formatted(fh, "%-16s %s", "FPU:", buffer);
 
-    if (hw_info.mmu_enabled) {
+    if (hw_info.mmu_translation == MMU_TRANSLATION_ENABLED) {
         snprintf(buffer, sizeof(buffer), "%s (In use)", hw_info.mmu_string);
+    } else if (hw_info.mmu_translation == MMU_TRANSLATION_UNKNOWN &&
+               hw_info.mmu_type != MMU_NONE) {
+        snprintf(buffer, sizeof(buffer), "%s (%s)", hw_info.mmu_string,
+                 get_string(MSG_UNKNOWN));
     } else {
         strncpy(buffer, hw_info.mmu_string, sizeof(buffer) - 1);
     }

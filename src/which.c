@@ -223,7 +223,9 @@ static void build_mmu_string(char *buffer, ULONG size,
     }
 
     snprintf(buffer, size, "%smmu %s", name,
-             hardware->mmu_enabled ? "running" : "not active");
+             hardware->mmu_translation == MMU_TRANSLATION_ENABLED ? "running" :
+             hardware->mmu_translation == MMU_TRANSLATION_DISABLED ?
+             "not active" : "state unknown");
 }
 
 static void build_graphics_chip(char *buffer, ULONG size,
