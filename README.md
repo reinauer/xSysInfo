@@ -140,6 +140,12 @@ serial numbers; hexadecimal values use the Amiga-style `$` prefix.
 PCI boards continue to show their device class in the serial column.
 The selected mode is remembered until xSysInfo exits.
 
+The **Details** button shows one board at a time, including AutoConfig
+memory, diagnostic ROM, and configuration flags for Zorro boards. Use
+**Prev** and **Next** to browse boards and **Back** to return to the list.
+In MUI, select a board and click **Details**, or double-click its row.
+PCI details show the device class without Zorro-specific fields.
+
 ### MUI interface
 
 Start xSysInfo with the `MUI` option or the `DISPLAY=mui` ToolType to

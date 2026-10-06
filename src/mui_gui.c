@@ -83,6 +83,9 @@ enum {
     ID_DRIVE_SCSI,
     ID_SCSI_CLOSE,
     ID_BOARD_DISPLAY,
+    ID_BOARD_SELECT,
+    ID_BOARD_DETAILS,
+    ID_BOARD_DETAILS_CLOSE,
     ID_CACHE_BASE           /* ID_CACHE_BASE + CacheSetting; must be last */
 };
 
@@ -161,7 +164,14 @@ static Object *drive_speed_button;
 static Object *drive_scsi_button;
 
 static Object *board_list_obj;
+static Object *board_list_view;
 static Object *board_cycle;
+static Object *board_details_button;
+static Object *board_details_window;
+static Object *board_details_fields;
+static Object *board_detail_labels[BOARD_FIELD_COUNT];
+static Object *board_detail_values[BOARD_FIELD_COUNT];
+static Object *board_details_close_button;
 static Object *no_boards_text;
 
 static Object *scsi_title;
@@ -258,7 +268,7 @@ static Object *make_list(Object **list, const char *format,
     return ListviewObject,
         MUIA_Listview_Input, input,
         MUIA_Listview_List, *list = ListObject,
-            input ? InputListFrame : ReadListFrame,
+            MUIA_Frame, input ? MUIV_Frame_InputList : MUIV_Frame_ReadList,
             MUIA_List_Format, (ULONG)format,
             MUIA_List_Title, display != NULL,
             display ? MUIA_List_DisplayHook : TAG_IGNORE, (ULONG)display,
@@ -443,37 +453,15 @@ static ULONG board_display(struct Hook *hook, APTR array, APTR message)
         return 0;
     }
 
-    if (app->board_display == BOARD_DISPLAY_NAMES) {
-        copy_string(product, board->product_name, sizeof(product));
-        copy_string(manufacturer, board->manufacturer_name,
-                    sizeof(manufacturer));
-    } else if (app->board_display == BOARD_DISPLAY_HEX) {
-        snprintf(product, sizeof(product),
-                 board->board_type == BOARD_PCI ? "$%04lX" : "$%02lX",
-                 (unsigned long)board->product_id);
-        snprintf(manufacturer, sizeof(manufacturer), "$%04lX",
-                 (unsigned long)board->manufacturer_id);
-    } else {
-        snprintf(product, sizeof(product), "%u", board->product_id);
-        snprintf(manufacturer, sizeof(manufacturer), "%u",
-                 board->manufacturer_id);
-    }
-
-    if (board->board_type == BOARD_PCI ||
-        app->board_display == BOARD_DISPLAY_NAMES) {
-        copy_string(detail, board->detail_string, sizeof(detail));
-    } else {
-        snprintf(detail, sizeof(detail),
-                 app->board_display == BOARD_DISPLAY_HEX ? "$%08lX" : "%lu",
-                 (unsigned long)board->serial_number);
-    }
-
     columns[0] = board->address_string;
     columns[1] = board->size_string;
     columns[2] = (char *)get_board_type_string(board->board_type);
-    columns[3] = product;
-    columns[4] = manufacturer;
-    columns[5] = detail;
+    columns[3] = (char *)format_board_field(board, app->board_display,
+        BOARD_FIELD_PRODUCT, product, sizeof(product));
+    columns[4] = (char *)format_board_field(board, app->board_display,
+        BOARD_FIELD_MANUFACTURER, manufacturer, sizeof(manufacturer));
+    columns[5] = (char *)format_board_field(board, app->board_display,
+        BOARD_FIELD_SERIAL, detail, sizeof(detail));
     return 0;
 }
 
@@ -839,8 +827,8 @@ static Object *make_boards_page(void)
     board_entries[3] = NULL;
 
     return VGroup,
-        Child, make_list(&board_list_obj, "BAR,BAR,BAR,BAR,BAR,",
-                         &board_hook, FALSE, FALSE),
+        Child, board_list_view = make_list(&board_list_obj, "BAR,BAR,BAR,BAR,BAR,",
+                         &board_hook, TRUE, FALSE),
         Child, no_boards_text = TextObject,
             MUIA_Text_PreParse, (ULONG)"\33c",
             MUIA_Text_Contents,
@@ -850,6 +838,38 @@ static Object *make_boards_page(void)
             Child, HSpace(0),
             Child, board_cycle = MUI_MakeObject(MUIO_Cycle, 0,
                                                 (ULONG)board_entries),
+            Child, board_details_button = make_button(MSG_BOARD_DETAILS),
+        End,
+    End;
+}
+
+static Object *make_board_details_window(void)
+{
+    Object *labels, *values;
+    ULONG i;
+
+    /* Separate columns let MUI 3.8 hide PCI's unused rows safely. */
+    labels = VGroup, MUIA_Group_VertSpacing, 1, End;
+    values = VGroup, MUIA_Group_VertSpacing, 1, End;
+    if (!labels || !values) build_failed = TRUE;
+    for (i = 0; i < BOARD_FIELD_COUNT; i++) {
+        board_detail_labels[i] = TextObject,
+            MUIA_Text_Contents, (ULONG)get_string(board_field_label(i, BOARD_ZORRO_II)),
+        End;
+        board_detail_values[i] = make_value();
+        add_child(labels, board_detail_labels[i]);
+        add_child(values, board_detail_values[i]);
+    }
+    /* Use the current fields' natural size instead of screen percentages. */
+    return WindowObject,
+        MUIA_Window_Title, (ULONG)get_string(MSG_BOARD_DETAILS_TITLE),
+        WindowContents, VGroup,
+            Child, board_details_fields = HGroup,
+                MUIA_Group_HorizSpacing, INFO_COLUMN_SPACING,
+                Child, labels,
+                Child, values,
+            End,
+            Child, board_details_close_button = make_button(MSG_CLOSE),
         End,
     End;
 }
@@ -985,6 +1005,7 @@ static BOOL create_application(const char *version_string)
             End,
         End,
 
+        SubWindow, board_details_window = make_board_details_window(),
         SubWindow, scsi_window = make_scsi_window(),
         SubWindow, measuring_window = WindowObject,
             MUIA_Window_Title, (ULONG)XSYSINFO_NAME,
@@ -1036,6 +1057,13 @@ static BOOL create_application(const char *version_string)
     notify_return(drive_scsi_button, MUIA_Pressed, FALSE, ID_DRIVE_SCSI);
     notify_return(board_cycle, MUIA_Cycle_Active, MUIV_EveryTime,
                   ID_BOARD_DISPLAY);
+    notify_return(board_list_obj, MUIA_List_Active, MUIV_EveryTime, ID_BOARD_SELECT);
+    notify_return(board_list_view, MUIA_Listview_DoubleClick, TRUE, ID_BOARD_DETAILS);
+    notify_return(board_details_button, MUIA_Pressed, FALSE, ID_BOARD_DETAILS);
+    notify_return(board_details_window, MUIA_Window_CloseRequest, TRUE,
+                  ID_BOARD_DETAILS_CLOSE);
+    notify_return(board_details_close_button, MUIA_Pressed, FALSE,
+                  ID_BOARD_DETAILS_CLOSE);
 
     DoMethod(scsi_window, MUIM_Notify, MUIA_Window_CloseRequest, TRUE,
              (ULONG)mui_app, 2, MUIM_Application_ReturnID, ID_SCSI_CLOSE);
@@ -1175,6 +1203,41 @@ static LONG active_entry(Object *list, ULONG count)
     return (index >= 0 && (ULONG)index < count) ? index : -1;
 }
 
+static void update_board_details(void)
+{
+    LONG index = active_entry(board_list_obj, board_list.count);
+    const BoardInfo *board;
+    ULONG row, count;
+    char buffer[64];
+    BOOL changing;
+
+    app->selected_board = index;
+    set(board_details_button, MUIA_Disabled, index < 0);
+    if (index < 0) {
+        set(board_details_window, MUIA_Window_Open, FALSE);
+        return;
+    }
+    board = &board_list.boards[index];
+    count = board_detail_count(board);
+    changing = DoMethod(board_details_fields, MUIM_Group_InitChange);
+    for (row = 0; row < BOARD_FIELD_COUNT; row++) {
+        set(board_detail_labels[row], MUIA_ShowMe, row < count);
+        set(board_detail_values[row], MUIA_ShowMe, row < count);
+        if (row < count) {
+            set_text(board_detail_labels[row],
+                     get_string(board_field_label(row, board->board_type)));
+            set_text(board_detail_values[row],
+                     format_board_field(board, app->board_display, row,
+                                        buffer, sizeof(buffer)));
+        } else {
+            set_text(board_detail_labels[row], "");
+            set_text(board_detail_values[row], "");
+        }
+    }
+    if (changing)
+        DoMethod(board_details_fields, MUIM_Group_ExitChange);
+}
+
 static void update_memory_details(void)
 {
     LONG index = active_entry(memory_list_obj, memory_regions.count);
@@ -1305,6 +1368,7 @@ static void update_all_values(void)
     update_speed_values();
     update_memory_details();
     update_drive_details();
+    update_board_details();
 }
 
 static void fill_lists(void)
@@ -1333,6 +1397,8 @@ static void fill_lists(void)
         DoMethod(board_list_obj, MUIM_List_InsertSingle,
                  (ULONG)&board_list.boards[i], MUIV_List_Insert_Bottom);
     }
+    if (board_list.count)
+        nnset(board_list_obj, MUIA_List_Active, 0);
     set(no_boards_text, MUIA_ShowMe, board_list.count == 0);
     set(board_cycle, MUIA_Disabled, board_list.count == 0);
     nnset(board_cycle, MUIA_Cycle_Active, app->board_display);
@@ -1628,12 +1694,27 @@ BOOL mui_gui_run(const char *version_string, const char *startup_warning)
                 set(scsi_window, MUIA_Window_Open, FALSE);
                 break;
 
+            case ID_BOARD_SELECT:
+                update_board_details();
+                break;
+
+            case ID_BOARD_DETAILS:
+                update_board_details();
+                if (app->selected_board >= 0)
+                    set(board_details_window, MUIA_Window_Open, TRUE);
+                break;
+
+            case ID_BOARD_DETAILS_CLOSE:
+                set(board_details_window, MUIA_Window_Open, FALSE);
+                break;
+
             case ID_BOARD_DISPLAY:
                 active = 0;
                 get(board_cycle, MUIA_Cycle_Active, &active);
                 app->board_display = (BoardDisplay)active;
                 DoMethod(board_list_obj, MUIM_List_Redraw,
                          MUIV_List_Redraw_All);
+                update_board_details();
                 break;
 
             default:

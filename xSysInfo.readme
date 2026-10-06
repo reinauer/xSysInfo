@@ -105,6 +105,13 @@ If controller restoration fails, xSysInfo displays an error and exits
 with code 20 without enumerating drives, running further benchmarks or
 writing a report. Reboot before accessing disks in that case.
 
+Board details:
+Use Details on the Boards page to inspect individual boards. Zorro
+boards include AutoConfig memory, diagnostic ROM, and configuration
+flags; PCI boards show their device class. The classic interface has
+Prev/Next navigation and Back returns to the list. In MUI, select a
+board and click Details, or double-click its row.
+
 MUI interface:
 With the MUI option or the DISPLAY=mui ToolType, xSysInfo shows the
 same information in a resizable MUI window with register pages for

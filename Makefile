@@ -91,6 +91,7 @@ SRCS = src/main.c \
        src/drives.c \
        src/scsi.c \
        src/boards.c \
+       src/boards_detail.c \
        src/software.c \
        src/cache.c \
        src/print.c \
@@ -318,7 +319,10 @@ clean:
 	@rm -rf $(MMU_DIR) $(DOWNLOAD_DIR)/MMULib
 
 # Dependencies
-src/gui.o src/format.o src/mui_gui.o: src/format.h src/cache.h
+src/gui.o src/format.o src/mui_gui.o src/boards.o src/boards_detail.o: src/format.h src/cache.h
+src/gui.o src/boards_detail.o: src/boards_detail.h
+src/format.o src/boards_detail.o: src/boards.h
+src/boards_detail.o: src/xsysinfo.h src/gui.h src/locale_str.h
 src/main.o src/display.o src/mui_gui.o: src/display.h
 src/display.o: src/loading.h
 src/main.o src/mui_gui.o: src/mui_gui.h

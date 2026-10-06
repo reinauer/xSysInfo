@@ -37,6 +37,7 @@
 #include "memory.h"
 #include "drives.h"
 #include "boards.h"
+#include "boards_detail.h"
 #include "scsi.h"
 #include "print.h"
 #include "cache.h"
@@ -607,6 +608,10 @@ void update_button_states(void)
             boards_view_update_buttons();
             break;
 
+        case VIEW_BOARD_DETAILS:
+            board_detail_view_update_buttons();
+            break;
+
         case VIEW_SCSI:
             scsi_view_update_buttons();
             break;
@@ -638,6 +643,10 @@ void redraw_current_view(void)
             break;
         case VIEW_BOARDS:
             draw_boards_view();
+            break;
+
+        case VIEW_BOARD_DETAILS:
+            draw_board_detail_view();
             break;
         case VIEW_SCSI:
             draw_scsi_view();
@@ -2122,6 +2131,10 @@ void handle_button_press(ButtonID btn_id)
             boards_view_handle_button(btn_id);
             break;
 
+        case VIEW_BOARD_DETAILS:
+            board_detail_view_handle_button(btn_id);
+            break;
+
         case VIEW_SCSI:
             scsi_view_handle_button(btn_id);
             break;
@@ -2185,6 +2198,7 @@ void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
  */
 void switch_to_view(ViewMode view)
 {
+    ViewMode previous = app->current_view;
     app->scrollbar_dragging = FALSE;
     app->current_view = view;
 
@@ -2202,7 +2216,8 @@ void switch_to_view(ViewMode view)
             }
             break;
         case VIEW_BOARDS:
-            app->board_scroll = 0;
+            if (previous != VIEW_BOARD_DETAILS)
+                app->board_scroll = 0;
             break;
         default:
             break;

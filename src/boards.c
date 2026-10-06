@@ -19,6 +19,7 @@
 
 #include "xsysinfo.h"
 #include "boards.h"
+#include "format.h"
 #include "gui.h"
 #include "locale_str.h"
 #include "debug.h"
@@ -114,6 +115,9 @@ static BOOL append_zorro_board(struct ConfigDev *cd, const char *manufacturer,
     board->manufacturer_id = cd->cd_Rom.er_Manufacturer;
     board->product_id = cd->cd_Rom.er_Product;
     board->serial_number = (ULONG)cd->cd_Rom.er_SerialNumber;
+    board->diagnostic_vector = cd->cd_Rom.er_InitDiagVec;
+    board->autoconfig_type = cd->cd_Rom.er_Type;
+    board->autoconfig_flags = cd->cd_Rom.er_Flags;
 
     debug("  boards: Found Zorro board at $%08X\n",
           (ULONG)board->board_address);
@@ -397,39 +401,15 @@ static void draw_board_list(void)
                                  get_board_type_string(board->board_type),
                                  296);
 
-        /* Product */
-        if (app->board_display == BOARD_DISPLAY_NAMES) {
-            snprintf(buffer, sizeof(buffer), "%s", board->product_name);
-        } else if (app->board_display == BOARD_DISPLAY_HEX) {
-            snprintf(buffer, sizeof(buffer),
-                     board->board_type == BOARD_PCI ? "$%04lX" : "$%02lX",
-                     (unsigned long)board->product_id);
-        } else {
-            snprintf(buffer, sizeof(buffer), "%u", board->product_id);
-        }
-        draw_board_field_clipped(296, y, buffer, 420);
-
-        /* Manufacturer */
-        if (app->board_display == BOARD_DISPLAY_NAMES) {
-            snprintf(buffer, sizeof(buffer), "%s", board->manufacturer_name);
-        } else if (app->board_display == BOARD_DISPLAY_HEX) {
-            snprintf(buffer, sizeof(buffer), "$%04lX",
-                     (unsigned long)board->manufacturer_id);
-        } else {
-            snprintf(buffer, sizeof(buffer), "%u", board->manufacturer_id);
-        }
-        draw_board_field_clipped(420, y, buffer, 550);
-
-        /* Serial or PCI class */
-        if (board->board_type == BOARD_PCI ||
-            app->board_display == BOARD_DISPLAY_NAMES) {
-            snprintf(buffer, sizeof(buffer), "%s", board->detail_string);
-        } else {
-            snprintf(buffer, sizeof(buffer),
-                     app->board_display == BOARD_DISPLAY_HEX ? "$%08lX" : "%lu",
-                     (unsigned long)board->serial_number);
-        }
-        draw_board_field_clipped(550, y, buffer, SCREEN_WIDTH - 4);
+        draw_board_field_clipped(296, y,
+            format_board_field(board, app->board_display, BOARD_FIELD_PRODUCT,
+                               buffer, sizeof(buffer)), 420);
+        draw_board_field_clipped(420, y,
+            format_board_field(board, app->board_display, BOARD_FIELD_MANUFACTURER,
+                               buffer, sizeof(buffer)), 550);
+        draw_board_field_clipped(550, y,
+            format_board_field(board, app->board_display, BOARD_FIELD_SERIAL,
+                               buffer, sizeof(buffer)), SCREEN_WIDTH - 4);
 
         y += BOARD_LIST_LINE_H;
     }
@@ -453,6 +433,8 @@ static void draw_board_buttons(void)
     if (btn) draw_button(btn);
     btn = find_button(BTN_BOARD_DISPLAY);
     if (btn) draw_cycle_button(btn);
+    btn = find_button(BTN_BOARD_DETAILS);
+    if (btn) draw_button(btn);
     btn = find_button(BTN_BOARD_EXIT);
     if (btn) draw_button(btn);
 }
@@ -515,6 +497,9 @@ void boards_view_update_buttons(void)
                get_string(display_labels[app->board_display]),
                BTN_BOARD_DISPLAY, board_list.count > 0);
 
+    add_button(290, 188, 100, 12, get_string(MSG_BOARD_DETAILS),
+               BTN_BOARD_DETAILS, board_list.count > 0);
+
     if (max_scroll > 0) {
         add_button(20, 188, 60, 12,
                    get_string(MSG_BTN_PREV), BTN_BOARD_PREV,
@@ -554,6 +539,13 @@ void boards_view_handle_button(ButtonID id)
         case BTN_BOARD_DISPLAY:
             app->board_display = (app->board_display + 1) % BOARD_DISPLAY_COUNT;
             refresh_board_list();
+            break;
+
+        case BTN_BOARD_DETAILS:
+            if (board_list.count) {
+                app->selected_board = app->board_scroll;
+                switch_to_view(VIEW_BOARD_DETAILS);
+            }
             break;
 
         case BTN_BOARD_EXIT:

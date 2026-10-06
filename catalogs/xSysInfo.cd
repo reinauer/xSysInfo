@@ -1052,3 +1052,63 @@ Font exceeds the 8 x 8 pixel limit.
 MSG_FONT_FALLBACK (//)
 Using topaz.8.
 ;
+MSG_BOARD_DETAILS (//)
+Details
+;
+MSG_BOARD_DETAILS_TITLE (//)
+Expansion board details
+;
+MSG_BOARD_BACK (//)
+Back
+;
+MSG_BOARD_PCI_CLASS (//)
+PCI class
+;
+MSG_BOARD_SYSTEM_MEMORY (//)
+System memory
+;
+MSG_BOARD_MEMORY_SPACE (//)
+Memory / I/O space
+;
+MSG_BOARD_ROM_VALID (//)
+ROM vector valid
+;
+MSG_BOARD_ROM_VECTOR (//)
+ROM vector offset
+;
+MSG_BOARD_CHAINED (//)
+Next board related
+;
+MSG_BOARD_SHUTUP (//)
+Can shut up
+;
+MSG_BOARD_ZORRO_III (//)
+Zorro III flag
+;
+MSG_BOARD_EXTENDED (//)
+Extended size (Z3)
+;
+MSG_BOARD_SUBSIZE (//)
+Logical size (Z3)
+;
+MSG_BOARD_SIZE_MATCHES (//)
+Matches physical size
+;
+MSG_BOARD_AUTO_SIZE (//)
+Automatic size
+;
+MSG_BOARD_RESERVED (//)
+Reserved
+;
+MSG_BOARD_MEMORY_DEVICE (//)
+Memory device
+;
+MSG_BOARD_IO_DEVICE (//)
+I/O device
+;
+MSG_BOARD_8MB_SPACE (//)
+8 MB expansion space
+;
+MSG_BOARD_ANY_SPACE (//)
+Any address space
+;

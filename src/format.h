@@ -6,6 +6,7 @@
 #include "xsysinfo.h"
 #include "locale_str.h"
 #include "cache.h"
+#include "boards.h"
 
 #define MAX_HARDWARE_INFO_ROWS 64
 #define SOFTWARE_OVERVIEW_MAX_ROWS 7
@@ -32,4 +33,18 @@ ULONG scale_speed_value(ULONG value, ULONG max_value, ULONG extent,
                         BarScale scale);
 void format_transfer_rate(ULONG speed, BOOL fractional_kb,
                           char *buffer, size_t size);
+/* Board fields share formatting between both lists and detail views. */
+typedef enum {
+    BOARD_FIELD_ADDRESS, BOARD_FIELD_SIZE, BOARD_FIELD_TYPE,
+    BOARD_FIELD_PRODUCT, BOARD_FIELD_MANUFACTURER, BOARD_FIELD_SERIAL,
+    BOARD_FIELD_SYSTEM_MEMORY, BOARD_FIELD_MEMORY_SPACE,
+    BOARD_FIELD_ROM_VALID, BOARD_FIELD_ROM_VECTOR, BOARD_FIELD_CHAINED,
+    BOARD_FIELD_SHUTUP, BOARD_FIELD_ZORRO_III, BOARD_FIELD_EXTENDED,
+    BOARD_FIELD_SUBSIZE, BOARD_FIELD_COUNT
+} BoardField;
+
+ULONG board_detail_count(const BoardInfo *board);
+LocaleStringID board_field_label(BoardField field, BoardType type);
+const char *format_board_field(const BoardInfo *board, BoardDisplay display,
+                              BoardField field, char *buffer, size_t size);
 #endif

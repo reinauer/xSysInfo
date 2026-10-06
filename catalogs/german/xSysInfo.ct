@@ -1051,3 +1051,63 @@ Die Schrift überschreitet die Grenze von 8 x 8 Pixeln.
 MSG_FONT_FALLBACK
 Topaz.8 wird verwendet.
 ;
+MSG_BOARD_DETAILS
+Details
+;
+MSG_BOARD_DETAILS_TITLE
+Erweiterungskartendetails
+;
+MSG_BOARD_BACK
+Zurück
+;
+MSG_BOARD_PCI_CLASS
+PCI-Klasse
+;
+MSG_BOARD_SYSTEM_MEMORY
+Systemspeicher
+;
+MSG_BOARD_MEMORY_SPACE
+Speicher-/E/A-Bereich
+;
+MSG_BOARD_ROM_VALID
+ROM-Vektor gültig
+;
+MSG_BOARD_ROM_VECTOR
+ROM-Vektor-Offset
+;
+MSG_BOARD_CHAINED
+Nächste Karte verwandt
+;
+MSG_BOARD_SHUTUP
+Abschaltbar
+;
+MSG_BOARD_ZORRO_III
+Zorro-III-Flag
+;
+MSG_BOARD_EXTENDED
+Erweiterte Größe (Z3)
+;
+MSG_BOARD_SUBSIZE
+Logische Größe (Z3)
+;
+MSG_BOARD_SIZE_MATCHES
+Wie physische Größe
+;
+MSG_BOARD_AUTO_SIZE
+Automatische Größe
+;
+MSG_BOARD_RESERVED
+Reserviert
+;
+MSG_BOARD_MEMORY_DEVICE
+Speicherkarte
+;
+MSG_BOARD_IO_DEVICE
+E/A-Karte
+;
+MSG_BOARD_8MB_SPACE
+8-MB-Erweiterungsbereich
+;
+MSG_BOARD_ANY_SPACE
+Beliebiger Adressbereich
+;

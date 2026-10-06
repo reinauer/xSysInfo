@@ -86,6 +86,7 @@ typedef enum {
     VIEW_MEMORY,
     VIEW_DRIVES,
     VIEW_BOARDS,
+    VIEW_BOARD_DETAILS,
     VIEW_SCSI
 } ViewMode;
 
@@ -185,6 +186,7 @@ typedef struct {
     LONG drive_count;               /* Total drives */
 
     /* Boards view state */
+    LONG selected_board;            /* Board shown in the details view */
     LONG board_scroll;              /* Scroll offset */
     LONG board_count;               /* Total boards */
     BoardDisplay board_display;     /* Names, decimal IDs, or hexadecimal IDs */

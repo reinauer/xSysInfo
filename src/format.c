@@ -4,6 +4,7 @@
 /* Values and hardware rows shared by the graphical frontends.
  * No screen, widget, or layout state belongs here. */
 #include <string.h>
+#include <libraries/configregs.h>
 #include "format.h"
 #include "hardware.h"
 #include "software.h"
@@ -666,4 +667,107 @@ void format_transfer_rate(ULONG speed, BOOL fractional_kb,
     } else {
         snprintf(buffer, size, "%lu B/s", (unsigned long)speed);
     }
+}
+
+ULONG board_detail_count(const BoardInfo *board)
+{
+    if (!board) return 0;
+    return board->board_type == BOARD_ZORRO_II ||
+           board->board_type == BOARD_ZORRO_III ?
+           BOARD_FIELD_COUNT : BOARD_FIELD_SYSTEM_MEMORY;
+}
+
+LocaleStringID board_field_label(BoardField field, BoardType type)
+{
+    static const LocaleStringID labels[BOARD_FIELD_COUNT] = {
+        MSG_BOARD_ADDRESS, MSG_BOARD_SIZE, MSG_BOARD_TYPE,
+        MSG_PRODUCT, MSG_MANUFACTURER, MSG_SERIAL_NO,
+        MSG_BOARD_SYSTEM_MEMORY, MSG_BOARD_MEMORY_SPACE,
+        MSG_BOARD_ROM_VALID, MSG_BOARD_ROM_VECTOR, MSG_BOARD_CHAINED,
+        MSG_BOARD_SHUTUP, MSG_BOARD_ZORRO_III, MSG_BOARD_EXTENDED,
+        MSG_BOARD_SUBSIZE
+    };
+    if (field == BOARD_FIELD_SERIAL && type == BOARD_PCI)
+        return MSG_BOARD_PCI_CLASS;
+    return (unsigned)field < BOARD_FIELD_COUNT ? labels[field] : MSG_NA;
+}
+
+const char *format_board_field(const BoardInfo *board, BoardDisplay display,
+                              BoardField field, char *buffer, size_t size)
+{
+    /* Logical Zorro III sizes are encoded in er_Flags, not er_Type.
+     * Entries are in 64 KiB units, as in expansion.library's table. */
+    static const UWORD sub_sizes[] = {
+        0, 0, 1, 2, 4, 8, 16, 32, 64, 96, 128, 160, 192, 224
+    };
+    ULONG sub_size;
+    BOOL enabled;
+
+    if (!board || (unsigned)field >= board_detail_count(board))
+        return get_string(MSG_NA);
+
+    switch (field) {
+        case BOARD_FIELD_ADDRESS: return board->address_string;
+        case BOARD_FIELD_SIZE: return board->size_string;
+        case BOARD_FIELD_TYPE: return get_board_type_string(board->board_type);
+        case BOARD_FIELD_PRODUCT:
+            if (display == BOARD_DISPLAY_NAMES) return board->product_name;
+            snprintf(buffer, size, display == BOARD_DISPLAY_HEX ?
+                (board->board_type == BOARD_PCI ? "$%04lX" : "$%02lX") : "%lu",
+                (unsigned long)board->product_id);
+            return buffer;
+        case BOARD_FIELD_MANUFACTURER:
+            if (display == BOARD_DISPLAY_NAMES) return board->manufacturer_name;
+            snprintf(buffer, size, display == BOARD_DISPLAY_HEX ? "$%04lX" : "%lu",
+                     (unsigned long)board->manufacturer_id);
+            return buffer;
+        case BOARD_FIELD_SERIAL:
+            if (board->board_type == BOARD_PCI || display == BOARD_DISPLAY_NAMES)
+                return board->detail_string;
+            snprintf(buffer, size, display == BOARD_DISPLAY_HEX ? "$%08lX" : "%lu",
+                     (unsigned long)board->serial_number);
+            return buffer;
+        case BOARD_FIELD_SYSTEM_MEMORY:
+            enabled = board->autoconfig_type & ERTF_MEMLIST;
+            break;
+        case BOARD_FIELD_MEMORY_SPACE:
+            if (board->board_type == BOARD_ZORRO_III)
+                return get_string(board->autoconfig_flags & ERFF_MEMSPACE ?
+                                  MSG_BOARD_MEMORY_DEVICE : MSG_BOARD_IO_DEVICE);
+            return get_string(board->autoconfig_flags & ERFF_MEMSPACE ?
+                              MSG_BOARD_8MB_SPACE : MSG_BOARD_ANY_SPACE);
+        case BOARD_FIELD_ROM_VALID:
+            enabled = board->autoconfig_type & ERTF_DIAGVALID;
+            break;
+        case BOARD_FIELD_ROM_VECTOR:
+            if (!(board->autoconfig_type & ERTF_DIAGVALID))
+                return get_string(MSG_NA);
+            snprintf(buffer, size, "$%04lX", (unsigned long)board->diagnostic_vector);
+            return buffer;
+        case BOARD_FIELD_CHAINED:
+            enabled = board->autoconfig_type & ERTF_CHAINEDCONFIG;
+            break;
+        case BOARD_FIELD_SHUTUP:
+            enabled = !(board->autoconfig_flags & ERFF_NOSHUTUP);
+            break;
+        case BOARD_FIELD_ZORRO_III:
+            enabled = board->autoconfig_flags & ERFF_ZORRO_III;
+            break;
+        case BOARD_FIELD_EXTENDED:
+            if (board->board_type != BOARD_ZORRO_III) return get_string(MSG_NA);
+            enabled = board->autoconfig_flags & ERFF_EXTENDED;
+            break;
+        case BOARD_FIELD_SUBSIZE:
+            if (board->board_type != BOARD_ZORRO_III) return get_string(MSG_NA);
+            sub_size = board->autoconfig_flags & ERT_Z3_SSMASK;
+            if (sub_size == 0) return get_string(MSG_BOARD_SIZE_MATCHES);
+            if (sub_size == 1) return get_string(MSG_BOARD_AUTO_SIZE);
+            if (sub_size >= sizeof(sub_sizes) / sizeof(sub_sizes[0]))
+                return get_string(MSG_BOARD_RESERVED);
+            format_board_size((ULONG)sub_sizes[sub_size] << 16, buffer, size);
+            return buffer;
+        default:
+            return get_string(MSG_NA);
+    }
+    return get_string(enabled ? MSG_YES : MSG_NO);
 }

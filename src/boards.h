@@ -29,6 +29,9 @@ typedef struct {
     UWORD product_id;
     BoardType board_type;
     ULONG serial_number;
+    UWORD diagnostic_vector;
+    UBYTE autoconfig_type;
+    UBYTE autoconfig_flags;
     char product_name[64];
     char manufacturer_name[64];
     char size_string[16];       /* Human-readable size */
