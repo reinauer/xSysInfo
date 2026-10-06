@@ -25,6 +25,9 @@ jobs:
       - name: Mark git directory as safe
         run: git config --global --add safe.directory '*'
 
+      - name: Install native packer build dependencies
+        run: apt-get update && apt-get install -y cmake
+
       - name: Build all artifacts
         run: make all
 
