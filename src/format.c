@@ -30,6 +30,20 @@ void format_scaled(char *buffer, size_t size, ULONG value_x100, BOOL round)
     }
 }
 
+void format_frequency(ULONG hz, char *buffer, size_t size)
+{
+    ULONG scaled = hz;
+    const char *unit = "kHz";
+
+    if (hz >= 1000000) {
+        scaled = hz / 1000 + (hz % 1000 >= 500);
+        unit = "MHz";
+    }
+    snprintf(buffer, size, "%lu.%03lu %s",
+             (unsigned long)(scaled / 1000),
+             (unsigned long)(scaled % 1000), unit);
+}
+
 static void format_cpu_value(char *buffer, size_t size)
 {
     char mhz_buf[16] = "";
@@ -416,8 +430,8 @@ void visit_hardware_rows(HardwareType page, HardwareRowVisitor visit,
         hardware_row(&out, FALSE, get_string(MSG_HORIZ_KHZ), buffer);
 
         /* EClock */
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.eclock_freq);
-        hardware_row(&out, FALSE, get_string(MSG_ECLOCK_HZ), buffer);
+        format_frequency(hw_info.eclock_freq, buffer, sizeof(buffer));
+        hardware_row(&out, FALSE, get_string(MSG_ECLOCK), buffer);
 
         /* Vert Hz */
         snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.vert_freq);

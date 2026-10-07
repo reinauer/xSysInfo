@@ -420,7 +420,8 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_BOARD_MEMORY_DEVICE */ "Memory device",
     /* MSG_BOARD_IO_DEVICE */ "I/O device",
     /* MSG_BOARD_8MB_SPACE */ "8 MB expansion space",
-    /* MSG_BOARD_ANY_SPACE */ "Any address space"
+    /* MSG_BOARD_ANY_SPACE */ "Any address space",
+    /* MSG_ECLOCK */          "EClock"
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

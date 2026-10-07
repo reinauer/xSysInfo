@@ -1111,3 +1111,6 @@ MSG_BOARD_8MB_SPACE
 MSG_BOARD_ANY_SPACE
 Beliebiger Adressbereich
 ;
+MSG_ECLOCK
+EClock
+;

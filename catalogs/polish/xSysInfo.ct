@@ -1051,3 +1051,6 @@ Czcionka przekracza limit 8 x 8 pikseli.
 MSG_FONT_FALLBACK
 U¿yto topaz.8.
 ;
+MSG_ECLOCK
+EClock
+;

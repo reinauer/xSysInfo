@@ -382,8 +382,8 @@ void export_hardware(BPTR fh)
     }
     write_formatted(fh, "%-16s %s kHz", "Horiz Freq:", buffer);
 
-    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.eclock_freq);
-    write_formatted(fh, "%-16s %s Hz", "EClock:", buffer);
+    format_frequency(hw_info.eclock_freq, buffer, sizeof(buffer));
+    write_formatted(fh, "%-16s %s", "EClock:", buffer);
 
     write_formatted(fh, "%-16s %s", "Card Slot:", hw_info.card_slot_string);
 

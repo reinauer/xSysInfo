@@ -1112,3 +1112,6 @@ MSG_BOARD_8MB_SPACE (//)
 MSG_BOARD_ANY_SPACE (//)
 Any address space
 ;
+MSG_ECLOCK (//)
+EClock
+;

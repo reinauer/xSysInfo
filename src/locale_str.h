@@ -411,6 +411,9 @@ typedef enum {
     MSG_BOARD_8MB_SPACE,
     MSG_BOARD_ANY_SPACE,
 
+    /* Unit is part of the value; keep MSG_ECLOCK_HZ for old catalogs. */
+    MSG_ECLOCK,
+
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

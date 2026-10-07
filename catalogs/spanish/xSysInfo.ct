@@ -1052,3 +1052,6 @@ La fuente supera el límite de 8 x 8 píxeles.
 MSG_FONT_FALLBACK
 Se usará topaz.8.
 ;
+MSG_ECLOCK
+EClock
+;

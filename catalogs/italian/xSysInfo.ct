@@ -1051,3 +1051,6 @@ Il carattere supera il limite di 8 x 8 pixel.
 MSG_FONT_FALLBACK
 Viene usato topaz.8.
 ;
+MSG_ECLOCK
+EClock
+;

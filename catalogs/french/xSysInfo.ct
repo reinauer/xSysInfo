@@ -1051,3 +1051,6 @@ La police dépasse la limite de 8 x 8 pixels.
 MSG_FONT_FALLBACK
 Utilisation de topaz.8.
 ;
+MSG_ECLOCK
+EClock
+;
