@@ -1681,7 +1681,14 @@ void detect_gary(void)
         testVal1 = *((volatile UWORD *)(CUSTOM_JOY1DAT));
         testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT)); //avoid bus stickiness (A3000)
         testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT_MIRR));
+        /* Idle ports read $0000, as does unmapped space such as WinUAE's
+         * A1200 Gayle window. INTENAR is nonzero while the OS runs. */
         if (testVal1 == testVal2) {
+            testVal1 = *((volatile UWORD *)(CUSTOM_INTENAR));
+            testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT)); //avoid bus stickiness (A3000)
+            testVal2 = *((volatile UWORD *)(CUSTOM_INTENAR_MIRR));
+        }
+        if (testVal1 != 0 && testVal1 == testVal2) {
             hw_info.gary_type = GARY_A1000;
             /* An OCS A1000 has a DIP Agnus; the VPOSR mirror test in
              * detect_chipset() can misread Fat Agnus on expanded machines.
