@@ -74,7 +74,7 @@ without a leading dash.
 | `WHICH` | Write a column-aligned system report compatible with the WhichAmiga 1.3.3 text format to Shell output. |
 | `DARK` | Use the dark blue palette in the graphical interface. The default is the gray palette. |
 | `MUI` | Use the MUI interface if MUI 3.8 or newer is installed; otherwise the regular graphical interface opens. |
-| `DEBUG` | Enable diagnostic output. Debugging is off by default. |
+| `DEBUG` | Write diagnostics to Shell output, supporting redirection. Debugging is off by default. |
 | `SCSI` | Check the A3000 WD SCSI controller at startup. Disabled by default; see below before enabling it. |
 
 `BRIEF`, `FULL`, and `WHICH` run without opening the graphical interface.
@@ -203,7 +203,7 @@ icon contains `DISPLAY=auto`, plus disabled examples `(DISPLAY=window)`,
 | `DISPLAY=ntsc` | Open a separate NTSC HIRES screen (640 × 200). |
 | `DISPLAY=mui` | Use the MUI interface. Falls back to `DISPLAY=auto` when MUI is not installed. |
 | `DARK` | Use the dark blue palette. Omit this entry to use the default gray palette. |
-| `DEBUG` | Enable diagnostic output. Omit this entry to leave debugging off. |
+| `DEBUG` | Write diagnostics to `RAM:xSysInfo.log`, replacing any previous log. Omit this entry to leave debugging off. |
 | `SCSI` | Run the optional WD SCSI controller check at startup, as described above. Disabled by default. |
 
 Keep exactly one `DISPLAY` entry enabled to select the display mode; put

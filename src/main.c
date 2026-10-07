@@ -353,7 +353,6 @@ int main(int argc, char **argv)
 {
     int ret = RETURN_OK;
     const char *scsi_error = NULL;
-    debug(XSYSINFO_NAME ": Checking start...\n");
 
     /* Check if started from Workbench */
     if (argc == 0) {
@@ -361,6 +360,7 @@ int main(int argc, char **argv)
         wb_startup = (struct WBStartup *)argv;
     } else {
         /* Started from CLI - parse command line arguments */
+        init_debug_output(FALSE);
         parse_args(argc, argv);
     }
 
@@ -388,6 +388,15 @@ int main(int argc, char **argv)
     /* Parse tooltypes if started from Workbench */
     if (wb_startup) {
         parse_tooltypes();
+        if (!init_debug_output(TRUE)) {
+            struct IntuiText body = { 1, 0, JAM2, 0, 0, NULL,
+                (UBYTE *)"Cannot open RAM:xSysInfo.log", NULL };
+            struct IntuiText ok = { 1, 0, JAM2, 0, 0, NULL,
+                (UBYTE *)get_string(MSG_BTN_OK), NULL };
+
+            AutoRequest(NULL, &body, NULL, &ok, 0, 0, 420, 60);
+            ret = RETURN_WARN;
+        }
     }
 
     debug(XSYSINFO_NAME ": Detecting hardware...\n");
@@ -620,6 +629,7 @@ cleanup:
     close_display();
     close_libraries();
     cleanup_locale();
+    cleanup_debug_output();
 
     return ret;
 }

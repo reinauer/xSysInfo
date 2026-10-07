@@ -72,6 +72,7 @@ LIBS = -lamiga -lgcc
 
 # Source files
 SRCS = src/main.c \
+       src/debug.c \
        src/gui.c \
        src/format.c \
        src/font.c \

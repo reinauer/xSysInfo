@@ -9,23 +9,13 @@
 #define DEBUG_H
 
 #include <proto/dos.h>
-#include <stdarg.h>
-#include <stdio.h>
 
-/* Global debug flag - set via /D command line switch */
+/* Set by the DEBUG command line option or Workbench tooltype. */
 extern BOOL g_debug_enabled;
 
-/* Use our Kickstart 1.3-compatible C runtime: DOS VPrintf needs V36.
- * Keep diagnostics unbuffered so the last line survives a failed probe.
- */
-static inline void debug_printf(const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    fflush(stdout);
-}
+BOOL init_debug_output(BOOL workbench);
+void cleanup_debug_output(void);
+void debug_printf(const char *fmt, ...);
 
 #define debug(fmt, ...) \
     do { \
