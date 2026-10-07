@@ -1054,3 +1054,27 @@ U¿yto topaz.8.
 MSG_ECLOCK
 EClock
 ;
+MSG_REPORT_OPEN
+Raport...
+;
+MSG_REPORT_TITLE
+Raport systemowy
+;
+MSG_REPORT_WHICH
+WhichAmiga
+;
+MSG_REPORT_BRIEF
+Krótki
+;
+MSG_REPORT_FULL
+Pe³ny
+;
+MSG_REPORT_SAVE_AS
+Zapisz jako...
+;
+MSG_REPORT_FAILED
+Nie mo¿na utworzyæ podgl±du raportu
+;
+MSG_BTN_REPORT
+RAPORT
+;

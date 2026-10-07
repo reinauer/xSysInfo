@@ -13,7 +13,7 @@
 *   **Software Environment Overview**: View details about your AmigaOS software setup.
 *   **Benchmarking**: Includes Dhrystone benchmarks to assess your system's performance.
 *   **Graphical User Interface (GUI)**: User-friendly interface for easy navigation and information display.
-*   **Printing Support**: Print out system reports for documentation or sharing (For now, the output is saved to a file in RAM:)
+*   **Report Preview**: View WhichAmiga, brief or full system reports inside xSysInfo, then save the displayed text.
 *   **Localization**: Supports multiple languages for its interface.
 
 ## Building `xSysInfo`
@@ -77,6 +77,20 @@ without a leading dash.
 | `DEBUG` | Write diagnostics to Shell output, supporting redirection. Debugging is off by default. |
 | `SCSI` | Check the A3000 WD SCSI controller at startup. Disabled by default; see below before enabling it. |
 
+**REPORT** in the classic interface, or **Report...** in MUI, opens a
+read-only preview. Choose
+**WhichAmiga** for the compatible output, **Brief** for hardware, OS, memory,
+boards and benchmark results, or **Full** for the detailed report and lists.
+Brief is the initial selection; the last choice is remembered for the session.
+Opening a preview uses the current results without running benchmarks.
+**Save as...** saves exactly that preview, defaulting to `RAM:xsysinfo.txt`.
+Close and reopen the preview to include subsequent measurements.
+
+In the classic interface, use the scrollbar, cursor keys or Prev/Next to
+scroll vertically. Long lines are clipped at the right edge of the preview.
+Shift+Up/Down scrolls a page. Q returns to the main screen; S opens Save as.
+The MUI preview has vertical and horizontal scrollbars.
+
 `BRIEF`, `FULL`, and `WHICH` run without opening the graphical interface.
 If more than one report mode is supplied, `FULL` takes precedence over
 `WHICH`, which takes precedence over `BRIEF`. `DEBUG` can be combined with
@@ -125,7 +139,8 @@ Workbench icon keeps `(SCSI)` disabled.
 
 The check skips busy controllers, incomplete transfers, and configurations
 whose reset settings cannot be recovered. Results appear on **CHIPSET**,
-in **PRINT**, and in **FULL** reports. Mode, timeout, and sync settings are
+in full **Report...** previews and **FULL** reports. Mode, timeout, and sync
+settings are
 snapshots taken before the check; sync describes the last selected target.
 Older chips without readable microcode show N/A. Clock measurement can
 also be unavailable on emulators. On supported hardware, a skipped or
@@ -154,8 +169,8 @@ same information is organized on six register pages: **Software**,
 **Hardware**, **Speed**, **Memory**, **Drives**, and **Boards**. Hardware
 contains **Overview**, **CPU**, **Chipset**, **SCSI**, and **Clock** pages.
 The Clock page shows the battery-backed clock live. CPU caches use
-checkmarks, the SCSI device list opens in its own window, and **Project > Save report...**
-writes the text report to a file chosen in an ASL requester.
+checkmarks, the SCSI device list opens in its own window, and
+**Project > Report...** opens a resizable report preview.
 
 The MUI interface needs MUI 3.8 or newer at
 runtime. Without it, xSysInfo opens the regular interface. The MUI code

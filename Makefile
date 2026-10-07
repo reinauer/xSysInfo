@@ -95,6 +95,7 @@ SRCS = src/main.c \
        src/boards_detail.c \
        src/software.c \
        src/cache.c \
+       src/report_view.c \
        src/print.c \
        src/which.c \
        src/locale.c
@@ -349,7 +350,7 @@ src/scsi.o: src/scsi.c src/xsysinfo.h src/scsi.h src/gui.h src/locale_str.h
 src/boards.o: src/boards.c src/xsysinfo.h src/boards.h src/locale_str.h
 src/software.o: src/software.c src/xsysinfo.h src/software.h src/hardware.h src/locale_str.h
 src/cache.o: src/cache.c src/xsysinfo.h src/cache.h src/hardware.h
-src/print.o: src/print.c src/xsysinfo.h src/print.h src/hardware.h src/software.h src/memory.h
+src/print.o: src/print.c src/xsysinfo.h src/print.h src/hardware.h src/software.h src/memory.h src/format.h src/which.h src/locale_str.h
 src/which.o: src/which.c src/xsysinfo.h src/which.h src/hardware.h src/boards.h src/software.h src/memory.h
 src/locale.o: src/locale.c src/xsysinfo.h src/locale_str.h
 src/dhry_1.o: src/dhry_1.c src/dhry.h
@@ -571,3 +572,7 @@ disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
 	@xdftool $(DISK) boot install
 	@xdftool $(DISK) info
 	@ln -sf $(DISK) xsysinfo.adf
+
+src/main.o src/gui.o src/report_view.o: src/report_view.h
+src/main.o src/gui.o src/mui_gui.o src/report_view.o src/print.o: src/print.h
+src/report_view.o: src/gui.h src/locale_str.h

@@ -6,25 +6,7 @@
 
 #include <libraries/identify.h>
 
-#include <proto/dos.h>
-
 #include "which.h"
-
-typedef struct {
-    BPTR fh;
-    BOOL failed;
-} WhichOutput;
-
-static void output_line(void *context, const char *line)
-{
-    WhichOutput *output = (WhichOutput *)context;
-    LONG length = (LONG)strlen(line);
-
-    if ((length && Write(output->fh, line, length) != length) ||
-        Write(output->fh, "\n", 1) != 1) {
-        output->failed = TRUE;
-    }
-}
 
 static void format_mhz(char *buffer, ULONG size, ULONG mhz_x100)
 {
@@ -560,18 +542,4 @@ void which_compat_emit(const HardwareInfo *hardware,
     build_model_phrase(value, sizeof(value), hardware);
     snprintf(line, sizeof(line), " Your computer %s.", value);
     emit_line(context, line);
-}
-
-BOOL export_which_compatible(BPTR fh)
-{
-    WhichOutput output;
-
-    if (!fh)
-        return FALSE;
-
-    output.fh = fh;
-    output.failed = FALSE;
-    which_compat_emit(&hw_info, &system_software, &memory_regions, &board_list,
-                      output_line, &output);
-    return !output.failed;
 }

@@ -1115,3 +1115,27 @@ Any address space
 MSG_ECLOCK (//)
 EClock
 ;
+MSG_REPORT_OPEN (//)
+Report...
+;
+MSG_REPORT_TITLE (//)
+System report
+;
+MSG_REPORT_WHICH (//)
+WhichAmiga
+;
+MSG_REPORT_BRIEF (//)
+Brief
+;
+MSG_REPORT_FULL (//)
+Full
+;
+MSG_REPORT_SAVE_AS (//)
+Save as...
+;
+MSG_REPORT_FAILED (//)
+Could not create report preview
+;
+MSG_BTN_REPORT (//)
+REPORT
+;

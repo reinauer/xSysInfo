@@ -1054,3 +1054,27 @@ Utilisation de topaz.8.
 MSG_ECLOCK
 EClock
 ;
+MSG_REPORT_OPEN
+Rapport...
+;
+MSG_REPORT_TITLE
+Rapport système
+;
+MSG_REPORT_WHICH
+WhichAmiga
+;
+MSG_REPORT_BRIEF
+Bref
+;
+MSG_REPORT_FULL
+Complet
+;
+MSG_REPORT_SAVE_AS
+Enregistrer sous...
+;
+MSG_REPORT_FAILED
+Impossible de créer l'aperçu du rapport
+;
+MSG_BTN_REPORT
+RAPPORT
+;

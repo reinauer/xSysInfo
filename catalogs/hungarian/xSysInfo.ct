@@ -1054,3 +1054,27 @@ A topaz.8 betûtípus lesz használva.
 MSG_ECLOCK
 EClock
 ;
+MSG_REPORT_OPEN
+Jelentés...
+;
+MSG_REPORT_TITLE
+Rendszerjelentés
+;
+MSG_REPORT_WHICH
+WhichAmiga
+;
+MSG_REPORT_BRIEF
+Rövid
+;
+MSG_REPORT_FULL
+Teljes
+;
+MSG_REPORT_SAVE_AS
+Mentés másként...
+;
+MSG_REPORT_FAILED
+Nem sikerült létrehozni a jelentés elõnézetét
+;
+MSG_BTN_REPORT
+RIPORT
+;

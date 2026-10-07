@@ -73,7 +73,11 @@ enum {
     ID_ABOUT_MUI,
     ID_MUI_PREFS,
     ID_BENCHMARK,
-    ID_SAVE,
+    ID_REPORT,
+    ID_REPORT_FORMAT,
+    ID_REPORT_SCROLL,
+    ID_REPORT_SAVE,
+    ID_REPORT_CLOSE,
     ID_SOFTWARE_PAGE,
     ID_SCALE,
     ID_MEMORY_SELECT,
@@ -131,6 +135,13 @@ static Object *main_window;
 static Object *scsi_window;
 static Object *measuring_window;
 static Object *status_text;
+static Object *report_window, *report_list, *report_cycle, *report_scroll;
+static Object *report_save_button, *report_close_button, *report_status;
+static const char *report_entries[REPORT_COUNT + 1];
+static ReportText report;
+static ReportFormat selected_report = REPORT_BRIEF;
+static ULONG report_column;
+static LONG report_visible_columns;
 
 static Object *software_values[SOFTWARE_OVERVIEW_MAX_ROWS];
 static Object *software_cycle;
@@ -511,6 +522,15 @@ static ULONG scsi_display(struct Hook *hook, APTR array, APTR message)
  * HookEntry (amiga.lib) moves the register arguments onto the stack.
  * Cast to the field type: HOOKFUNC's return type differs between NDKs.
  */
+static ULONG report_display(struct Hook *hook, APTR array, APTR message)
+{
+    const char *line = message;
+    (void)hook;
+    ((const char **)array)[0] = line && strlen(line) > report_column ?
+                               line + report_column : "";
+    return 0;
+}
+
 #define DISPLAY_HOOK(name, func) \
     static struct Hook name = { { NULL, NULL }, (ULONG (*)())HookEntry, \
                                 (ULONG (*)())func, NULL }
@@ -520,6 +540,7 @@ DISPLAY_HOOK(memory_hook, memory_display);
 DISPLAY_HOOK(drive_hook, drive_display);
 DISPLAY_HOOK(board_hook, board_display);
 DISPLAY_HOOK(scsi_hook, scsi_display);
+DISPLAY_HOOK(report_hook, report_display);
 
 /* ------------------------------------------------------------------ */
 /* Pages                                                               */
@@ -874,6 +895,45 @@ static Object *make_board_details_window(void)
     End;
 }
 
+static Object *make_report_window(void)
+{
+    ULONG i;
+    for (i = 0; i < REPORT_COUNT; i++) report_entries[i] = report_format_name(i);
+    return WindowObject,
+        MUIA_Window_Title, (ULONG)get_string(MSG_REPORT_TITLE),
+        MUIA_Window_ID, MAKE_ID('R', 'P', 'T', 'V'),
+        MUIA_Window_Width, MUIV_Window_Width_Visible(90),
+        MUIA_Window_Height, MUIV_Window_Height_Visible(80),
+        WindowContents, VGroup,
+            Child, report_cycle = MUI_MakeObject(MUIO_Cycle, 0, (ULONG)report_entries),
+            Child, ListviewObject,
+                MUIA_Listview_Input, FALSE,
+                MUIA_Listview_List, report_list = ListObject,
+                    ReadListFrame,
+                    MUIA_Font, MUIV_Font_Fixed,
+                    MUIA_List_AdjustWidth, FALSE,
+                    MUIA_List_DisplayHook, (ULONG)&report_hook,
+                End,
+            End,
+            Child, report_scroll = PropObject,
+                PropFrame,
+                MUIA_Prop_Horiz, TRUE,
+                MUIA_FixHeight, 10,
+                MUIA_Prop_Entries, 1,
+                MUIA_Prop_Visible, 1,
+            End,
+            Child, report_status = TextObject,
+                MUIA_Text_Contents, (ULONG)"",
+                MUIA_Text_SetMin, FALSE,
+            End,
+            Child, HGroup,
+                Child, report_save_button = make_button(MSG_REPORT_SAVE_AS),
+                Child, report_close_button = make_button(MSG_CLOSE),
+            End,
+        End,
+    End;
+}
+
 static Object *make_scsi_window(void)
 {
     return WindowObject,
@@ -908,7 +968,7 @@ static void build_menu(void)
         { NM_ITEM,  MSG_ABOUT_MUI, NULL, ID_ABOUT_MUI },
         { NM_ITEM,  MSG_COUNT,              NULL, 0 },
         { NM_ITEM,  MSG_RUN_BENCHMARKS, "R",  ID_BENCHMARK },
-        { NM_ITEM,  MSG_SAVE_REPORT,      "S",  ID_SAVE },
+        { NM_ITEM,  MSG_REPORT_OPEN,      "P",  ID_REPORT },
         { NM_ITEM,  MSG_COUNT,              NULL, 0 },
         { NM_ITEM,  MSG_QUIT,      "Q",
           (ULONG)MUIV_Application_ReturnID_Quit },
@@ -931,7 +991,7 @@ static void build_menu(void)
 
 static BOOL create_application(const char *version_string)
 {
-    Object *save_button;
+    Object *report_button;
     Object *quit_button;
     ULONG i;
 
@@ -999,7 +1059,7 @@ static BOOL create_application(const char *version_string)
                         MUIA_Background, MUII_TextBack,
                         MUIA_Text_Contents, (ULONG)"",
                     End,
-                    Child, save_button = make_button(MSG_SAVE_REPORT),
+                    Child, report_button = make_button(MSG_REPORT_OPEN),
                     Child, quit_button = make_button(MSG_QUIT),
                 End,
             End,
@@ -1007,6 +1067,7 @@ static BOOL create_application(const char *version_string)
 
         SubWindow, board_details_window = make_board_details_window(),
         SubWindow, scsi_window = make_scsi_window(),
+        SubWindow, report_window = make_report_window(),
         SubWindow, measuring_window = WindowObject,
             MUIA_Window_Title, (ULONG)XSYSINFO_NAME,
             MUIA_Window_CloseGadget, FALSE,
@@ -1038,7 +1099,13 @@ static BOOL create_application(const char *version_string)
              MUIV_Application_ReturnID_Quit);
     notify_return(quit_button, MUIA_Pressed, FALSE,
                   (ULONG)MUIV_Application_ReturnID_Quit);
-    notify_return(save_button, MUIA_Pressed, FALSE, ID_SAVE);
+    notify_return(report_button, MUIA_Pressed, FALSE, ID_REPORT);
+    nnset(report_cycle, MUIA_Cycle_Active, selected_report);
+    notify_return(report_cycle, MUIA_Cycle_Active, MUIV_EveryTime, ID_REPORT_FORMAT);
+    notify_return(report_scroll, MUIA_Prop_First, MUIV_EveryTime, ID_REPORT_SCROLL);
+    notify_return(report_save_button, MUIA_Pressed, FALSE, ID_REPORT_SAVE);
+    notify_return(report_close_button, MUIA_Pressed, FALSE, ID_REPORT_CLOSE);
+    notify_return(report_window, MUIA_Window_CloseRequest, TRUE, ID_REPORT_CLOSE);
     notify_return(benchmark_button, MUIA_Pressed, FALSE, ID_BENCHMARK);
     notify_return(software_cycle, MUIA_Cycle_Active, MUIV_EveryTime,
                   ID_SOFTWARE_PAGE);
@@ -1515,7 +1582,88 @@ static void show_scsi_devices(void)
     set(scsi_window, MUIA_Window_Open, TRUE);
 }
 
-static void save_report(void)
+static void close_report(void)
+{
+    set(report_window, MUIA_Window_Open, FALSE);
+    DoMethod(report_list, MUIM_List_Clear);
+    free_report(&report);
+}
+
+static void update_report_scroll(void)
+{
+    LONG visible;
+    ULONG first = 0, maximum;
+    if (!report.text || !_font(report_list)) return;
+    get(report_list, MUIA_Width, &visible);
+    visible = (visible - 12) / _font(report_list)->tf_XSize;
+    if (visible < 1) visible = 1;
+    if (visible != report_visible_columns) {
+        report_visible_columns = visible;
+        nnset(report_scroll, MUIA_Prop_Entries, report.width);
+        nnset(report_scroll, MUIA_Prop_Visible, visible);
+    }
+    get(report_scroll, MUIA_Prop_First, &first);
+    maximum = report.width > (ULONG)visible ? report.width - visible : 0;
+    if (first > maximum) {
+        first = maximum;
+        nnset(report_scroll, MUIA_Prop_First, first);
+    }
+    if (first != report_column) {
+        report_column = first;
+        DoMethod(report_list, MUIM_List_Redraw, MUIV_List_Redraw_All);
+    }
+}
+
+static BOOL populate_report(ReportFormat format)
+{
+    ReportText next = { 0 };
+    ULONG entries = 0;
+    if (!create_report(&next, format)) {
+        nnset(report_cycle, MUIA_Cycle_Active, selected_report);
+        set_text(report_status, get_string(MSG_REPORT_FAILED));
+        set_text(status_text, get_string(MSG_REPORT_FAILED));
+        return FALSE;
+    }
+    set(report_list, MUIA_List_Quiet, TRUE);
+    DoMethod(report_list, MUIM_List_Clear);
+    free_report(&report);
+    report = next;
+    report_column = 0;
+    report_visible_columns = 0;
+    nnset(report_scroll, MUIA_Prop_First, 0);
+    DoMethod(report_list, MUIM_List_Insert, (ULONG)report.lines, report.count,
+             MUIV_List_Insert_Bottom);
+    get(report_list, MUIA_List_Entries, &entries);
+    set(report_list, MUIA_List_Quiet, FALSE);
+    if (entries != report.count) {
+        close_report();
+        nnset(report_cycle, MUIA_Cycle_Active, selected_report);
+        set_text(status_text, get_string(MSG_REPORT_FAILED));
+        return FALSE;
+    }
+    selected_report = format;
+    nnset(report_cycle, MUIA_Cycle_Active, format);
+    nnset(report_list, MUIA_List_First, 0);
+    set_text(report_status, "");
+    return TRUE;
+}
+
+static void show_report(void)
+{
+    ULONG opened = FALSE;
+    if (!report.text && !populate_report(selected_report)) return;
+    set(report_window, MUIA_Window_Open, TRUE);
+    get(report_window, MUIA_Window_Open, &opened);
+    if (!opened) {
+        close_report();
+        set_text(status_text, get_string(MSG_REPORT_FAILED));
+        return;
+    }
+    set(report_window, MUIA_Window_Activate, TRUE);
+    update_report_scroll();
+}
+
+static void save_report_preview(void)
 {
     struct FileRequester *req;
     struct Window *window = NULL;
@@ -1524,13 +1672,15 @@ static void save_report(void)
     BOOL saved;
 
     req = MUI_AllocAslRequestTags(ASL_FileRequest, TAG_DONE);
-    if (!req)
+    if (!req) {
+        set_text(report_status, get_string(MSG_REPORT_SAVE_FAILED));
         return;
+    }
 
-    get(main_window, MUIA_Window_Window, &window);
+    get(report_window, MUIA_Window_Window, &window);
     if (MUI_AslRequestTags(req,
             ASLFR_Window, (ULONG)window,
-            ASLFR_TitleText, (ULONG)get_string(MSG_SAVE_REPORT),
+            ASLFR_TitleText, (ULONG)get_string(MSG_REPORT_SAVE_AS),
             ASLFR_InitialDrawer, (ULONG)"RAM:",
             ASLFR_InitialFile, (ULONG)"xsysinfo.txt",
             ASLFR_DoSaveMode, TRUE,
@@ -1538,7 +1688,7 @@ static void save_report(void)
         copy_string(path, (const char *)req->fr_Drawer, sizeof(path));
         if (AddPart((STRPTR)path, req->fr_File, sizeof(path))) {
             set_sleep(TRUE);
-            saved = export_to_file(path);
+            saved = save_report(&report, path);
             set_sleep(FALSE);
 
             if (saved)
@@ -1547,7 +1697,7 @@ static void save_report(void)
             else
                 copy_string(message, get_string(MSG_REPORT_SAVE_FAILED),
                             sizeof(message));
-            set_text(status_text, message);
+            set_text(report_status, message);
         }
     }
 
@@ -1579,6 +1729,7 @@ static void dispose_interface(void)
         MUI_DisposeObject(mui_app);
         mui_app = NULL;
     }
+    free_report(&report);
     if (you_gauge_class) {
         MUI_DeleteCustomClass(you_gauge_class);
         you_gauge_class = NULL;
@@ -1653,8 +1804,23 @@ BOOL mui_gui_run(const char *version_string, const char *startup_warning)
                 run_speed_test();
                 break;
 
-            case ID_SAVE:
-                save_report();
+            case ID_REPORT:
+                show_report();
+                break;
+            case ID_REPORT_FORMAT:
+                active = selected_report;
+                get(report_cycle, MUIA_Cycle_Active, &active);
+                if (active >= 0 && active < REPORT_COUNT)
+                    populate_report(active);
+                break;
+            case ID_REPORT_SCROLL:
+                update_report_scroll();
+                break;
+            case ID_REPORT_SAVE:
+                save_report_preview();
+                break;
+            case ID_REPORT_CLOSE:
+                close_report();
                 break;
 
             case ID_SOFTWARE_PAGE:
@@ -1725,6 +1891,8 @@ BOOL mui_gui_run(const char *version_string, const char *startup_warning)
                 }
                 break;
         }
+
+        if (report.text) update_report_scroll();
 
         if (running && signals) {
             /* Like the classic loop: tick the RTC only while it is shown. */

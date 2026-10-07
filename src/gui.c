@@ -40,6 +40,7 @@
 #include "boards_detail.h"
 #include "scsi.h"
 #include "print.h"
+#include "report_view.h"
 #include "cache.h"
 #include "clock.h"
 #include "locale_str.h"
@@ -135,7 +136,6 @@ static void clear_buttons(void);
 static void update_software_list(BOOL clear_content);
 static void update_hardware_text(void);
 static void refresh_all_cache_buttons(void);
-static void show_timed_overlay(const char *message, ULONG ticks);
 static void show_status_overlay_centered(const char *message,
                                          WORD area_x, WORD area_y,
                                          WORD area_w, WORD area_h);
@@ -378,14 +378,15 @@ void redraw_button(ButtonID id)
     if (!btn) return;
 
     /* For scroll arrows, use special drawing */
-    if (id == BTN_SOFTWARE_UP) {
+    if (id == BTN_SOFTWARE_UP || id == BTN_REPORT_UP) {
         draw_scroll_arrow(btn->x, btn->y, btn->width, btn->height,
                           TRUE, btn->pressed);
-    } else if (id == BTN_SOFTWARE_DOWN) {
+    } else if (id == BTN_SOFTWARE_DOWN || id == BTN_REPORT_DOWN) {
         draw_scroll_arrow(btn->x, btn->y, btn->width, btn->height,
                           FALSE, btn->pressed);
     } else if (id == BTN_SOFTWARE_CYCLE || id == BTN_SCALE_TOGGLE ||
-               id == BTN_HARDWARE_CYCLE || id == BTN_BOARD_DISPLAY) {
+               id == BTN_HARDWARE_CYCLE || id == BTN_BOARD_DISPLAY ||
+               id == BTN_REPORT_FORMAT) {
         draw_cycle_button(btn);
     } else {
         draw_button(btn);
@@ -409,7 +410,7 @@ void main_view_update_buttons(void)
     add_button(239, 187, 60, 11,
                get_string(MSG_BTN_SPEED), BTN_SPEED, TRUE);
     add_button(301, 187, 60, 11,
-               get_string(MSG_BTN_PRINT), BTN_PRINT, TRUE);
+               get_string(MSG_BTN_REPORT), BTN_REPORT, TRUE);
 
     /* Software type cycle button */
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W -
@@ -483,19 +484,8 @@ void main_view_handle_button(ButtonID id)
             refresh_speed_panel_contents();
             break;
 
-        case BTN_PRINT:
-            {
-                char filename[MAX_FILENAME_LEN];
-                strncpy(filename, DEFAULT_OUTPUT_FILE, sizeof(filename) - 1);
-                filename[sizeof(filename) - 1] = '\0';
-
-                if (show_filename_requester(
-                        get_string(MSG_ENTER_FILENAME), filename, sizeof(filename))) {
-                    if (!export_to_file(filename)) {
-                        show_timed_overlay("Export failed", 100);
-                    }
-                }
-            }
+        case BTN_REPORT:
+            open_report_view();
             break;
 
         case BTN_SOFTWARE_CYCLE:
@@ -612,6 +602,9 @@ void update_button_states(void)
             board_detail_view_update_buttons();
             break;
 
+        case VIEW_REPORT:
+            report_view_update_buttons();
+            break;
         case VIEW_SCSI:
             scsi_view_update_buttons();
             break;
@@ -647,6 +640,9 @@ void redraw_current_view(void)
 
         case VIEW_BOARD_DETAILS:
             draw_board_detail_view();
+            break;
+        case VIEW_REPORT:
+            draw_report_view();
             break;
         case VIEW_SCSI:
             draw_scsi_view();
@@ -1071,7 +1067,7 @@ void draw_scroll_arrow(WORD x, WORD y, WORD w, WORD h, BOOL up, BOOL pressed)
 }
 
 /* Shared by drawing and hit testing; offset includes the track border. */
-static void scrollbar_knob(WORD h, ULONG pos, ULONG total, ULONG visible,
+void scrollbar_knob(WORD h, ULONG pos, ULONG total, ULONG visible,
                            WORD *offset, WORD *size)
 {
     WORD inner_h = h - 2;
@@ -2050,7 +2046,7 @@ static void draw_bottom_buttons(void)
 {
     int i;
     for (i = 0; i < num_buttons; i++) {
-        if (buttons[i].id >= BTN_QUIT && buttons[i].id <= BTN_PRINT) {
+        if (buttons[i].id >= BTN_QUIT && buttons[i].id <= BTN_REPORT) {
             draw_button(&buttons[i]);
         }
     }
@@ -2081,13 +2077,6 @@ static void refresh_all_cache_buttons(void)
 {
     refresh_cache_status();
     update_hardware_text();
-}
-
-static void show_timed_overlay(const char *message, ULONG ticks)
-{
-    show_status_overlay(message);
-    Delay(ticks);
-    hide_status_overlay();
 }
 
 /*
@@ -2135,6 +2124,9 @@ void handle_button_press(ButtonID btn_id)
             board_detail_view_handle_button(btn_id);
             break;
 
+        case VIEW_REPORT:
+            report_view_handle_button(btn_id);
+            break;
         case VIEW_SCSI:
             scsi_view_handle_button(btn_id);
             break;
@@ -2150,6 +2142,11 @@ void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
     SoftwareList *list = get_software_list(app->software_type);
     WORD knob_y, knob_h, travel;
     LONG max_scroll, new_scroll;
+
+    if (app->current_view == VIEW_REPORT) {
+        report_view_scrollbar(my);
+        return;
+    }
 
     if (app->current_view != VIEW_MAIN || !scrollbar_btn ||
         !scrollbar_btn->enabled || !list) return;
@@ -2199,6 +2196,7 @@ void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
 void switch_to_view(ViewMode view)
 {
     ViewMode previous = app->current_view;
+    if (previous == VIEW_REPORT && view != VIEW_REPORT) close_report_view();
     app->scrollbar_dragging = FALSE;
     app->current_view = view;
 

@@ -87,7 +87,8 @@ typedef enum {
     VIEW_DRIVES,
     VIEW_BOARDS,
     VIEW_BOARD_DETAILS,
-    VIEW_SCSI
+    VIEW_SCSI,
+    VIEW_REPORT
 } ViewMode;
 
 /* Software pages */

@@ -421,7 +421,15 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_BOARD_IO_DEVICE */ "I/O device",
     /* MSG_BOARD_8MB_SPACE */ "8 MB expansion space",
     /* MSG_BOARD_ANY_SPACE */ "Any address space",
-    /* MSG_ECLOCK */          "EClock"
+    /* MSG_ECLOCK */          "EClock",
+    /* MSG_REPORT_OPEN */ "Report...",
+    /* MSG_REPORT_TITLE */ "System report",
+    /* MSG_REPORT_WHICH */ "WhichAmiga",
+    /* MSG_REPORT_BRIEF */ "Brief",
+    /* MSG_REPORT_FULL */ "Full",
+    /* MSG_REPORT_SAVE_AS */ "Save as...",
+    /* MSG_REPORT_FAILED */ "Could not create report preview",
+    /* MSG_BTN_REPORT */ "REPORT"
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

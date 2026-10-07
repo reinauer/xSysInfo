@@ -1054,3 +1054,27 @@ Viene usato topaz.8.
 MSG_ECLOCK
 EClock
 ;
+MSG_REPORT_OPEN
+Rapporto...
+;
+MSG_REPORT_TITLE
+Rapporto di sistema
+;
+MSG_REPORT_WHICH
+WhichAmiga
+;
+MSG_REPORT_BRIEF
+Breve
+;
+MSG_REPORT_FULL
+Completo
+;
+MSG_REPORT_SAVE_AS
+Salva come...
+;
+MSG_REPORT_FAILED
+Impossibile creare l'anteprima del rapporto
+;
+MSG_BTN_REPORT
+REPORT
+;

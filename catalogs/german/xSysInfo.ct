@@ -1114,3 +1114,27 @@ Beliebiger Adressbereich
 MSG_ECLOCK
 EClock
 ;
+MSG_REPORT_OPEN
+Bericht...
+;
+MSG_REPORT_TITLE
+Systembericht
+;
+MSG_REPORT_WHICH
+WhichAmiga
+;
+MSG_REPORT_BRIEF
+Kurz
+;
+MSG_REPORT_FULL
+Vollständig
+;
+MSG_REPORT_SAVE_AS
+Speichern als...
+;
+MSG_REPORT_FAILED
+Berichtsvorschau konnte nicht erstellt werden
+;
+MSG_BTN_REPORT
+BERICHT
+;

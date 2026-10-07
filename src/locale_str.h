@@ -414,6 +414,16 @@ typedef enum {
     /* Unit is part of the value; keep MSG_ECLOCK_HZ for old catalogs. */
     MSG_ECLOCK,
 
+    /* Report preview: append to preserve installed catalog IDs. */
+    MSG_REPORT_OPEN,
+    MSG_REPORT_TITLE,
+    MSG_REPORT_WHICH,
+    MSG_REPORT_BRIEF,
+    MSG_REPORT_FULL,
+    MSG_REPORT_SAVE_AS,
+    MSG_REPORT_FAILED,
+    MSG_BTN_REPORT,
+
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

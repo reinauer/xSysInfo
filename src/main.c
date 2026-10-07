@@ -45,6 +45,7 @@
 #include "busclock.h"
 #include "clock.h"
 #include "print.h"
+#include "report_view.h"
 #include "which.h"
 #include "locale_str.h"
 #include "debug.h"
@@ -481,7 +482,7 @@ int main(int argc, char **argv)
 
         debug(XSYSINFO_NAME ": Exporting full report to CLI output...\n");
         flush_report_output(output);
-        if (!output || !export_to_handle(output)) {
+        if (!output || !export_report_to_handle(output, REPORT_FULL)) {
             Printf((CONST_STRPTR)"Failed to export report\n");
             ret = RETURN_FAIL;
         }
@@ -491,7 +492,7 @@ int main(int argc, char **argv)
         measure_processor_frequencies();
         debug(XSYSINFO_NAME ": Exporting WhichAmiga-compatible report...\n");
         flush_report_output(output);
-        if (!output || !export_which_compatible(output)) {
+        if (!output || !export_report_to_handle(output, REPORT_WHICH)) {
             Printf((CONST_STRPTR)"Failed to export WhichAmiga report\n");
             ret = RETURN_FAIL;
         }
@@ -548,84 +549,19 @@ int main(int argc, char **argv)
         debug(XSYSINFO_NAME ": Start main loop...\n");
         main_loop();
     } else {
-        char buffer[16];
+        BPTR output = Output();
 
         run_benchmarks();
-
-        printf("CPU: %s MHz: ", hw_info.cpu_string);
-        if (hw_info.cpu_mhz > 0) {
-            format_scaled(buffer, sizeof(buffer), hw_info.cpu_mhz, TRUE);
-            printf("%s\n", buffer);
-        } else {
-            printf("%s\n", get_string(MSG_NA));
+        flush_report_output(output);
+        if (!export_report_to_handle(output, REPORT_BRIEF)) {
+            Printf((CONST_STRPTR)"Failed to export brief report\n");
+            ret = RETURN_FAIL;
         }
-
-        if (hw_info.ramsey_rev) {
-            if (hw_info.bus_mhz)
-                format_scaled(buffer, sizeof(buffer), hw_info.bus_mhz, TRUE);
-            else
-                copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
-            printf("Motherboard bus MHz: %s\n", buffer);
-        }
-
-        printf("MMU: %s enabled: %s\n", hw_info.mmu_string,
-               hw_info.mmu_enabled ? get_string(MSG_YES) : get_string(MSG_NO));
-
-        printf("FPU: %s MHz: ", hw_info.fpu_string);
-        if (hw_info.fpu_mhz > 0) {
-            format_scaled(buffer, sizeof(buffer), hw_info.fpu_mhz, TRUE);
-            printf("%s\n", buffer);
-        } else {
-            printf("%s\n", get_string(MSG_NA));
-        }
-
-        printf("Dhrystones: ");
-        if (bench_results.benchmarks_valid)
-            printf("%lu\n", (unsigned long)bench_results.dhrystones);
-        else
-            printf("%s\n", get_string(MSG_NA));
-
-        printf("MIPS: ");
-        if (bench_results.benchmarks_valid) {
-            format_scaled(buffer, sizeof(buffer), bench_results.mips, TRUE);
-            printf("%s\n", buffer);
-        } else {
-            printf("%s\n", get_string(MSG_NA));
-        }
-
-        printf("MFLOPS: ");
-        if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid
-            && hw_info.fpu_enabled) {
-            format_scaled(buffer, sizeof(buffer), bench_results.mflops, TRUE);
-            printf("%s\n", buffer);
-        } else {
-            printf("%s\n", get_string(MSG_NA));
-        }
-
-        if (bench_results.benchmarks_valid && bench_results.chip_speed > 0)
-            format_scaled(buffer, sizeof(buffer),
-                          bench_results.chip_speed / 10000, TRUE);
-        else
-            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
-        printf("Chip RAM speed: %s MB/s\n", buffer);
-
-        if (bench_results.benchmarks_valid && bench_results.fast_speed > 0)
-            format_scaled(buffer, sizeof(buffer),
-                          bench_results.fast_speed / 10000, TRUE);
-        else
-            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
-        printf("Fast RAM speed: %s MB/s\n", buffer);
-
-        if (bench_results.benchmarks_valid && bench_results.rom_speed > 0)
-            format_scaled(buffer, sizeof(buffer),
-                          bench_results.rom_speed / 10000, TRUE);
-        else
-            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
-        printf("ROM speed: %s MB/s\n", buffer);
     }
 
 cleanup:
     cleanup_timer();
+    close_report_view();
     close_display();
     close_libraries();
     cleanup_locale();
@@ -1279,6 +1215,7 @@ static void main_loop(void)
 
             ULONG class = msg->Class;
             UWORD code = msg->Code;
+            UWORD qualifier = msg->Qualifier;
             WORD mx = msg->MouseX;
             WORD my = msg->MouseY;
 
@@ -1307,7 +1244,7 @@ static void main_loop(void)
 
                         ButtonID btn = handle_click(mx, my);
                         if (btn != BTN_NONE) {
-                            if (btn == BTN_SOFTWARE_SCROLLBAR) {
+                            if (btn == BTN_SOFTWARE_SCROLLBAR || btn == BTN_REPORT_SCROLLBAR) {
                                 app->scrollbar_dragging = FALSE;
                                 handle_scrollbar_click(mx, my);
                             } else {
@@ -1347,7 +1284,17 @@ static void main_loop(void)
                     }
                     break;
 
+                case IDCMP_RAWKEY:
+                    if (app->current_view == VIEW_REPORT && !(code & IECODE_UP_PREFIX))
+                        report_view_key(code, qualifier);
+                    break;
+
                 case IDCMP_VANILLAKEY:
+                    if (app->current_view == VIEW_REPORT &&
+                        (code == 's' || code == 'S')) {
+                        report_view_handle_button(BTN_REPORT_SAVE);
+                        break;
+                    }
                     /* Handle keyboard shortcuts */
                     switch (code) {
                         case 'q':
@@ -1385,7 +1332,7 @@ static void main_loop(void)
                         case 'p':
                         case 'P':
                             if (app->current_view == VIEW_MAIN) {
-                                handle_button_press(BTN_PRINT);
+                                handle_button_press(BTN_REPORT);
                             }
                             break;
                     }

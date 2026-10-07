@@ -14,21 +14,23 @@
 #define DEFAULT_OUTPUT_FILE "RAM:xsysinfo.txt"
 #define MAX_FILENAME_LEN 128
 
-/* Function prototypes */
+typedef enum {
+    REPORT_WHICH, REPORT_BRIEF, REPORT_FULL, REPORT_COUNT
+} ReportFormat;
 
-/* Export all information to a DOS file handle */
-BOOL export_to_handle(BPTR fh);
+typedef struct {
+    char *text;             /* Owned storage; lines point into this buffer. */
+    char **lines;
+    ULONG count, width;     /* Line count and longest line in characters. */
+    ReportFormat format;
+} ReportText;
 
-/* Export all information to file */
-BOOL export_to_file(const char *filename);
-
-/* Individual section exports (used internally) */
-void export_header(BPTR fh);
-void export_hardware(BPTR fh);
-void export_software(BPTR fh);
-void export_benchmarks(BPTR fh);
-void export_memory(BPTR fh);
-void export_boards(BPTR fh);
-void export_drives(BPTR fh);
+/* Streaming CLI output and previews share the same report generators. */
+BOOL export_report_to_handle(BPTR fh, ReportFormat format);
+/* Destination must be empty; it remains untouched on failure. */
+BOOL create_report(ReportText *report, ReportFormat format);
+void free_report(ReportText *report);
+BOOL save_report(const ReportText *report, const char *filename);
+const char *report_format_name(ReportFormat format);
 
 #endif /* PRINT_H */

@@ -17,6 +17,4 @@ void which_compat_emit(const HardwareInfo *hardware,
                        const MemoryRegionList *memory, const BoardList *boards,
                        WhichCompatEmitLine emit_line, void *context);
 
-BOOL export_which_compatible(BPTR fh);
-
 #endif /* WHICH_H */

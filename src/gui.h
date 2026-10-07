@@ -19,7 +19,7 @@ typedef enum {
     BTN_DRIVES,
     BTN_BOARDS,
     BTN_SPEED,
-    BTN_PRINT,
+    BTN_REPORT,
 
     /* Main view toggles */
     BTN_SOFTWARE_CYCLE,     /* Software overview/list cycle */
@@ -68,6 +68,11 @@ typedef enum {
 
     /* SCSI view button */
     BTN_SCSI_EXIT,
+
+    /* Report preview controls; keep contiguous for drawing. */
+    BTN_REPORT_FORMAT, BTN_REPORT_SAVE, BTN_REPORT_CLOSE,
+    BTN_REPORT_PREV, BTN_REPORT_NEXT,
+    BTN_REPORT_UP, BTN_REPORT_DOWN, BTN_REPORT_SCROLLBAR,
 
     /* Drive selection buttons - MUST be last as they use sequential IDs */
     BTN_DRV_DRIVE_BASE,
@@ -164,6 +169,8 @@ void draw_single_bar(WORD x, WORD y, ULONG value, ULONG max_value, WORD color);
 
 /* Scroll bar drawing */
 void draw_scroll_arrow(WORD x, WORD y, WORD w, WORD h, BOOL up, BOOL pressed);
+void scrollbar_knob(WORD h, ULONG pos, ULONG total, ULONG visible,
+                    WORD *knob_y, WORD *knob_h);
 void draw_scroll_bar(WORD x, WORD y, WORD w, WORD h, ULONG pos, ULONG total, ULONG visible);
 
 /* Event handling */
