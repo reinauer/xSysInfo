@@ -23,6 +23,7 @@ NDK = os.environ.get("NDK_PATH", str(CC.parent.parent / "m68k-amigaos/ndk-includ
 BASE, EXEC, END = 0x10000, 0x4000, 0x8000
 USP, SSP = 0xe0000, 0xf0000
 VECTORS = (0x10, 0x2c, 0x34)
+NMI = 0x7c
 
 
 def check(code, symbols, model, kind, vbr, tc, fault, initial_sr):
@@ -33,7 +34,7 @@ def check(code, symbols, model, kind, vbr, tc, fault, initial_sr):
         mem.w32(4, EXEC)
         cpu.w_reg(Register.VBR, vbr)
         for base in {0, vbr}:
-            for vector in VECTORS:
+            for vector in VECTORS + (NMI,):
                 mem.w32(base + vector, 0xdead0000 + vector)
         end = machine.create_execute_end("returned")
         mem.w16(END, 0xa000 | machine.traps.alloc(lambda op, pc: end))
@@ -59,6 +60,10 @@ def check(code, symbols, model, kind, vbr, tc, fault, initial_sr):
 
         def read_tc(op, pc):
             assert cpu.r_sr() & 0x700 == 0x700
+            # The probe runs on its own vector copy, keeping NMI's handler.
+            table = cpu.r_reg(Register.VBR)
+            assert table != vbr
+            assert mem.r32(table + NMI) == 0xdead0000 + NMI
             calls.append("tc")
             if fault:
                 vector, fmt, size = fault
@@ -68,7 +73,7 @@ def check(code, symbols, model, kind, vbr, tc, fault, initial_sr):
                 mem.w32(sp + 2, pc)
                 mem.w16(sp + 6, (fmt << 12) | vector)
                 cpu.w_sp(sp)
-                cpu.w_pc(mem.r32(vbr + vector))
+                cpu.w_pc(mem.r32(table + vector))
             else:
                 if kind in (3, 5):
                     mem.w32(cpu.r_sp(), tc)
@@ -109,7 +114,7 @@ def check(code, symbols, model, kind, vbr, tc, fault, initial_sr):
         for reg, value in saved.items():
             assert cpu.r_reg(reg) == value, reg
         for base in {0, vbr}:
-            for vector in VECTORS:
+            for vector in VECTORS + (NMI,):
                 assert mem.r32(base + vector) == 0xdead0000 + vector
         assert calls == (["supervisor", "tc"] if supported else [])
     finally:

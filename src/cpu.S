@@ -349,16 +349,24 @@ _GetMMUTranslation:
 mmu_translation_super:
         MACHINE 68020
         ori.w   #$0700,sr
-        movec   vbr,a0
-        move.l  IllegalInstructionVector(a0),-(sp)
-        move.l  Line1111Vector(a0),-(sp)
-        move.l  $34(a0),-(sp)     ; coprocessor protocol violation (68851)
+        ; Run on a copy of the first 64 vectors, as _testMMU does, so the
+        ; live table is never written: an active MMU may protect or remap
+        ; it. All other exceptions, including NMI, keep their handlers.
+        movec   vbr,a0           ; restored before returning
+        lea     -256(sp),sp
+        move.w  #252,d1
+mmu_translation_copy:
+        move.l  (a0,d1.w),(sp,d1.w)
+        subq.w  #4,d1
+        bpl.s   mmu_translation_copy
+        lea     mmu_translation_fault(pc),a1
+        move.l  a1,IllegalInstructionVector(sp)
+        move.l  a1,Line1111Vector(sp)
+        move.l  a1,$34(sp)        ; coprocessor protocol violation (68851)
+        move.l  sp,a1
         subq.l  #4,sp            ; PMOVE destination, on the mapped stack
         move.l  sp,a3            ; checkpoint above any exception frame
-        lea     mmu_translation_fault(pc),a1
-        move.l  a1,IllegalInstructionVector(a0)
-        move.l  a1,Line1111Vector(a0)
-        move.l  a1,$34(a0)
+        movec   a1,vbr
         cmp.l   #ASM_CPU_68030,d2
         bhi.s   mmu_translation_040
 
@@ -386,10 +394,8 @@ mmu_translation_fault:
         move.l  a3,sp            ; discard CPU-specific exception frame
         moveq   #-1,d0
 mmu_translation_done:
-        addq.l  #4,sp
-        move.l  (sp)+,$34(a0)
-        move.l  (sp)+,Line1111Vector(a0)
-        move.l  (sp)+,IllegalInstructionVector(a0)
+        movec   a0,vbr
+        lea     4+256(sp),sp
         rte                      ; original Supervisor frame restores SR
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
