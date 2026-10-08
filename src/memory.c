@@ -200,13 +200,17 @@ void enumerate_memory_regions(void)
 
         ULONG start = (ULONG)mh->mh_Lower & 0xffff8000;
         ULONG size = (ULONG)mh->mh_Upper - start;
+        ULONG end = ((ULONG)mh->mh_Upper + 0x7fff) & 0xffff8000;
 
-        /* Use the same region capacities as the memory view. Exec's
-         * MEMF_TOTAL excludes reserved bytes at the start of each region. */
+        /* The totals report installed memory, unlike the memory view.
+         * Exec's region excludes reserved bytes at its start, and
+         * Kickstart 1.x takes its 6 KB supervisor stack from the top. */
+        if (end < (ULONG)mh->mh_Upper)
+            end = (ULONG)mh->mh_Upper;
         if (mh->mh_Attributes & MEMF_CHIP)
-            memory_regions.total_chip_size += size;
+            memory_regions.total_chip_size += end - start;
         else if (mh->mh_Attributes & MEMF_FAST)
-            memory_regions.total_fast_size += size;
+            memory_regions.total_fast_size += end - start;
 
         if (memory_regions.count >= memory_regions.capacity) continue;
 
