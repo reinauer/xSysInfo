@@ -1336,6 +1336,28 @@ static ULONG cpu_frequency_config(BOOL precise)
            (precise << 7);
 }
 
+static ULONG begin_fpu_frequency(void)
+{
+    ULONG saved_fpcr;
+
+    /* FDIV.X still obeys FPCR's result precision. The external FPU
+     * calibration assumes extended precision and round-to-nearest;
+     * single/double precision add work on the 68881/68882.
+     */
+    __asm__ volatile("fmove.l fpcr,%0\n\t"
+                     "fmove.l #0,fpcr"
+                     : "=d"(saved_fpcr) : : "memory");
+    debug("    clock FPU: saved FPCR $%08lx, measuring with $00000000\n",
+          saved_fpcr);
+    return saved_fpcr;
+}
+
+static void end_fpu_frequency(ULONG saved_fpcr)
+{
+    __asm__ volatile("fmove.l %0,fpcr"
+                     : : "d"(saved_fpcr) : "memory");
+}
+
 void measure_processor_frequencies(void)
 {
     static ULONG previous_config, previous_mhz;
@@ -1362,7 +1384,16 @@ void measure_processor_frequencies(void)
     }
     hw_info.cpu_mhz = mhz;
     debug("  bench: calc fpu frequency...\n");
-    hw_info.fpu_mhz = hw_info.fpu_enabled ? get_mhz_fpu(precise) : 0;
+    if (hw_info.fpu_enabled &&
+        (hw_info.fpu_type == FPU_68881 || hw_info.fpu_type == FPU_68882)) {
+        ULONG saved_fpcr = begin_fpu_frequency();
+
+        /* Keep setup outside timed samples and restore on failure too. */
+        hw_info.fpu_mhz = get_mhz_fpu(precise);
+        end_fpu_frequency(saved_fpcr);
+    } else {
+        hw_info.fpu_mhz = hw_info.fpu_enabled ? get_mhz_fpu(precise) : 0;
+    }
     if (precise)
         release_probe_clock();
 }
