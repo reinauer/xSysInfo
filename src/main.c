@@ -1285,8 +1285,18 @@ static void main_loop(void)
                     break;
 
                 case IDCMP_RAWKEY:
-                    if (app->current_view == VIEW_REPORT && !(code & IECODE_UP_PREFIX))
+                    if (code & IECODE_UP_PREFIX)
+                        break;
+                    if (app->current_view == VIEW_REPORT) {
                         report_view_key(code, qualifier);
+                    } else if (code == 0x7a || code == 0x7b) {
+                        /* NewMouse wheel: scroll lists one row per notch. */
+                        BOOL down = code == 0x7b;
+                        if (app->current_view == VIEW_MAIN)
+                            handle_button_press(down ? BTN_SOFTWARE_DOWN : BTN_SOFTWARE_UP);
+                        else if (app->current_view == VIEW_BOARDS)
+                            handle_button_press(down ? BTN_BOARD_NEXT : BTN_BOARD_PREV);
+                    }
                     break;
 
                 case IDCMP_VANILLAKEY:
