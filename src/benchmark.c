@@ -12,8 +12,10 @@
 #include <exec/memory.h>
 #include <devices/timer.h>
 #include <hardware/cia.h>
+#include <mmu/context.h>
 
 #include <proto/exec.h>
+#include <proto/mmu.h>
 #include <proto/timer.h>
 #include <clib/alib_protos.h>
 
@@ -193,7 +195,10 @@ typedef struct {
     struct EClockVal start, end;
 } FrequencyFailure;
 
-static ULONG __attribute__((optimize("Os")))
+/* These delimit the actual timed instructions, including a page crossing. */
+extern const UBYTE frequency_cpu_loop[], frequency_cpu_loop_end[];
+
+static ULONG __attribute__((noinline, noclone, optimize("Os")))
 frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
                  FrequencyFailure *failure)
 {
@@ -216,8 +221,12 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
             : "cc", "d1", "fp1");
     } else {
         __asm__ volatile(
+            ".globl _frequency_cpu_loop\n\t"
+            "_frequency_cpu_loop:\n\t"
             "1: subq.l #1,%0\n\t"
-            "bne.s 1b"
+            "bne.s 1b\n\t"
+            ".globl _frequency_cpu_loop_end\n\t"
+            "_frequency_cpu_loop_end:"
             : "+d"(loops)
             :
             : "cc");
@@ -248,6 +257,59 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
     }
     *frequency = first_rate;
     return end.ev_lo - start.ev_lo;
+}
+
+/* The 040/060 calibration assumes cached instruction fetches. Chip RAM
+ * is normally cache inhibited by the CPU library, even with CACR enabled.
+ * A bus-bound loop measures memory/DMA contention, not the CPU clock.
+ * Read the active mapping without changing cache or MMU configuration.
+ */
+static BOOL frequency_code_cacheable(void)
+{
+    struct Library *MMUBase;
+    ULONG first = (ULONG)frequency_cpu_loop;
+    ULONG last = (ULONG)frequency_cpu_loop_end - 1;
+    ULONG first_flags, last_flags;
+    BOOL cacheable;
+
+    if (hw_info.cpu_type < CPU_68040 || hw_info.cpu_type > CPU_68LC060)
+        return TRUE;
+    if (!hw_info.icache_enabled) {
+        debug("    cpu_mhz: unavailable, instruction cache disabled\n");
+        return FALSE;
+    }
+
+    MMUBase = open_mmu_library();
+    if (MMUBase) {
+        if (GetPageSize(NULL)) {
+            first_flags = GetPagePropertiesA(NULL, first, NULL);
+            last_flags = GetPagePropertiesA(NULL, last, NULL);
+            CloseLibrary(MMUBase);
+            cacheable = !((first_flags | last_flags) &
+                          (MAPP_CACHEINHIBIT | MAPP_INVALID));
+            debug("    clock CPU code: $%08lx..$%08lx, "
+                  "MMU flags $%08lx/$%08lx\n",
+                  first, last, first_flags, last_flags);
+            if (!cacheable)
+                debug("    cpu_mhz: unavailable, timing code is not cacheable\n");
+            return cacheable;
+        }
+        CloseLibrary(MMUBase);
+    }
+
+    /* Without MMULib, do not assume that Chip RAM permits I-cache fills.
+     * Consult the known remapping first, e.g. code remapped to Fast RAM.
+     */
+    first_flags = TypeOfMem(mmu_physical_address((APTR)first));
+    last_flags = TypeOfMem(mmu_physical_address((APTR)last));
+    debug("    clock CPU code: $%08lx..$%08lx, "
+          "memory flags $%08lx/$%08lx, MMU cache policy unknown\n",
+          first, last, first_flags, last_flags);
+    if ((first_flags | last_flags) & MEMF_CHIP) {
+        debug("    cpu_mhz: unavailable, timing code in Chip RAM\n");
+        return FALSE;
+    }
+    return TRUE;
 }
 
 /* Return the equivalent runtime in microseconds for reference_loops, so
@@ -1364,9 +1426,13 @@ void measure_processor_frequencies(void)
     BOOL precise = acquire_probe_clock();
     ULONG config = cpu_frequency_config(precise);
     ULONG mhz;
+    BOOL cacheable;
 
     debug("  bench: calc cpu frequency...\n");
-    mhz = get_mhz_cpu(precise);
+    cacheable = frequency_code_cacheable();
+    mhz = cacheable ? get_mhz_cpu(precise) : 0;
+    if (!cacheable)
+        previous_mhz = 0;
     if (cpu_frequency_config(precise) != config) {
         /* A setting changed during the measurement; neither result applies. */
         mhz = previous_mhz = 0;
