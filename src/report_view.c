@@ -65,35 +65,66 @@ void report_view_update_buttons(void)
                BTN_REPORT_SCROLLBAR, max_line() > 0);
 }
 
-/* Only the text, thumb and counter change while scrolling. */
-static void draw_report_contents(void)
+/* JAM2 replaces the character cells and only the tail is erased, so a
+ * row is never blanked before its new text appears. */
+static void draw_report_row(ULONG row)
 {
+    struct RastPort *rp = app->rp;
+    WORD top = REPORT_TOP + row * report_font->tf_YSize;
+    WORD end;
+
+    Move(rp, 4, top + report_font->tf_Baseline);
+    if (first_line + row < report.count)
+        draw_text_clipped(4, top + report_font->tf_Baseline,
+                          report.lines[first_line + row], REPORT_WIDTH);
+    end = rp->cp_x;
+    SetAPen(rp, COLOR_PANEL_BG);
+    if (end <= REPORT_WIDTH + 6)
+        RectFill(rp, end, top, REPORT_WIDTH + 6, top + report_font->tf_YSize - 1);
+    SetAPen(rp, COLOR_TEXT);
+}
+
+/* Only the text, thumb and counter change while scrolling. Short scrolls
+ * move the visible rows with the blitter and draw just the exposed ones. */
+static void draw_report_contents(LONG rows)
+{
+    struct RastPort *rp = app->rp;
     ULONG i, visible = visible_lines();
+    ULONG first = 0, last = visible;
+    WORD height = report_font->tf_YSize;
     char position[48];
     Button *bar = find_button(BTN_REPORT_SCROLLBAR);
-    struct TextFont *saved_font = app->rp->Font;
+    struct TextFont *saved_font = rp->Font;
+    UBYTE saved_mode = rp->DrawMode;
 
-    SetAPen(app->rp, COLOR_PANEL_BG);
-    RectFill(app->rp, 1, REPORT_TOP - 1, REPORT_WIDTH + 6,
-             REPORT_TOP + body_height());
-    SetFont(app->rp, report_font);
-    SetAPen(app->rp, COLOR_TEXT);
-    SetBPen(app->rp, COLOR_PANEL_BG);
-    for (i = 0; i < visible && first_line + i < report.count; i++) {
-        draw_text_clipped(4, REPORT_TOP + report_font->tf_Baseline +
-            i * report_font->tf_YSize, report.lines[first_line + i], REPORT_WIDTH);
+    if (rows > 0 && (ULONG)rows < visible) {
+        ClipBlit(rp, 1, REPORT_TOP + rows * height, rp, 1, REPORT_TOP,
+                 REPORT_WIDTH + 6, (visible - rows) * height, 0xc0);
+        first = visible - rows;
+    } else if (rows < 0 && (ULONG)-rows < visible) {
+        ClipBlit(rp, 1, REPORT_TOP, rp, 1, REPORT_TOP - rows * height,
+                 REPORT_WIDTH + 6, (visible + rows) * height, 0xc0);
+        last = -rows;
     }
-    SetFont(app->rp, saved_font);
+    SetFont(rp, report_font);
+    SetDrMd(rp, JAM2);
+    SetAPen(rp, COLOR_TEXT);
+    SetBPen(rp, COLOR_PANEL_BG);
+    for (i = first; i < last; i++)
+        draw_report_row(i);
+    SetFont(rp, saved_font);
     draw_scroll_bar(bar->x, bar->y, bar->width, bar->height,
                     first_line, report.count, visible);
 
-    SetAPen(app->rp, COLOR_PANEL_BG);
-    RectFill(app->rp, 220, app->screen_height - 18, 616, app->screen_height - 2);
     snprintf(position, sizeof(position), "%lu - %lu / %lu",
         (unsigned long)first_line + 1,
         (unsigned long)(first_line + visible < report.count ? first_line + visible : report.count),
         (unsigned long)report.count);
+    i = TextLength(rp, (CONST_STRPTR)position, strlen(position));
+    SetAPen(rp, COLOR_PANEL_BG);
+    RectFill(rp, 220, app->screen_height - 18, 616 - i - 1, app->screen_height - 2);
     draw_text_right(220, app->screen_height - 7, 396, position, COLOR_TEXT);
+    SetDrMd(rp, saved_mode);
 }
 
 void draw_report_view(void)
@@ -106,7 +137,7 @@ void draw_report_view(void)
     draw_3d_box(0, REPORT_TOP - 2, REPORT_WIDTH + 8, body_height() + 4, TRUE);
     for (id = BTN_REPORT_FORMAT; id < BTN_REPORT_SCROLLBAR; id++)
         redraw_button(id);
-    draw_report_contents();
+    draw_report_contents(0);
 }
 
 static void scroll_report(LONG rows)
@@ -117,8 +148,9 @@ static void scroll_report(LONG rows)
     if (line < 0) line = 0;
     if ((ULONG)line > max_line()) line = max_line();
     if ((ULONG)line == first_line) return;
+    rows = line - (LONG)first_line;
     first_line = line;
-    draw_report_contents();
+    draw_report_contents(rows);
     for (id = BTN_REPORT_PREV; id <= BTN_REPORT_DOWN; id++) {
         Button *button = find_button(id);
         BOOL enabled = id == BTN_REPORT_PREV || id == BTN_REPORT_UP ?
