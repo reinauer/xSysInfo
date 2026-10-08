@@ -91,10 +91,18 @@ static void stop_scroller(void)
     FreeMem(control, sizeof(*control));
 }
 
+/* The running splash holds about 140 KB, and xSysInfo needs about 300 KB
+ * beside it to load and open its screen. On a 512 KB machine both do not
+ * fit, so it boots without the splash. */
+#define LOADING_MIN_FREE (500 * 1024UL)
+
 static void start_scroller(void)
 {
     struct LoadingControl *control;
     BPTR segment;
+
+    if (AvailMem(MEMF_ANY) < LOADING_MIN_FREE)
+        return;
 
     Forbid();
     control = (struct LoadingControl *)FindPort((CONST_STRPTR)LOADING_CONTROL_PORT);
