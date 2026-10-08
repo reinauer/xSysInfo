@@ -39,10 +39,11 @@ typedef struct {
     char detail_string[32];     /* Serial number or PCI class */
 } BoardInfo;
 
-/* Board list */
+/* Board list, allocated to fit its boards */
 typedef struct {
-    BoardInfo boards[MAX_BOARDS];
+    BoardInfo *boards;
     ULONG count;
+    ULONG capacity;
 } BoardList;
 
 /* Global board list */
@@ -50,6 +51,7 @@ extern BoardList board_list;
 
 /* Function prototypes */
 void enumerate_boards(void);
+void free_board_list(void);
 
 /* Helper functions */
 const char *get_board_type_string(BoardType type);

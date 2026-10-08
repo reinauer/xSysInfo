@@ -18,6 +18,7 @@
 #include "xsysinfo.h"
 #include "format.h"
 #include "memory.h"
+#include "growlist.h"
 #include "gui.h"
 #include "locale_str.h"
 #include "benchmark.h"
@@ -159,14 +160,37 @@ static APTR find_largest_free_chunk(struct MemHeader *mh, ULONG *size)
     return chunk;
 }
 
+void free_memory_regions(void)
+{
+    free_list((APTR *)&memory_regions.regions, &memory_regions.capacity,
+              sizeof(MemoryRegion));
+    memory_regions.count = 0;
+}
+
 /*
  * Enumerate all memory regions
  */
 void enumerate_memory_regions(void)
 {
     struct MemHeader *mh;
+    ULONG headers = 0;
 
-    memset(&memory_regions, 0, sizeof(memory_regions));
+    free_memory_regions();
+    memory_regions.total_chip_size = 0;
+    memory_regions.total_fast_size = 0;
+
+    /* Allocate before the scan, so it reads free counts that already
+     * include this list. */
+    Forbid();
+    for (mh = (struct MemHeader *)SysBase->MemList.lh_Head;
+         (struct Node *)mh != (struct Node *)&SysBase->MemList.lh_Tail;
+         mh = (struct MemHeader *)mh->mh_Node.ln_Succ)
+        headers++;
+    Permit();
+    if (headers > MAX_MEMORY_REGIONS)
+        headers = MAX_MEMORY_REGIONS;
+    grow_list((APTR *)&memory_regions.regions, &memory_regions.capacity,
+              0, headers, sizeof(MemoryRegion), MAX_MEMORY_REGIONS);
 
     Forbid();
 
@@ -184,7 +208,7 @@ void enumerate_memory_regions(void)
         else if (mh->mh_Attributes & MEMF_FAST)
             memory_regions.total_fast_size += size;
 
-        if (memory_regions.count >= MAX_MEMORY_REGIONS) continue;
+        if (memory_regions.count >= memory_regions.capacity) continue;
 
         MemoryRegion *region = &memory_regions.regions[memory_regions.count];
 

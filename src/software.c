@@ -22,6 +22,7 @@
 
 #include "xsysinfo.h"
 #include "software.h"
+#include "growlist.h"
 #include "hardware.h"
 #include "locale_str.h"
 #include "debug.h"
@@ -31,6 +32,28 @@ SoftwareList libraries_list;
 SoftwareList devices_list;
 SoftwareList resources_list;
 SoftwareList mmu_list;
+
+/* Room for extra entries beyond count, within the fixed entry limit. */
+static BOOL reserve_software(SoftwareList *list, ULONG extra)
+{
+    return grow_list((APTR *)&list->entries, &list->capacity, list->count,
+                     list->count + extra, sizeof(SoftwareEntry),
+                     MAX_SOFTWARE_ENTRIES);
+}
+
+static void reset_software_list(SoftwareList *list)
+{
+    free_list((APTR *)&list->entries, &list->capacity, sizeof(SoftwareEntry));
+    list->count = 0;
+}
+
+void free_software_lists(void)
+{
+    reset_software_list(&libraries_list);
+    reset_software_list(&devices_list);
+    reset_software_list(&resources_list);
+    reset_software_list(&mmu_list);
+}
 SystemSoftwareInfo system_software;
 
 /* External references */
@@ -137,7 +160,7 @@ void enumerate_libraries(void)
     ULONG i;
     SoftwareEntry *entry;
 
-    memset(&libraries_list, 0, sizeof(libraries_list));
+    reset_software_list(&libraries_list);
 
     Forbid();
 
@@ -160,7 +183,7 @@ void enumerate_libraries(void)
             }
         }
 
-        if (libraries_list.count >= MAX_SOFTWARE_ENTRIES)
+        if (!reserve_software(&libraries_list, 1))
             continue;
 
         entry = &libraries_list.entries[libraries_list.count];
@@ -183,7 +206,7 @@ void enumerate_libraries(void)
 
     /* Insert artificial "kickstart" entry at the beginning */
     /* Insert artificial "kickstart (soft)" entry at the beginning */
-    if ((libraries_list.count+1) < MAX_SOFTWARE_ENTRIES) {
+    if (reserve_software(&libraries_list, 2)) {
         if ((hw_info.kickstart_version != hw_info.kickstart_patch_version ||
              hw_info.kickstart_revision != hw_info.kickstart_patch_revision) &&
             0 != hw_info.kickstart_patch_version &&
@@ -234,7 +257,7 @@ void enumerate_devices(void)
 {
     struct Node *node;
 
-    memset(&devices_list, 0, sizeof(devices_list));
+    reset_software_list(&devices_list);
 
     Forbid();
 
@@ -242,7 +265,7 @@ void enumerate_devices(void)
          node = node->ln_Succ) {
         struct Device *dev = (struct Device *)node;
 
-        if (devices_list.count >= MAX_SOFTWARE_ENTRIES) break;
+        if (!reserve_software(&devices_list, 1)) break;
 
         SoftwareEntry *entry = &devices_list.entries[devices_list.count];
 
@@ -304,7 +327,7 @@ void enumerate_resources(void)
 {
     struct Node *node;
 
-    memset(&resources_list, 0, sizeof(resources_list));
+    reset_software_list(&resources_list);
 
     Forbid();
 
@@ -312,7 +335,7 @@ void enumerate_resources(void)
          node = node->ln_Succ) {
         struct Library *res = (struct Library *)node;
 
-        if (resources_list.count >= MAX_SOFTWARE_ENTRIES) break;
+        if (!reserve_software(&resources_list, 1)) break;
 
         SoftwareEntry *entry = &resources_list.entries[resources_list.count];
 
@@ -361,7 +384,7 @@ void enumerate_mmu_entries(void)
     struct MappingNode *mn;
     SoftwareEntry *entry;
     char buffer[128];
-    memset(&mmu_list, 0, sizeof(mmu_list));
+    reset_software_list(&mmu_list);
 
     Forbid();
 
@@ -371,15 +394,17 @@ void enumerate_mmu_entries(void)
         if (DOSBase && DOSBase->dl_lib.lib_Version >= 37) {
             if ((MMUBase = open_mmu_library())) {
 
-                entry = &mmu_list.entries[mmu_list.count];
-                snprintf(entry->name, sizeof(entry->name), "%s: %lukB.",
-                         get_string(MSG_MMU_SIZE),
-                         (unsigned long)(GetPageSize(NULL) / 1024));
-                mmu_list.count++;
+                if (reserve_software(&mmu_list, 1)) {
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s: %lukB.",
+                             get_string(MSG_MMU_SIZE),
+                             (unsigned long)(GetPageSize(NULL) / 1024));
+                    mmu_list.count++;
+                }
                 /* Get the mapping of the default context */
                 list = GetMapping(NULL);
                 for (mn = list ? (struct MappingNode *)(list->mlh_Head) : NULL;
-                     mn && mn->map_succ && mmu_list.count < 256;
+                     mn && mn->map_succ && reserve_software(&mmu_list, 1);
                      mn = mn->map_succ)
                 {
                     size_t pos;
@@ -523,7 +548,7 @@ void enumerate_mmu_entries(void)
                     ReleaseMapping(NULL, list);
                 }
                 /* Append hint entries at end of list */
-                if (mmu_list.count < 256 - 8) {
+                if (reserve_software(&mmu_list, 8)) {
                     entry = &mmu_list.entries[mmu_list.count];
                     snprintf(entry->name, sizeof(entry->name), "%s",
                              get_string(MSG_MMU_ADDRESS_HINT));
@@ -561,7 +586,7 @@ void enumerate_mmu_entries(void)
                 CloseLibrary((struct Library *)MMUBase);
             }
         }
-    } else {
+    } else if (reserve_software(&mmu_list, 1)) {
         entry = &mmu_list.entries[0];
         copy_string(entry->name, "mmu.library not loaded",
                     sizeof(entry->name));

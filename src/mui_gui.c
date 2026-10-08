@@ -1561,12 +1561,13 @@ static void show_scsi_devices(void)
         return;
 
     drive = &drive_list.drives[index];
+    /* The scan frees the entries this list points to. */
+    DoMethod(scsi_list_obj, MUIM_List_Clear);
     set_sleep(TRUE);
     scan_scsi_devices(drive->handler_name, drive->unit_number);
     set_sleep(FALSE);
 
     set(scsi_list_obj, MUIA_List_Quiet, TRUE);
-    DoMethod(scsi_list_obj, MUIM_List_Clear);
     for (i = 0; i < scsi_device_list.count; i++) {
         if (scsi_device_list.devices[i].is_valid) {
             DoMethod(scsi_list_obj, MUIM_List_InsertSingle,

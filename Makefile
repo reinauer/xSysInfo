@@ -88,6 +88,7 @@ SRCS = src/main.c \
        src/clock.c \
        src/dhry_1.c \
        src/dhry_2.c \
+       src/growlist.c \
        src/memory.c \
        src/drives.c \
        src/scsi.c \
@@ -344,6 +345,7 @@ src/wdprobe.o: src/wdprobe.c src/wdprobe.h src/hardware.h src/locale_str.h
 src/main.o src/gui.o src/hardware.o src/print.o: src/wdprobe.h
 src/benchmark.o: src/benchmark.c src/xsysinfo.h src/benchmark.h src/hardware.h
 src/busclock.o: src/busclock.c src/busclock.h src/hardware.h src/cpu.h src/debug.h
+src/growlist.o: src/growlist.c src/growlist.h
 src/memory.o: src/memory.c src/xsysinfo.h src/memory.h src/hardware.h src/locale_str.h
 src/drives.o: src/drives.c src/xsysinfo.h src/drives.h src/scsi.h src/hardware.h src/locale_str.h
 src/scsi.o: src/scsi.c src/xsysinfo.h src/scsi.h src/gui.h src/locale_str.h

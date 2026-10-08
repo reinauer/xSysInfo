@@ -33,6 +33,7 @@
 #include "xsysinfo.h"
 #include "format.h"
 #include "drives.h"
+#include "growlist.h"
 #include "scsi.h"
 #include "gui.h"
 #include "benchmark.h"
@@ -430,8 +431,10 @@ static void scan_dos_list(void)
     debug("  drives: DosList locked\n");
 
     while ((dol = MyNextDosEntry(dol, LDF_DEVICES)) != NULL) {
-        if (drive_list.count >= MAX_DRIVES) {
-            debug("  drives: MAX_DRIVES reached, skipping remaining devices\n");
+        if (!grow_list((APTR *)&drive_list.drives, &drive_list.capacity,
+                       drive_list.count, drive_list.count + 1,
+                       sizeof(DriveInfo), MAX_DRIVES)) {
+            debug("  drives: drive list full, skipping remaining devices\n");
             break;
         }
         DriveInfo *drive = &drive_list.drives[drive_list.count];
@@ -812,6 +815,12 @@ static void sort_drive_list(void)
     }
 }
 
+void free_drive_list(void)
+{
+    free_list((APTR *)&drive_list.drives, &drive_list.capacity, sizeof(DriveInfo));
+    drive_list.count = 0;
+}
+
 /*
  * Enumerate all drives
  */
@@ -819,7 +828,7 @@ void enumerate_drives(void)
 {
     debug("  drives: Starting enumeration...\n");
 
-    memset(&drive_list, 0, sizeof(drive_list));
+    free_drive_list();
     drive_page = 0;
     debug("  drives: Scan DosList...\n");
 

@@ -27,6 +27,7 @@
 
 #include "xsysinfo.h"
 #include "scsi.h"
+#include "growlist.h"
 #include "gui.h"
 #include "locale_str.h"
 #include "debug.h"
@@ -409,6 +410,13 @@ static void trim_trailing_spaces(char *str)
     }
 }
 
+void free_scsi_device_list(void)
+{
+    free_list((APTR *)&scsi_device_list.devices, &scsi_device_list.capacity,
+              sizeof(ScsiDeviceInfo));
+    scsi_device_list.count = 0;
+}
+
 /*
  * Scan all SCSI devices on a controller
  */
@@ -423,7 +431,8 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
 
     (void)base_unit;  /* Not used in current implementation */
 
-    memset(&scsi_device_list, 0, sizeof(scsi_device_list));
+    free_scsi_device_list();
+    memset(scsi_device_list.device_name, 0, sizeof(scsi_device_list.device_name));
     strncpy(scsi_device_list.device_name, handler_name,
             sizeof(scsi_device_list.device_name) - 1);
 
@@ -460,7 +469,12 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
             /* Try INQUIRY command */
             if (scsi_inquiry(target, lun, &inquiry_data)) {
                 /* Check if device is present (not 0x7F = no device) */
-                if ((inquiry_data.device_type & 0x1F) != 0x1F) {
+                if ((inquiry_data.device_type & 0x1F) != 0x1F &&
+                    grow_list((APTR *)&scsi_device_list.devices,
+                              &scsi_device_list.capacity,
+                              scsi_device_list.count,
+                              scsi_device_list.count + 1,
+                              sizeof(ScsiDeviceInfo), MAX_SCSI_DEVICES)) {
                     ScsiDeviceInfo *dev = &scsi_device_list.devices[scsi_device_list.count];
 
                     dev->target_id = target;

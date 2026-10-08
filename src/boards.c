@@ -19,6 +19,7 @@
 
 #include "xsysinfo.h"
 #include "boards.h"
+#include "growlist.h"
 #include "format.h"
 #include "gui.h"
 #include "locale_str.h"
@@ -105,7 +106,9 @@ static BOOL append_zorro_board(struct ConfigDev *cd, const char *manufacturer,
 {
     BoardInfo *board;
 
-    if (board_list.count >= MAX_BOARDS)
+    if (!grow_list((APTR *)&board_list.boards, &board_list.capacity,
+                   board_list.count, board_list.count + 1,
+                   sizeof(BoardInfo), MAX_BOARDS))
         return FALSE;
 
     board = &board_list.boards[board_list.count];
@@ -169,7 +172,9 @@ static BOOL append_pci_board(struct pci_dev *pci, const char *manufacturer,
 {
     BoardInfo *board;
 
-    if (board_list.count >= MAX_BOARDS)
+    if (!grow_list((APTR *)&board_list.boards, &board_list.capacity,
+                   board_list.count, board_list.count + 1,
+                   sizeof(BoardInfo), MAX_BOARDS))
         return FALSE;
 
     if (!pci)
@@ -332,6 +337,12 @@ static void enumerate_zorro_boards_raw(void)
     CloseLibrary(ExpansionBase);
 }
 
+void free_board_list(void)
+{
+    free_list((APTR *)&board_list.boards, &board_list.capacity, sizeof(BoardInfo));
+    board_list.count = 0;
+}
+
 /*
  * Enumerate all expansion boards
  */
@@ -339,7 +350,7 @@ void enumerate_boards(void)
 {
     debug("  boards: Starting enumeration...\n");
 
-    memset(&board_list, 0, sizeof(board_list));
+    free_board_list();
 
     if (IdentifyBase) {
         enumerate_zorro_boards_with_identify();

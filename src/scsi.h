@@ -58,8 +58,9 @@ typedef struct {
 
 /* SCSI device list */
 typedef struct {
-    ScsiDeviceInfo devices[MAX_SCSI_DEVICES];
+    ScsiDeviceInfo *devices;        /* Allocated to fit the devices */
     ULONG count;
+    ULONG capacity;
     char device_name[64];           /* Device driver name */
 } ScsiDeviceList;
 
@@ -73,6 +74,7 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number);
 
 /* Scan all SCSI devices on a controller */
 void scan_scsi_devices(const char *handler_name, ULONG base_unit);
+void free_scsi_device_list(void);
 
 /* Draw the SCSI device information screen */
 void draw_scsi_view(void);

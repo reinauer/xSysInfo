@@ -41,6 +41,7 @@
 #include "memory.h"
 #include "boards.h"
 #include "drives.h"
+#include "scsi.h"
 #include "benchmark.h"
 #include "busclock.h"
 #include "clock.h"
@@ -563,6 +564,11 @@ cleanup:
     cleanup_timer();
     close_report_view();
     close_display();
+    free_software_lists();
+    free_board_list();
+    free_memory_regions();
+    free_drive_list();
+    free_scsi_device_list();
     close_libraries();
     cleanup_locale();
     cleanup_debug_output();

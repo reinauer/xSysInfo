@@ -104,8 +104,9 @@ typedef struct {
 
 /* Drive list */
 typedef struct {
-    DriveInfo drives[MAX_DRIVES];
+    DriveInfo *drives;          /* Allocated to fit the drives */
     ULONG count;
+    ULONG capacity;
 } DriveList;
 
 /* Global drive list */
@@ -113,6 +114,7 @@ extern DriveList drive_list;
 
 /* Function prototypes */
 void enumerate_drives(void);
+void free_drive_list(void);
 void refresh_drive_info(ULONG index);
 ULONG measure_drive_speed(ULONG index);
 BOOL check_disk_present(ULONG index);

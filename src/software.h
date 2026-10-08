@@ -22,10 +22,11 @@ typedef struct {
     UWORD revision;
 } SoftwareEntry;
 
-/* Software list */
+/* Software list, allocated to fit its entries */
 typedef struct {
-    SoftwareEntry entries[MAX_SOFTWARE_ENTRIES];
+    SoftwareEntry *entries;
     ULONG count;
+    ULONG capacity;
 } SoftwareList;
 
 /* System software collected once alongside the software lists. */
@@ -58,6 +59,7 @@ void enumerate_libraries(void);
 void enumerate_devices(void);
 void enumerate_resources(void);
 void enumerate_mmu_entries(void);
+void free_software_lists(void);
 void enumerate_all_software(void);
 void detect_system_software(void);
 
