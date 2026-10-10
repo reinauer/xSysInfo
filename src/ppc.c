@@ -42,20 +42,27 @@ static ULONG powerup_attribute(struct Library *base, ULONG tag)
     return d0;
 }
 
+static LONG warpos_call(struct Library *base, struct PPCArgs *args)
+{
+    register struct Library *a6 __asm("a6") = base;
+    register struct PPCArgs *a0 __asm("a0") = args;
+    register LONG d0 __asm("d0");
+    __asm volatile("jsr -30(a6)" : "=r"(d0), "+r"(a0) : "r"(a6)
+                   : "d1", "a1", "cc", "memory");
+    return d0;
+}
+
+/* Fill the arguments before binding registers: a call such as memset()
+ * between a register variable and the asm leaves a0 undefined. */
 static LONG warpos_info(struct Library *base, struct TagItem *tags)
 {
     struct PPCArgs args;
-    register struct Library *a6 __asm("a6") = base;
-    register struct PPCArgs *a0 __asm("a0") = &args;
-    register LONG d0 __asm("d0");
     memset(&args, 0, sizeof(args));
     args.code = base;
     args.offset = -594; /* GetInfo, called on the PPC by RunPPC */
     args.regs[0] = (ULONG)base; /* r3 */
     args.regs[1] = (ULONG)tags; /* r4 */
-    __asm volatile("jsr -30(a6)" : "=r"(d0), "+r"(a0) : "r"(a6)
-                   : "d1", "a1", "cc", "memory");
-    return d0;
+    return warpos_call(base, &args);
 }
 
 static const char *ppc_name(ULONG version)
