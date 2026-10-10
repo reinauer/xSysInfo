@@ -52,6 +52,7 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_GetVBR
 	XDEF	_GetSSP
 	XDEF	_GetMMU
+	XDEF	_GetMMUTranslation
 	XDEF	_GetCacheBits
 	XDEF	_SetCacheBits
 	XDEF	_GetRamseyRev
@@ -321,6 +322,81 @@ _writeCacheBits:
 	movec	d1,CACR
 	nop
 	rte
+
+; Read paged-translation status without writing any MMU/cache register.
+; d0: ASM_CPU_68020 (68851), 68030, 68040 or 68060; other values unknown.
+; Returns -1 on an unsupported instruction, 0 disabled, 1 enabled.
+_GetMMUTranslation:
+        cmp.l   #ASM_CPU_68020,d0
+        beq.s   .supported
+        cmp.l   #ASM_CPU_68030,d0
+        beq.s   .supported
+        cmp.l   #ASM_CPU_68040,d0
+        beq.s   .supported
+        cmp.l   #ASM_CPU_68060,d0
+        beq.s   .supported
+        moveq   #-1,d0
+        rts
+.supported:
+        movem.l d2/a3/a5-a6,-(sp)
+        move.l  d0,d2
+        lea     mmu_translation_super(pc),a5
+        move.l  $4.w,a6
+        jsr     _LVOSupervisor(a6)
+        movem.l (sp)+,d2/a3/a5-a6
+        rts
+
+mmu_translation_super:
+        MACHINE 68020
+        ori.w   #$0700,sr
+        ; Run on a copy of the first 64 vectors, as _testMMU does, so the
+        ; live table is never written: an active MMU may protect or remap
+        ; it. All other exceptions, including NMI, keep their handlers.
+        movec   vbr,a0           ; restored before returning
+        lea     -256(sp),sp
+        move.w  #252,d1
+mmu_translation_copy:
+        move.l  (a0,d1.w),(sp,d1.w)
+        subq.w  #4,d1
+        bpl.s   mmu_translation_copy
+        lea     mmu_translation_fault(pc),a1
+        move.l  a1,IllegalInstructionVector(sp)
+        move.l  a1,Line1111Vector(sp)
+        move.l  a1,$34(sp)        ; coprocessor protocol violation (68851)
+        move.l  sp,a1
+        subq.l  #4,sp            ; PMOVE destination, on the mapped stack
+        move.l  sp,a3            ; checkpoint above any exception frame
+        movec   a1,vbr
+        cmp.l   #ASM_CPU_68030,d2
+        bhi.s   mmu_translation_040
+
+        MACHINE 68020
+        MACHINE 68851
+mmu_translation_030:
+        pmove.l tc,(sp)
+        move.l  (sp),d1
+        moveq   #0,d0
+        tst.l   d1               ; 68851/030 TC.E is bit 31
+        bpl.s   mmu_translation_done
+        moveq   #1,d0
+        bra.s   mmu_translation_done
+
+        MACHINE 68040
+mmu_translation_040:
+        movec   tc,d1
+        moveq   #0,d0
+        btst    #15,d1           ; 040/060 TC.E is bit 15
+        beq.s   mmu_translation_done
+        moveq   #1,d0
+        bra.s   mmu_translation_done
+
+mmu_translation_fault:
+        move.l  a3,sp            ; discard CPU-specific exception frame
+        moveq   #-1,d0
+mmu_translation_done:
+        movec   a0,vbr
+        lea     4+256(sp),sp
+        rte                      ; original Supervisor frame restores SR
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
 	movem.l	a5/a6,-(sp)

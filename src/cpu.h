@@ -42,6 +42,8 @@ ULONG GetCPU060(void);
 ULONG GetVBR(void);
 ULONG GetSSP(void);
 ULONG GetMMU( ULONG cpuType __asm("d0"));
+/* Read TC only: -1 unknown/unsupported, 0 disabled, 1 enabled. */
+LONG GetMMUTranslation(ULONG cpuType __asm("d0"));
 UBYTE GetRamseyRev(void);
 UBYTE GetRamseyCtrl(void);
 ULONG RunRamseyProbe(void);

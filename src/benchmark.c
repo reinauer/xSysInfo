@@ -551,7 +551,7 @@ static ULONG get_mhz_cpu(BOOL precise)
         case CPU_68LC060:
         case CPU_68080:
             tmp *= 1085;
-            if (hw_info.mmu_enabled || hw_info.cpu_type == CPU_68080) {
+            if (hw_info.mmu_present || hw_info.cpu_type == CPU_68080) {
                 if (hw_info.super_scalar_enabled) {
                     count *=100;
                 }
@@ -1332,7 +1332,7 @@ static ULONG cpu_frequency_config(BOOL precise)
            (!!hw_info.dburst_enabled << 3) |
            (!!hw_info.copyback_enabled << 4) |
            (!!hw_info.super_scalar_enabled << 5) |
-           (!!hw_info.mmu_enabled << 6) |
+           (!!hw_info.mmu_present << 6) |
            (precise << 7);
 }
 

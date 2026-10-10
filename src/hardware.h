@@ -115,6 +115,13 @@ typedef enum {
     MMU_UNKNOWN
 } MMUType;
 
+/* Paged translation only; transparent cache attributes are independent. */
+typedef enum {
+    MMU_TRANSLATION_UNKNOWN = -1,
+    MMU_TRANSLATION_DISABLED = 0,
+    MMU_TRANSLATION_ENABLED = 1
+} MMUTranslationState;
+
 /* Agnus/Alice types */
 typedef enum {
     AGNUS_UNKNOWN,
@@ -207,7 +214,8 @@ typedef struct {
 
     /* MMU */
     MMUType mmu_type;
-    BOOL mmu_enabled;
+    BOOL mmu_present;
+    MMUTranslationState mmu_translation;
     char mmu_string[32];
 
     /* VBR */

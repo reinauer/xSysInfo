@@ -595,7 +595,8 @@ void detect_mmu(void)
     BOOL fallBack = TRUE;
 
     // default
-    hw_info.mmu_enabled = FALSE;
+    hw_info.mmu_present = FALSE;
+    hw_info.mmu_translation = MMU_TRANSLATION_UNKNOWN;
     hw_info.mmu_type = MMU_NONE;
     copy_string(hw_info.mmu_string, get_string(MSG_NA),
                 sizeof(hw_info.mmu_string));
@@ -621,19 +622,19 @@ void detect_mmu(void)
                     copy_string(hw_info.mmu_string, "68851",
                                 sizeof(hw_info.mmu_string));
                 }
-                hw_info.mmu_enabled = TRUE;
+                hw_info.mmu_present = TRUE;
                 break;
             case MUTYPE_68030:
                 hw_info.mmu_type = MMU_68030;
                 copy_string(hw_info.mmu_string, "68030",
                             sizeof(hw_info.mmu_string));
-                hw_info.mmu_enabled = TRUE;
+                hw_info.mmu_present = TRUE;
                 break;
             case MUTYPE_68040:
                 hw_info.mmu_type = MMU_68040;
                 copy_string(hw_info.mmu_string, "68040",
                             sizeof(hw_info.mmu_string));
-                hw_info.mmu_enabled = TRUE;
+                hw_info.mmu_present = TRUE;
                 break;
             case MUTYPE_68060:
                 hw_info.mmu_type = hw_info.cpu_type == CPU_68080 ?
@@ -641,7 +642,7 @@ void detect_mmu(void)
                 copy_string(hw_info.mmu_string,
                             hw_info.cpu_type == CPU_68080 ? "68080" : "68060",
                             sizeof(hw_info.mmu_string));
-                hw_info.mmu_enabled = TRUE;
+                hw_info.mmu_present = TRUE;
                 break;
             case MUTYPE_NONE:
                 switch (hw_info.cpu_type) // correct cpu-type to ec for relevant cpus
@@ -725,7 +726,7 @@ void detect_mmu(void)
         if (mmuResult > 0)
         {
             // we have an mmu!
-            hw_info.mmu_enabled = TRUE;
+            hw_info.mmu_present = TRUE;
             switch (hw_info.cpu_type)
             {
             case CPU_68EC020:
@@ -788,6 +789,27 @@ void detect_mmu(void)
             }
         }
     }
+
+    /* Presence is also used by calibration and MMULib queries. Do not
+     * change those decisions when reporting whether translation is on.
+     * Apollo/Emu68 do not implement the classic MMU register interface.
+     */
+    if (hw_info.mmu_present && hw_info.cpu_type != CPU_68080 &&
+        hw_info.cpu_type != CPU_EMU) {
+        switch (hw_info.mmu_type) {
+        case MMU_68851: cpuType = ASM_CPU_68020; break;
+        case MMU_68030: cpuType = ASM_CPU_68030; break;
+        case MMU_68040: cpuType = ASM_CPU_68040; break;
+        case MMU_68060: cpuType = ASM_CPU_68060; break;
+        default: cpuType = 0; break;
+        }
+        if (cpuType)
+            hw_info.mmu_translation = GetMMUTranslation(cpuType);
+    }
+    if (!hw_info.mmu_present && hw_info.mmu_type == MMU_NONE)
+        hw_info.mmu_translation = MMU_TRANSLATION_DISABLED;
+    debug("    MMU: present=%lu, paged translation=%ld (-1 unknown)\n",
+          (ULONG)hw_info.mmu_present, (LONG)hw_info.mmu_translation);
 }
 
 /*
@@ -811,7 +833,7 @@ void load_mmu_remap_table(void)
 
     remap_count = 0;
 
-    if (!hw_info.mmu_enabled)
+    if (!hw_info.mmu_present)
         return;
 
     MMUBase = open_mmu_library();
