@@ -178,6 +178,91 @@ ULONG read_benchmark_clock(struct EClockVal *val)
     return hw_info.is_pal ? 50 : 60;
 }
 
+/* Timed runs are repeated with more work until the last one lasts long
+ * enough that the clock jitter seen so far is below 1/JITTER_FACTOR of
+ * it. A fine clock accepts the first run that reaches the floor. A clock
+ * that advances in steps (the Kickstart 1.3 TOD fallback, or a JIT
+ * emulator that only advances time once per frame) reads 0 for short
+ * runs and then jumps, and the jump sizes the run. */
+#define JITTER_FACTOR 25
+#define RUN_CAP_US 1000000UL
+
+/* Runs count units of work, returns the elapsed microseconds or 0. */
+typedef ULONG (*timed_run_fn)(void *ctx, ULONG count);
+
+/* The clock frequency is its resolution: the E-clock gives about 1 us,
+ * the Kickstart 1.3 TOD fallback 20 ms. */
+static ULONG clock_floor_us(ULONG floor_us)
+{
+    struct EClockVal now;
+    ULONG frequency = read_benchmark_clock(&now), step;
+
+    if (!frequency)
+        return floor_us;
+    step = (1000000UL + frequency - 1) / frequency;
+    if (step > floor_us / JITTER_FACTOR)
+        floor_us = step * JITTER_FACTOR;
+    return floor_us;
+}
+
+/* Continues from a first run of count that took us. Returns the count of
+ * the accepted run and its time in elapsed_us. */
+static ULONG run_until_steady(timed_run_fn run, void *ctx, ULONG count,
+                              ULONG us, ULONG max_count, ULONG floor_us,
+                              ULONG *elapsed_us)
+{
+    ULONG other_count, other_us;
+    uint64_t next, expected, step;
+    BOOL compared = FALSE;
+
+    floor_us = clock_floor_us(floor_us);
+    for (;;) {
+        debug("  bench: %lu in %lu us, floor %lu us\n", count, us, floor_us);
+        if ((compared && us >= floor_us) || us >= RUN_CAP_US ||
+            count >= max_count)
+            break;
+
+        if (us >= floor_us) {
+            /* One reading cannot show whether the clock followed the
+             * work: check it against a run of half the work. */
+            other_count = count / 2 ? count / 2 : 1;
+            other_us = run(ctx, other_count);
+            debug("  bench: %lu in %lu us to confirm\n", other_count, other_us);
+            expected = (uint64_t)us * other_count / count;
+            step = other_us > expected ? other_us - expected : expected - other_us;
+        } else {
+            /* Aim one run past the floor, at least doubling. */
+            next = (uint64_t)count * 2;
+            if (us)
+                next = (uint64_t)count * floor_us / us + count;
+            if (next < (uint64_t)count * 2)
+                next = (uint64_t)count * 2;
+            if (next > max_count)
+                next = max_count;
+            other_count = count;
+            other_us = us;
+            count = (ULONG)next;
+            us = run(ctx, count);
+
+            /* The miss against the scaled previous reading, taken back to
+             * that reading's scale, is the size of a clock step. A previous
+             * reading of 0 leaves the first nonzero reading as the step. */
+            expected = (uint64_t)other_us * count / other_count;
+            step = us > expected ? us - expected : expected - us;
+            if (other_us)
+                step = step * other_count / count;
+        }
+        compared = TRUE;
+        step *= JITTER_FACTOR;
+        if (step > ULONG_MAX)
+            step = ULONG_MAX;
+        if (step > floor_us)
+            floor_us = (ULONG)step;
+    }
+    *elapsed_us = us;
+    return count;
+}
+
 /* Dhrystone chunks still require the OS E-clock implementation. CPU/FPU
  * estimates can also use a temporarily allocated CIA timer on older OSes. */
 static BOOL frequency_eclock_available(void)
@@ -1041,16 +1126,26 @@ ULONG calculate_mips(ULONG dhrystones)
     return (ULONG)scaled;
 }
 
+static ULONG flops_run(void *ctx, ULONG iterations)
+{
+    struct EClockVal start, end;
+    ULONG E_Freq;
+
+    Forbid();
+    E_Freq = read_benchmark_clock(&start);
+    DoFlops(iterations, *(ULONG *)ctx);
+    E_Freq = read_benchmark_clock(&end);
+    Permit();
+    return EClock_Diff_in_ms(&start, &end, E_Freq);
+}
+
 /*
  * Run MFLOPS benchmark (floating point)
  */
 ULONG run_mflops_benchmark(void)
 {
-    struct EClockVal start, end;
-    ULONG E_Freq;
-    uint64_t elapsed = 0;
-    ULONG iterations = 50000;
-    ULONG multiplier;
+    ULONG elapsed = 0;
+    ULONG iterations;
     ULONG fpu;
 
     /* Check if FPU is available */
@@ -1089,17 +1184,11 @@ ULONG run_mflops_benchmark(void)
         return 0;
     }
 
-    for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
-    {
-        iterations = FLOPS_BASE_LOOPS * multiplier;
-        Forbid();
-        E_Freq = read_benchmark_clock(&start);
-        DoFlops(iterations, fpu);
-        E_Freq = read_benchmark_clock(&end);
-        Permit();
-        elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
-    }
-    debug("  bench: flops elapsed: %lu, loops %lu\n", (ULONG)elapsed, iterations);
+    iterations = run_until_steady(flops_run, &fpu, FLOPS_BASE_LOOPS,
+                                  flops_run(&fpu, FLOPS_BASE_LOOPS),
+                                  FLOPS_BASE_LOOPS * MAX_MULTIPLY,
+                                  MIN_FLOP_MEASURE, &elapsed);
+    debug("  bench: flops elapsed: %lu, loops %lu\n", elapsed, iterations);
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
@@ -1237,6 +1326,22 @@ static ULONG measure_mem_read_speed_once(volatile ULONG *src, ULONG buffer_size,
     return 0;
 }
 
+struct mem_run {
+    volatile ULONG *src;
+    ULONG buffer_size;
+    ULONG speed;
+};
+
+static ULONG mem_run(void *ctx, ULONG iterations)
+{
+    struct mem_run *m = ctx;
+    ULONG elapsed_us = 0;
+
+    m->speed = measure_mem_read_speed_once(m->src, m->buffer_size,
+                                           iterations, &elapsed_us);
+    return m->speed ? elapsed_us : 0;
+}
+
 /*
  * Measure memory read speed for a given address range
  * Returns speed in bytes per second
@@ -1244,45 +1349,22 @@ static ULONG measure_mem_read_speed_once(volatile ULONG *src, ULONG buffer_size,
 ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size,
                              ULONG iterations)
 {
-    ULONG elapsed_us = 0;
-    ULONG test_iterations;
-    ULONG speed;
+    struct mem_run m = { src, buffer_size, 0 };
+    ULONG elapsed_us;
 
-    test_iterations = iterations ? iterations : 1;
-    speed = measure_mem_read_speed_once(src, buffer_size, test_iterations,
-                                        &elapsed_us);
+    if (!iterations)
+        iterations = 1;
+    elapsed_us = mem_run(&m, iterations);
 
-    while (speed >= MEM_SPEED_FAST_THRESHOLD &&
-           elapsed_us < MEM_SPEED_TARGET_US &&
-           test_iterations < MEM_SPEED_MAX_ITERATIONS) {
-        uint64_t next_iterations;
+    /* Slow memory runs long enough on the first pass. A failed pass is
+     * too short for the clock, not slow. */
+    if (m.speed && m.speed < MEM_SPEED_FAST_THRESHOLD)
+        return m.speed;
 
-        if (elapsed_us > 0) {
-            next_iterations = ((uint64_t)MEM_SPEED_TARGET_US *
-                               test_iterations) / elapsed_us;
-            next_iterations += test_iterations;
-        } else {
-            next_iterations = (uint64_t)test_iterations * 2;
-        }
-
-        if (next_iterations <= test_iterations)
-            next_iterations = (uint64_t)test_iterations * 2;
-        if (next_iterations > MEM_SPEED_MAX_ITERATIONS)
-            next_iterations = MEM_SPEED_MAX_ITERATIONS;
-        if (next_iterations == test_iterations)
-            break;
-
-        debug("  bench: memory speed %lu B/s in %lu us, retrying with "
-              "%lu iterations\n",
-              speed, elapsed_us, (ULONG)next_iterations);
-
-        test_iterations = (ULONG)next_iterations;
-        elapsed_us = 0;
-        speed = measure_mem_read_speed_once(src, buffer_size, test_iterations,
-                                            &elapsed_us);
-    }
-
-    return speed;
+    run_until_steady(mem_run, &m, iterations, elapsed_us,
+                     MEM_SPEED_MAX_ITERATIONS, MEM_SPEED_TARGET_US,
+                     &elapsed_us);
+    return m.speed;
 }
 
 /*
