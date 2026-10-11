@@ -1890,21 +1890,21 @@ static void draw_speed_panel_contents(BOOL redraw_scale_button)
         const WORD column_width = 42;
 
         /* Format CHIP speed in MB/s */
-        if (bench_results.benchmarks_valid && bench_results.chip_speed > 0) {
+        if (bench_results.chip_speed > 0) {
             format_scaled(chip_str, sizeof(chip_str), bench_results.chip_speed / 10000, TRUE);
         } else {
             snprintf(chip_str, sizeof(chip_str), "%s", get_string(MSG_NA));
         }
 
         /* Format FAST speed in MB/s or N/A */
-        if (bench_results.benchmarks_valid && bench_results.fast_speed > 0) {
+        if (bench_results.fast_speed > 0) {
             format_scaled(fast_str, sizeof(fast_str), bench_results.fast_speed / 10000, TRUE);
         } else {
             snprintf(fast_str, sizeof(fast_str), "%s", get_string(MSG_NA));
         }
 
         /* Format ROM speed in MB/s */
-        if (bench_results.benchmarks_valid && bench_results.rom_speed > 0) {
+        if (bench_results.rom_speed > 0) {
             format_scaled(rom_str, sizeof(rom_str), bench_results.rom_speed / 10000, TRUE);
         } else {
             snprintf(rom_str, sizeof(rom_str), "%s", get_string(MSG_NA));

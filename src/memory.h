@@ -58,6 +58,7 @@ void analyze_memory_region(struct MemHeader *mh, ULONG *chunks, ULONG *largest);
 
 /* Measure memory read speed for a region (returns bytes/second) */
 ULONG measure_memory_speed(ULONG index);
+void publish_memory_speed(ULONG index);
 
 /* Draw memory view */
 void draw_memory_view(void);

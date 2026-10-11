@@ -1179,7 +1179,7 @@ static void format_mb_per_sec(ULONG bytes_per_sec, char *buffer, size_t size)
 {
     char scaled[16];
 
-    if (bench_results.benchmarks_valid && bytes_per_sec > 0) {
+    if (bytes_per_sec > 0) {
         format_scaled(scaled, sizeof(scaled), bytes_per_sec / 10000, TRUE);
         snprintf(buffer, size, "%s %s", scaled,
                  get_string(MSG_MEM_SPEED_UNIT));
@@ -1521,8 +1521,10 @@ static void measure_selected_memory(void)
     Forbid();
     measure_memory_speed(index);
     Permit();
+    publish_memory_speed(index);
     end_measurement();
     update_memory_details();
+    update_speed_values();
 }
 
 static void select_drive(void)

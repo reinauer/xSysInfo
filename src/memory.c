@@ -342,13 +342,36 @@ ULONG measure_memory_speed(ULONG index)
 }
 
 /*
+ * Show a region's measured speed on the main screen, which otherwise
+ * waits for the SPEED test. The last measured region of each kind wins.
+ */
+void publish_memory_speed(ULONG index)
+{
+    const MemoryRegion *region;
+
+    if (index >= memory_regions.count) return;
+    region = &memory_regions.regions[index];
+    if (!region->speed_bytes_sec) return;
+
+    if (region->mem_type & MEMF_CHIP)
+        bench_results.chip_speed = region->speed_bytes_sec;
+    else if (region->mem_type & MEMF_FAST)
+        bench_results.fast_speed = region->speed_bytes_sec;
+}
+
+/*
  * Draw memory view
  */
 void format_memory_speed(const MemoryRegion *region, char *buffer,
                                 size_t size)
 {
     if (region->speed_measured && region->speed_bytes_sec > 0) {
-        format_transfer_rate(region->speed_bytes_sec, TRUE, buffer, size);
+        char scaled[16];
+
+        /* Same digits as the main screen for the same measurement. */
+        format_scaled(scaled, sizeof(scaled), region->speed_bytes_sec / 10000,
+                      TRUE);
+        snprintf(buffer, size, "%s %s", scaled, get_string(MSG_MEM_SPEED_UNIT));
     } else {
         snprintf(buffer, size, "---");
     }
@@ -577,6 +600,7 @@ void memory_view_handle_button(ButtonID id)
                 Forbid();
                 measure_memory_speed(app->memory_region_index);
                 Permit();
+                publish_memory_speed(app->memory_region_index);
                 hide_status_overlay();
                 draw_memory_speed_row();
             }
