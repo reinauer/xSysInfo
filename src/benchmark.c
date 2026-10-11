@@ -232,8 +232,8 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
         reason = "EClock frequency changed";
     else if (end.ev_hi != start.ev_hi + (end.ev_lo < start.ev_lo))
         reason = "invalid EClock interval";
-    else if (end.ev_lo == start.ev_lo)
-        reason = "EClock did not advance";
+    /* A short JIT loop can finish within one tick. Zero ticks is a valid
+     * sample; calibration grows the loop until the clock advances. */
     if (reason) {
         /* Preserve the first failed sample; print only after Permit(). */
         if (!failure->reason) {
@@ -285,7 +285,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
      * slower CPUs need room for timer overhead as well as 1 ms of work. */
     for (;;) {
         shorter = frequency_sample(short_loops, fpu, &frequency, &failure);
-        if (!shorter)
+        if (failure.reason)
             goto done;
         min_delta = (frequency - 1) / 1000 + 1;
         max_ticks = frequency / (hw_info.cpu_type <= CPU_68010 ? 250 : 500);
@@ -294,7 +294,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
             goto done;
         }
         ticks = frequency_sample(loops, fpu, &frequency, &failure);
-        if (!ticks)
+        if (failure.reason)
             goto done;
         if (ticks > max_ticks) {
             reason = "calibration sample exceeds time limit";
