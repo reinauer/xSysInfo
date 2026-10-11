@@ -41,7 +41,7 @@ typedef struct {
 #define FLOPS_BASE_LOOPS 50000
 #define MIN_FLOP_MEASURE 4000
 #define FLOP_LOOP_INSTRUCTIONS 8
-#define FLOP_INIT_INSTRUCTIONS 3
+#define FLOP_INIT_INSTRUCTIONS 4
 
 /* Benchmark results */
 typedef struct {

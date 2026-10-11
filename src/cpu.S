@@ -66,6 +66,37 @@ _ProbeClockInterrupt:
 	moveq	#0,d0
 	rts
 
+; Keep the operands finite so every pass measures ordinary arithmetic:
+; x -> ((((x + 3) * 4 - 3) / 4) * 3 + 4 - 3) / 4 converges to 7.75.
+; The mix of two adds, two subtracts, three multiplies and one divide
+; is unchanged. FPCR and FPSR are cleared for the loop and restored, so
+; exception bits left by an earlier run cannot change its speed.
+FLOPS_LOOP	MACRO
+	fmove.l	fpcr,-(sp)
+	fmove.l	fpsr,-(sp)
+	fmovem.x fp2-fp3,-(sp)
+	fmove.l	#0,fpcr
+	fmove.l	#0,fpsr
+	fmove.l	#2,fp0		; x = 2
+	fmove.l	#3,fp1
+	fmove.l	#4,fp2
+	fmove.s	#$3e800000,fp3	; 0.25
+.loop\@:
+	fadd.x	fp1,fp0		; x + 3
+	fmul.x	fp2,fp0		; * 4
+	fsub.x	fp1,fp0		; - 3
+	fdiv.x	fp2,fp0		; / 4
+	fmul.x	fp1,fp0		; * 3
+	fadd.x	fp2,fp0		; + 4
+	fsub.x	fp1,fp0		; - 3
+	fmul.x	fp3,fp0		; * 0.25
+	subq.l	#1,d0
+	bne.s	.loop\@
+	fmovem.x (sp)+,fp2-fp3
+	fmove.l	(sp)+,fpsr
+	fmove.l	(sp)+,fpcr
+	ENDM
+
 _DoFlops:
 	tst.l	d0
 	beq		end_fpu
@@ -83,54 +114,15 @@ _DoFlops:
 	bra 	end_fpu
 m68881_fpu:
 	MACHINE 68881
-	fmove.x  #2,fp0 	; fb = 2
-	fmove.x  #3,fp1 	; fc = 3
-	fmove.x  #4,fp2		; fd = 4
-m68881_fpu_loop:
-	fadd.x   fp1,fp0 	; fa = fb + fc
-	fmul.x   fp2,fp0	; fb = fa * fd
-	fsub.x   fp1,fp0	; fc = fb - fa
-	fdiv.x   fp2,fp0	; fd = fc / fb
-	fmul.x   fp1,fp0	; fa = fb * fc
-	fadd.x   fp2,fp0	; fb = fa + fd
-	fsub.x   fp1,fp0	; fc = fb - fa
-	fmul.x   fp2,fp0	; fd = fc * fa
-	subq.l	#1,d0
-	bne		m68881_fpu_loop
+	FLOPS_LOOP
 	bra 	end_fpu
 m68040_fpu:
 	MACHINE 68040
-	fmove.x  #2,fp0 ; fb = 2
-	fmove.x  #3,fp1 ; fc = 3
-	fmove.x  #4,fp2	; fd = 4
-m68040_fpu_loop:
-	fadd.x   fp1,fp0 	; fa = fb + fc
-	fmul.x   fp2,fp0	; fb = fa * fd
-	fsub.x   fp1,fp0	; fc = fb - fa
-	fdiv.x   fp2,fp0	; fd = fc / fb
-	fmul.x   fp1,fp0	; fa = fb * fc
-	fadd.x   fp2,fp0	; fb = fa + fd
-	fsub.x   fp1,fp0	; fc = fb - fa
-	fmul.x   fp2,fp0	; fd = fc * fa
-	subq.l	#1,d0
-	bne		m68040_fpu_loop
+	FLOPS_LOOP
 	bra 	 end_fpu
 m68060_fpu:
 	MACHINE 68060
-	fmove.x  #2,fp0 ; fb = 2
-	fmove.x  #3,fp1 ; fc = 3
-	fmove.x  #4,fp2	; fd = 4
-m68060_fpu_loop:
-	fadd.x   fp1,fp0 	; fa = fb + fc
-	fmul.x   fp2,fp0	; fb = fa * fd
-	fsub.x   fp1,fp0	; fc = fb - fa
-	fdiv.x   fp2,fp0	; fd = fc / fb
-	fmul.x   fp1,fp0	; fa = fb * fc
-	fadd.x   fp2,fp0	; fb = fa + fd
-	fsub.x   fp1,fp0	; fc = fb - fa
-	fmul.x   fp2,fp0	; fd = fc * fa
-	subq.l	#1,d0
-	bne		m68060_fpu_loop
+	FLOPS_LOOP
 end_fpu:
 	MACHINE 68060
 	rts
