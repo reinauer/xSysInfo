@@ -433,10 +433,44 @@ static const char *default_strings[MSG_COUNT] = {
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */
+static BOOL builtin_only;
+
+void locale_set_builtin_only(BOOL on)
+{
+    builtin_only = on;
+}
+
+const char *get_builtin_string(LocaleStringID id)
+{
+    if (id >= 0 && id < MSG_COUNT)
+        return default_strings[id];
+    return "???";
+}
+
+const char *localize_builtin(const char *text)
+{
+    static const LocaleStringID stored[] = {
+        MSG_NA, MSG_NONE, MSG_UNKNOWN,
+        MSG_MSM6242B, MSG_RP5C01A, MSG_MK48T02, MSG_CLOCK_NOT_FOUND,
+        MSG_SLOT_PCMCIA, MSG_SLOT_ZORRO, MSG_ZORRO_II, MSG_ZORRO_III,
+        MSG_MODE_PAL, MSG_MODE_NTSC, MSG_NATIVE_GRAPHICS,
+        MSG_COMMENT_DEFAULT, MSG_COMMENT_CLASSIC, MSG_COMMENT_GOOD,
+        MSG_COMMENT_FAST, MSG_COMMENT_VERY_FAST, MSG_COMMENT_BLAZING,
+        MSG_COMMENT_RIDICULOUS, MSG_COMMENT_LUDICROUS, MSG_COMMENT_WARP11
+    };
+    ULONG i;
+
+    for (i = 0; i < sizeof(stored) / sizeof(stored[0]); i++) {
+        if (strcmp(text, default_strings[stored[i]]) == 0)
+            return get_string(stored[i]);
+    }
+    return text;
+}
+
 const char *get_string(LocaleStringID id)
 {
     if (id >= 0 && id < MSG_COUNT) {
-        if (catalog) {
+        if (catalog && !builtin_only) {
             return (const char *)GetCatalogStr(catalog, id,
                        (CONST_STRPTR)default_strings[id]);
         }

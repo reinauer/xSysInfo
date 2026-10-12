@@ -380,6 +380,35 @@ void enumerate_resources(void)
     sort_software_list(&resources_list);
 }
 
+const char *software_entry_text(const SoftwareEntry *entry, char *buffer,
+                                size_t size)
+{
+    LocaleStringID id;
+
+    if (!entry->text_id)
+        return entry->name;
+    id = (LocaleStringID)(entry->text_id - 1);
+    if (id == MSG_MMU_SIZE)
+        snprintf(buffer, size, "%s: %lukB.", get_string(id),
+                 (unsigned long)entry->text_arg);
+    else
+        snprintf(buffer, size, "%s", get_string(id));
+    return buffer;
+}
+
+/* Append a catalog line to the MMU list; the caller reserved room. */
+static void add_mmu_text(LocaleStringID id, ULONG arg)
+{
+    SoftwareEntry *entry = &mmu_list.entries[mmu_list.count++];
+    const char *text;
+
+    entry->text_id = (UWORD)(id + 1);
+    entry->text_arg = arg;
+    text = software_entry_text(entry, entry->name, sizeof(entry->name));
+    if (text != entry->name)
+        copy_string(entry->name, text, sizeof(entry->name));
+}
+
 void enumerate_mmu_entries(void)
 {
     struct MinList *list;
@@ -396,13 +425,8 @@ void enumerate_mmu_entries(void)
         if (DOSBase && DOSBase->dl_lib.lib_Version >= 37) {
             if ((MMUBase = open_mmu_library())) {
 
-                if (reserve_software(&mmu_list, 1)) {
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s: %lukB.",
-                             get_string(MSG_MMU_SIZE),
-                             (unsigned long)(GetPageSize(NULL) / 1024));
-                    mmu_list.count++;
-                }
+                if (reserve_software(&mmu_list, 1))
+                    add_mmu_text(MSG_MMU_SIZE, GetPageSize(NULL) / 1024);
                 /* Get the mapping of the default context */
                 list = GetMapping(NULL);
                 for (mn = list ? (struct MappingNode *)(list->mlh_Head) : NULL;
@@ -551,38 +575,16 @@ void enumerate_mmu_entries(void)
                 }
                 /* Append hint entries at end of list */
                 if (reserve_software(&mmu_list, 8)) {
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_ADDRESS_HINT));
-                    mmu_list.count++;
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_FLAGS1_HINT));
-                    mmu_list.count++;
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_FLAGS2_HINT));
-                    mmu_list.count++;
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_FLAGS3_HINT));
-                    mmu_list.count++;
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_FLAGS4_HINT));
-                    mmu_list.count++;
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_FLAGS5_HINT));
-                    mmu_list.count++;
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_FLAGS6_HINT));
-                    mmu_list.count++;
-                    entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",
-                             get_string(MSG_MMU_FLAGS7_HINT));
-                    mmu_list.count++;
+                    static const LocaleStringID hints[] = {
+                        MSG_MMU_ADDRESS_HINT, MSG_MMU_FLAGS1_HINT,
+                        MSG_MMU_FLAGS2_HINT, MSG_MMU_FLAGS3_HINT,
+                        MSG_MMU_FLAGS4_HINT, MSG_MMU_FLAGS5_HINT,
+                        MSG_MMU_FLAGS6_HINT, MSG_MMU_FLAGS7_HINT
+                    };
+                    ULONG h;
+
+                    for (h = 0; h < sizeof(hints) / sizeof(hints[0]); h++)
+                        add_mmu_text(hints[h], 0);
                 }
 
                 CloseLibrary((struct Library *)MMUBase);
@@ -761,7 +763,7 @@ static void detect_graphics_system(void)
     case IDGOS_PRISMRTG:  name = "PrismRTG"; break;
     default:
         system_software.graphics_system_id = IDGOS_AMIGAOS;
-        name = get_string(MSG_NATIVE_GRAPHICS);
+        name = get_builtin_string(MSG_NATIVE_GRAPHICS);
         break;
     }
     copy_string(text, name, size);
