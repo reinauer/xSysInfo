@@ -1657,34 +1657,34 @@ void generate_comment(void)
 {
     const char *comment;
     if (bench_results.benchmarks_valid) {
-        comment = get_string(MSG_COMMENT_DEFAULT); // slower than a stock A500!
+        comment = get_builtin_string(MSG_COMMENT_DEFAULT); // slower than a stock A500!
 
         if (bench_results.dhrystones > 980) {
-            comment = get_string(MSG_COMMENT_CLASSIC);
+            comment = get_builtin_string(MSG_COMMENT_CLASSIC);
         }
         if (bench_results.dhrystones > 1300) {
-            comment = get_string(MSG_COMMENT_GOOD);
+            comment = get_builtin_string(MSG_COMMENT_GOOD);
         }
         if (bench_results.dhrystones > 2000) { // 68020@14 MHz should be here
-            comment = get_string(MSG_COMMENT_FAST);
+            comment = get_builtin_string(MSG_COMMENT_FAST);
         }
         if (bench_results.dhrystones > 7000) { // 68030@25 MHz should be here
-            comment = get_string(MSG_COMMENT_VERY_FAST);
+            comment = get_builtin_string(MSG_COMMENT_VERY_FAST);
         }
         if (bench_results.dhrystones > 30000) { // 68040@25 MHz should be here
-            comment = get_string(MSG_COMMENT_BLAZING);
+            comment = get_builtin_string(MSG_COMMENT_BLAZING);
         }
         if (bench_results.dhrystones > 80000) { // 68060@ 50 MHz should be here
-            comment = get_string(MSG_COMMENT_RIDICULOUS);
+            comment = get_builtin_string(MSG_COMMENT_RIDICULOUS);
         }
         if (bench_results.dhrystones > 130000) { // 68060>75Mhz should be here
-            comment = get_string(MSG_COMMENT_LUDICROUS);
+            comment = get_builtin_string(MSG_COMMENT_LUDICROUS);
         }
         if (bench_results.dhrystones > 200000) { // this is more than a 68060@100MHz -> "new CPU"
-            comment = get_string(MSG_COMMENT_WARP11);
+            comment = get_builtin_string(MSG_COMMENT_WARP11);
         }
     } else {
-        comment = get_string(MSG_NA);
+        comment = get_builtin_string(MSG_NA);
     }
 
     copy_string(hw_info.comment, comment, sizeof(hw_info.comment));

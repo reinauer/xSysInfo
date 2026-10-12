@@ -157,14 +157,14 @@ void detect_amiga_model(void)
     STRPTR model = NULL;
 
     hw_info.amiga_model_id = ~0UL;
-    copy_string(hw_info.amiga_model_string, get_string(MSG_NA),
+    copy_string(hw_info.amiga_model_string, get_builtin_string(MSG_NA),
                 sizeof(hw_info.amiga_model_string));
 
     if (!IdentifyBase) {
         return;
     }
 
-    copy_string(hw_info.amiga_model_string, get_string(MSG_UNKNOWN),
+    copy_string(hw_info.amiga_model_string, get_builtin_string(MSG_UNKNOWN),
                 sizeof(hw_info.amiga_model_string));
 
     hw_info.amiga_model_id = IdHardwareNumTags(IDHW_SYSTEM, TAG_DONE);
@@ -249,8 +249,7 @@ static void set_emu68_cpu_revision(DeviceTreeBaseCompat *dt)
     char revision[sizeof(hw_info.cpu_revision)];
     ULONG i;
 
-    copy_string(hw_info.cpu_revision, get_string(MSG_NA),
-                sizeof(hw_info.cpu_revision));
+    hw_info.cpu_revision[0] = '\0';
     hw_info.cpu_rev = (UWORD)-1;
 
     if (!dt || !dt->root) return;
@@ -427,7 +426,7 @@ void detect_cpu(void)
             else
             {
                 snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "%s",
-                         get_string(MSG_UNKNOWN));
+                         get_builtin_string(MSG_UNKNOWN));
                 hw_info.cpu_type = CPU_UNKNOWN;
             }
         }
@@ -446,8 +445,7 @@ void detect_cpu(void)
     }
     else {
         hw_info.cpu_rev = -1;
-        snprintf(hw_info.cpu_revision, sizeof(hw_info.cpu_revision), "%s",
-                 get_string(MSG_NA));
+        hw_info.cpu_revision[0] = '\0';
     }
 }
 
@@ -526,7 +524,7 @@ void detect_fpu(void)
 
     //is there any fpu?
     if ((attnFlags & ((UWORD)AFF_68881|(UWORD)AFF_FPU40)) == 0) { //No FPU
-        copy_string(hw_info.fpu_string, get_string(MSG_NONE),
+        copy_string(hw_info.fpu_string, get_builtin_string(MSG_NONE),
                     sizeof(hw_info.fpu_string));
         hw_info.fpu_type = FPU_NONE;
         if (hw_info.cpu_type == CPU_68040) {
@@ -598,7 +596,7 @@ void detect_mmu(void)
     hw_info.mmu_present = FALSE;
     hw_info.mmu_translation = MMU_TRANSLATION_UNKNOWN;
     hw_info.mmu_type = MMU_NONE;
-    copy_string(hw_info.mmu_string, get_string(MSG_NA),
+    copy_string(hw_info.mmu_string, get_builtin_string(MSG_NA),
                 sizeof(hw_info.mmu_string));
 
     // first: try mmu.lib
@@ -672,7 +670,7 @@ void detect_mmu(void)
                     break;
                 default:
                     hw_info.mmu_type = MMU_NONE;
-                    copy_string(hw_info.mmu_string, get_string(MSG_NA),
+                    copy_string(hw_info.mmu_string, get_builtin_string(MSG_NA),
                                 sizeof(hw_info.mmu_string));
                     break;
                 }
@@ -731,31 +729,31 @@ void detect_mmu(void)
             {
             case CPU_68EC020:
             case CPU_68020:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68851 (%s)", get_string(MSG_UNCERTAIN));
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68851 (%s)", get_builtin_string(MSG_UNCERTAIN));
                 hw_info.mmu_type = MMU_68851;
                 break;
             case CPU_68EC030:
             case CPU_68030:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68030 (%s)", get_string(MSG_UNCERTAIN));
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68030 (%s)", get_builtin_string(MSG_UNCERTAIN));
                 hw_info.mmu_type = MMU_68030;
                 break;
             case CPU_68LC040:
             case CPU_68040:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68040 (%s)", get_string(MSG_UNCERTAIN));
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68040 (%s)", get_builtin_string(MSG_UNCERTAIN));
                 hw_info.mmu_type = MMU_68040;
                 break;
             case CPU_68LC060:
             case CPU_68EC060:
             case CPU_68060:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060 (%s)", get_string(MSG_UNCERTAIN));
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060 (%s)", get_builtin_string(MSG_UNCERTAIN));
                 hw_info.mmu_type = MMU_68060;
                 break;
             case CPU_68080:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68080 (%s)", get_string(MSG_UNCERTAIN));
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68080 (%s)", get_builtin_string(MSG_UNCERTAIN));
                 hw_info.mmu_type = MMU_68080;
                 break;
             default:
-                copy_string(hw_info.mmu_string, get_string(MSG_UNKNOWN),
+                copy_string(hw_info.mmu_string, get_builtin_string(MSG_UNKNOWN),
                             sizeof(hw_info.mmu_string));
                 hw_info.mmu_type = MMU_UNKNOWN;
                 break;
@@ -1175,13 +1173,13 @@ void detect_clock(void)
         val &= RTC_MASK;
         if (val == 0b0100) {
             hw_info.clock_type = CLOCK_MSM6242;
-            copy_string(hw_info.clock_string, get_string(MSG_MSM6242B),
+            copy_string(hw_info.clock_string, get_builtin_string(MSG_MSM6242B),
                         sizeof(hw_info.clock_string));
             return;
         }
         if (val > 0) { //when val is not 0 we have no RTC!
             hw_info.clock_type = CLOCK_NONE;
-            copy_string(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
+            copy_string(hw_info.clock_string, get_builtin_string(MSG_CLOCK_NOT_FOUND),
                         sizeof(hw_info.clock_string));
             return;
         }
@@ -1203,7 +1201,7 @@ void detect_clock(void)
                 val &= RTC_MASK;
                 if (val ==1 ) { // bingo! RP5C01A
                     hw_info.clock_type = CLOCK_RP5C01;
-                    copy_string(hw_info.clock_string, get_string(MSG_RP5C01A),
+                    copy_string(hw_info.clock_string, get_builtin_string(MSG_RP5C01A),
                                 sizeof(hw_info.clock_string));
                     return;
                 }
@@ -1235,7 +1233,7 @@ void detect_clock(void)
                 BCD_OK(h, 0, 23) && dw >= 1 && dw <= 7 &&
                 BCD_OK(dt, 1, 31) && BCD_OK(mo, 1, 12)) {
                 hw_info.clock_type = CLOCK_MK48T02;
-                copy_string(hw_info.clock_string, get_string(MSG_MK48T02),
+                copy_string(hw_info.clock_string, get_builtin_string(MSG_MK48T02),
                             sizeof(hw_info.clock_string));
                 return;
             }
@@ -1245,7 +1243,7 @@ void detect_clock(void)
 
     // if we drop here, we found no clock
     hw_info.clock_type = CLOCK_NONE;
-    copy_string(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
+    copy_string(hw_info.clock_string, get_builtin_string(MSG_CLOCK_NOT_FOUND),
                 sizeof(hw_info.clock_string));
     return;
 }
@@ -1798,14 +1796,14 @@ void detect_system_chips(void)
     hw_info.has_zorro_slots = FALSE;
     hw_info.has_pcmcia = FALSE;
     snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-             "%s", get_string(MSG_NA));
+             "%s", get_builtin_string(MSG_NA));
 
     /* Prefer real hardware: if card.resource exists, PCMCIA is present */
     debug("    systemchips: Checking card.resource...\n");
     if (OpenResource((CONST_STRPTR)"card.resource") != NULL) {
         hw_info.has_pcmcia = TRUE;
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                 "%s", get_string(MSG_SLOT_PCMCIA));
+                 "%s", get_builtin_string(MSG_SLOT_PCMCIA));
         debug("    systemchips: card.resource found, using PCMCIA\n");
         return;
     }
@@ -1821,7 +1819,7 @@ void detect_system_chips(void)
         /* A3000/A4000 have Fatz Gary - these have Zorro III slots */
         hw_info.has_zorro_slots = TRUE;
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                 "%s", get_string(MSG_ZORRO_III));
+                 "%s", get_builtin_string(MSG_ZORRO_III));
         debug("    systemchips: Fat Gary detected, using Zorro III\n");
         return;
     }
@@ -1830,7 +1828,7 @@ void detect_system_chips(void)
         /* A600 A1200 have a Gayle chip with ID*/
         hw_info.has_pcmcia = TRUE;
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                "%s", get_string(MSG_SLOT_PCMCIA));
+                "%s", get_builtin_string(MSG_SLOT_PCMCIA));
         debug("    systemchips: Gayle detected, using PCMCIA\n");
         return;
     }
@@ -1842,11 +1840,11 @@ void detect_system_chips(void)
          * ZORRO. The German A2000-A is mislabelled by this
          * (same chipset, real Zorro II slots), accepted as a corner case. */
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                 "%s", get_string(MSG_SLOT_ZORRO));
+                 "%s", get_builtin_string(MSG_SLOT_ZORRO));
         debug("    systemchips: A1000 Gary detected, using Zorro\n");
     } else {
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                 "%s", get_string(MSG_ZORRO_II));
+                 "%s", get_builtin_string(MSG_ZORRO_II));
         debug("    systemchips: Gary type %ld, using Zorro II\n",
               (long)hw_info.gary_type);
     }
@@ -1863,11 +1861,11 @@ void detect_frequencies(void)
 
     if (hw_info.is_pal) {
         hw_info.horiz_freq = 15625;     /* 15.625 kHz */
-        copy_string(hw_info.mode_string, get_string(MSG_MODE_PAL),
+        copy_string(hw_info.mode_string, get_builtin_string(MSG_MODE_PAL),
                     sizeof(hw_info.mode_string));
     } else {
         hw_info.horiz_freq = 15734;     /* 15.734 kHz */
-        copy_string(hw_info.mode_string, get_string(MSG_MODE_NTSC),
+        copy_string(hw_info.mode_string, get_builtin_string(MSG_MODE_NTSC),
                     sizeof(hw_info.mode_string));
     }
 

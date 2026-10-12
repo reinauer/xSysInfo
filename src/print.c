@@ -343,8 +343,7 @@ static void export_hardware(ReportOutput *fh)
         format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
         if (hw_info.cpu_mhz)
             snprintf(frequency, sizeof(frequency), " %s MHz", mhz_buf);
-        if (hw_info.cpu_revision[0] != '\0' &&
-            strcmp(hw_info.cpu_revision, "N/A") != 0) {
+        if (hw_info.cpu_revision[0] != '\0') {
             snprintf(buffer, sizeof(buffer), "%s (%s)%s",
                      hw_info.cpu_string, hw_info.cpu_revision, frequency);
         } else {
@@ -570,8 +569,10 @@ static void export_software(ReportOutput *fh)
     /* MMU entries */
     WRITE_LINE(fh, "--- MMU Entries ---");
     for (i = 0; i < mmu_list.count; i++) {
-        SoftwareEntry *e = &mmu_list.entries[i];
-        write_formatted(fh, "%s", e->name);
+        char text[sizeof(mmu_list.entries[i].name)];
+
+        write_formatted(fh, "%s",
+            software_entry_text(&mmu_list.entries[i], text, sizeof(text)));
     }
     WRITE_LINE(fh, "");
 }
@@ -881,10 +882,22 @@ static BOOL emit_report(ReportFormat format, ReportOutput *out)
     return !out->failed;
 }
 
+/* Reports are written in English whatever catalog the GUI uses: they
+ * are read by other people, and detection stored built-in text. */
+static BOOL emit_english_report(ReportFormat format, ReportOutput *out)
+{
+    BOOL ok;
+
+    locale_set_builtin_only(TRUE);
+    ok = emit_report(format, out);
+    locale_set_builtin_only(FALSE);
+    return ok;
+}
+
 BOOL export_report_to_handle(BPTR fh, ReportFormat format)
 {
     ReportOutput out = { write_file, &fh, FALSE };
-    return fh && emit_report(format, &out);
+    return fh && emit_english_report(format, &out);
 }
 
 typedef struct {
@@ -927,7 +940,7 @@ BOOL create_report(ReportText *report, ReportFormat format)
     ULONG i, line = 0;
     char *start;
 
-    if (!emit_report(format, &out)) goto failed;
+    if (!emit_english_report(format, &out)) goto failed;
     for (i = 0; i < buffer.length; i++)
         if (buffer.text[i] == '\n') result.count++;
     if (!result.count || result.count > LONG_MAX / sizeof(char *)) goto failed;
