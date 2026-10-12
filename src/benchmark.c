@@ -12,6 +12,8 @@
 #include <exec/memory.h>
 #include <devices/timer.h>
 #include <hardware/cia.h>
+#include <hardware/custom.h>
+#include <hardware/dmabits.h>
 #include <mmu/context.h>
 
 #include <proto/exec.h>
@@ -1404,12 +1406,8 @@ static ULONG mem_run(void *ctx, ULONG iterations)
     return m->speed ? elapsed_us : 0;
 }
 
-/*
- * Measure memory read speed for a given address range
- * Returns speed in bytes per second
- */
-ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size,
-                             ULONG iterations)
+static ULONG measure_mem_read_speed_now(volatile ULONG *src,
+                                        ULONG buffer_size, ULONG iterations)
 {
     struct mem_run m = { src, buffer_size, 0 };
     ULONG elapsed_us;
@@ -1427,6 +1425,47 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size,
                      MEM_SPEED_MAX_ITERATIONS, MEM_SPEED_TARGET_US,
                      &elapsed_us);
     return m.speed;
+}
+
+/* Chip RAM shares its bus with the display. Bitplane and sprite DMA take
+ * a share that depends on the screen mode in front, so a reading with
+ * the display on compares screens, not machines. Measure Chip RAM with
+ * that DMA off; the bitmaps stay intact and the view returns afterwards.
+ * Copper, audio and disk DMA keep running; their share is negligible. */
+#define DISPLAY_DMA (DMAF_RASTER | DMAF_SPRITE)
+
+static BOOL chip_memory(volatile ULONG *src)
+{
+    return hw_info.agnus_type != AGNUS_UNKNOWN &&
+           (TypeOfMem(mmu_physical_address((APTR)src)) & MEMF_CHIP) != 0;
+}
+
+/*
+ * Measure memory read speed for a given address range
+ * Returns speed in bytes per second
+ */
+ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size,
+                             ULONG iterations)
+{
+    volatile struct Custom *hw = (volatile struct Custom *)0xdff000;
+    ULONG speed, live = 0;
+    UWORD dma;
+
+    if (!chip_memory(src))
+        return measure_mem_read_speed_now(src, buffer_size, iterations);
+
+    if (g_debug_enabled)
+        live = measure_mem_read_speed_now(src, buffer_size, iterations);
+
+    dma = hw->dmaconr & DISPLAY_DMA;
+    hw->dmacon = DISPLAY_DMA;
+    speed = measure_mem_read_speed_now(src, buffer_size, iterations);
+    hw->dmacon = DMAF_SETCLR | dma;
+
+    if (g_debug_enabled)
+        debug("  bench: chip RAM %lu B/s with display DMA $%04lx, "
+              "%lu B/s with it off\n", live, (ULONG)dma, speed);
+    return speed;
 }
 
 /*
