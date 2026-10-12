@@ -252,7 +252,10 @@ they behave like `SCREEN`, using the system's native PAL or NTSC mode.
     `openpci.library` for PCI device access.
 *   [MMULib.lha](https://aminet.net/util/libs/MMULib.lha): Supplies
     `mmu.library` and the 68020/68030/68040/68060 support libraries included
-    on the disk image.
+    on the disk image, plus its default `MMU-Configuration` and `GVPInit`.
+    The disk's `Prefs/Env-Archive/MMU-Configuration` ends with a `GVPInit`
+    line, which keeps affected GVP 040/060 boards from bursting into Zorro II
+    space; GVPInit does nothing on other machines.
 *   [MuManual.lha](https://aminet.net/docs/misc/MuManual.lha): Supplies MMU
     developer headers and function descriptions used to generate compiler
     bindings.

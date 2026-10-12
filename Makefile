@@ -28,6 +28,12 @@ MMU_DIR = $(DOWNLOAD_DIR)/MuManual
 MMU_LIB_DIR = $(DOWNLOAD_DIR)/MMULib/Libs
 MMU_LIB_NAMES = mmu 68020 68030 68040 68060
 MMU_LIBS = $(addprefix $(MMU_LIB_DIR)/,$(addsuffix .library,$(MMU_LIB_NAMES)))
+# The floppy carries MMULib's default MMU-Configuration plus GVPInit, which
+# keeps 040/060 GVP boards from bursting into Zorro II space. GVPInit only
+# acts on the GVP boards it finds through expansion.library.
+MMU_GVPINIT = $(DOWNLOAD_DIR)/MMULib/Install/GVPInit
+MMU_CONFIG = $(DOWNLOAD_DIR)/MMULib/EnvArc/MMU-Configuration
+MMU_FILES = $(MMU_LIBS) $(MMU_GVPINIT) $(MMU_CONFIG)
 FD2PRAGMA_TYPES = $(HOME)/.fd2pragma.types
 
 # Include paths for the downloaded developer files
@@ -474,7 +480,7 @@ $(MU_MANUAL_LHA): | $(DOWNLOAD_DIR)
 	fi
 # Extract individual MMU files once, retaining the archives' directory layout.
 # Refresh timestamps because archive members predate the downloaded archive.
-$(MMU_LIBS): $(MMULIB_LHA)
+$(MMU_FILES): $(MMULIB_LHA)
 	@echo "  UNPACK $@"
 	@mkdir -p $(dir $@)
 	@lha xqfw=$(DOWNLOAD_DIR) $< $(patsubst $(DOWNLOAD_DIR)/%,%,$@)
@@ -518,7 +524,7 @@ identify-release: $(FLEXCAT_BIN) $(MMU_SDK_FILES) $(OPENPCI_SDK_FILES) $(PCI_IDS
 		release
 
 # Download and prepare libraries and developer files.
-download-libs: $(OPENPCI_LHA) $(MMU_LIBS) $(MMU_SDK_FILES)
+download-libs: $(OPENPCI_LHA) $(MMU_FILES) $(MMU_SDK_FILES)
 	@mkdir -p 3rdparty/identify/build
 	# Extract OpenPCI library
 	@echo "  UNPACK $(OPENPCI_LHA)"
@@ -555,6 +561,9 @@ disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
 		$(LPACKER) $(MMU_LIB_DIR)/$$lib.library \
 			$(DISK_FILES_DIR)/Libs/$$lib.library -library -zx0; \
 	done
+	@{ cat $(MMU_CONFIG); \
+		printf '\n; Keep affected GVP 040/060 boards from bursting into Zorro II space.\n'; \
+		printf 'GVPInit\n'; } > $(DISK_FILES_DIR)/MMU-Configuration
 	@echo "  DISK"
 	@xdftool $(DISK) format "$(DISK_TITLE)"
 	@xdftool $(DISK) write $(DISK_FILES_DIR)/$(TARGET) $(TARGET)
@@ -564,6 +573,11 @@ disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
 	@set -e; for lib in identify openpci $(MMU_LIB_NAMES); do \
 		xdftool $(DISK) write $(DISK_FILES_DIR)/Libs/$$lib.library Libs/$$lib.library; \
 	done
+	@xdftool $(DISK) makedir Libs/mmu
+	@xdftool $(DISK) write $(MMU_GVPINIT) Libs/mmu/GVPInit
+	@xdftool $(DISK) makedir Prefs
+	@xdftool $(DISK) makedir Prefs/Env-Archive
+	@xdftool $(DISK) write $(DISK_FILES_DIR)/MMU-Configuration Prefs/Env-Archive/MMU-Configuration
 	@xdftool $(DISK) makedir S
 	@xdftool $(DISK) write Startup-Sequence S/Startup-Sequence
 	@xdftool $(DISK) write $(PCI_DB) S/pci.db
