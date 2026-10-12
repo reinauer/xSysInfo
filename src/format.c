@@ -171,6 +171,22 @@ static void format_agnus_value(char *buffer, size_t size)
             snprintf(buffer, size, "%s",
                   get_string(MSG_AGNUS_ECS_B_PAL));
             break;
+        case AGNUS_ECS_1MB_NTSC:
+            snprintf(buffer, size, "%s",
+                  get_string(MSG_AGNUS_ECS_1MB_NTSC));
+            break;
+        case AGNUS_ECS_1MB_PAL:
+            snprintf(buffer, size, "%s",
+                  get_string(MSG_AGNUS_ECS_1MB_PAL));
+            break;
+        case AGNUS_ECS_8375_NTSC:
+            snprintf(buffer, size, "%s",
+                  get_string(MSG_AGNUS_ECS_8375_NTSC));
+            break;
+        case AGNUS_ECS_8375_PAL:
+            snprintf(buffer, size, "%s",
+                  get_string(MSG_AGNUS_ECS_8375_PAL));
+            break;
         case AGNUS_ALICE_NTSC:
             snprintf(buffer, size, "%s Rev. %X",
                   get_string(MSG_AGNUS_ALICE_NTSC), (hw_info.agnus_rev&0xF));
