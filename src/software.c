@@ -14,9 +14,11 @@
 #include <exec/devices.h>
 #include <exec/resident.h>
 #include <exec/semaphores.h>
+#include <dos/dosextens.h>
 #include <libraries/identify.h>
 
 #include <proto/exec.h>
+#include <proto/dos.h>
 #include <proto/mmu.h>
 #include <proto/identify.h>
 
@@ -595,30 +597,197 @@ void enumerate_mmu_entries(void)
     Permit();
 }
 
+/* What PrismD publishes behind its "prism" semaphore (PrismRTG's prism.h,
+ * interface version 7). Only the fields up to release are read; the
+ * layout must stay in step with upstream. */
+struct PrismSemView {
+    struct SignalSemaphore ss;
+    UWORD version;
+    const char *boardName;
+    struct Task *task;
+    ULONG numModes;
+    APTR screenInfo;
+    APTR testBegin;
+    APTR testEnd;
+    APTR drawLock;
+    APTR logLevel;
+    const ULONG *boardFlags;
+    ULONG hwOps;
+    UBYTE numBoards;
+    const char *board2Name;
+    const ULONG *board2Flags;
+    ULONG board2HwOps;
+    ULONG vramKB[2];
+    APTR testBeginOn;
+    ULONG boardAddr[2];
+    UBYTE boardsSwapped;
+    const char *release;       /* version 7: "1.1b6" */
+    const char *releaseDate;
+};
+#define PRISM_SEM_RELEASE_VERSION 7
+
+static void append_text(char *buffer, size_t size, const char *text)
+{
+    size_t used = strlen(buffer);
+
+    if (used + 1 < size)
+        strncat(buffer, text, size - used - 1);
+}
+
+/* PrismRTG brings its own cybergraphics.library and Picasso96API.library,
+ * which identify.library reports as CyberGraphX or Picasso96. Its daemon
+ * PrismD publishes the "prism" semaphore while it runs; from interface
+ * version 7 that carries the release and the board name. Earlier
+ * PrismDs are named without a release. */
+/* PrismRTG's release and board from its semaphore (interface version 7
+ * on). Copied under Forbid, since PrismD can quit. */
+static void prismrtg_version(char *text, size_t size)
+{
+    struct PrismSemView *sem;
+    char release[16] = "", board[32] = "";
+
+    Forbid();
+    sem = (struct PrismSemView *)FindSemaphore((CONST_STRPTR)"prism");
+    if (sem && sem->version >= PRISM_SEM_RELEASE_VERSION) {
+        if (sem->release)
+            copy_string(release, sem->release, sizeof(release));
+        if (sem->boardName)
+            copy_string(board, sem->boardName, sizeof(board));
+    }
+    Permit();
+
+    if (release[0]) {
+        append_text(text, size, " ");
+        append_text(text, size, release);
+    }
+    /* The board only when the whole name fits; it has its own view. */
+    if (release[0] && board[0] &&
+        strlen(text) + strlen(board) + 3 < size) {
+        append_text(text, size, " (");
+        append_text(text, size, board);
+        append_text(text, size, ")");
+    }
+}
+
+/* The Picasso96 installer records the release ("3.6.3") as the first line
+ * of Picasso96/Version, which boot copies from ENVARC: to ENV:. Neither
+ * may exist, so DOS requesters are off while looking. */
+static BOOL picasso96_release(char *release, size_t size)
+{
+    static const char *const paths[] = {
+        "ENV:Picasso96/Version", "Picasso96:Version"
+    };
+    struct Process *proc = (struct Process *)FindTask(NULL);
+    APTR old_window = proc->pr_WindowPtr;
+    char line[16];
+    ULONG i, n;
+    BPTR fh;
+
+    release[0] = '\0';
+    proc->pr_WindowPtr = (APTR)-1;
+    for (i = 0; i < sizeof(paths) / sizeof(paths[0]) && !release[0]; i++) {
+        fh = Open((CONST_STRPTR)paths[i], MODE_OLDFILE);
+        if (!fh)
+            continue;
+        n = Read(fh, line, sizeof(line) - 1);
+        Close(fh);
+        if ((LONG)n <= 0)
+            continue;
+        line[n] = '\0';
+        /* Keep the leading "3.6.3"; anything else is not a release. */
+        for (n = 0; line[n] && strchr("0123456789.", line[n]); n++) {}
+        line[n] = '\0';
+        if (n && line[0] != '.')
+            copy_string(release, line, size);
+    }
+    proc->pr_WindowPtr = old_window;
+    return release[0] != '\0';
+}
+
+/* Version of a loaded library, for systems without a release number. */
+static BOOL library_version(const char *name, UWORD *version, UWORD *revision)
+{
+    struct Library *lib;
+
+    Forbid();
+    lib = (struct Library *)FindName(&SysBase->LibList, (CONST_STRPTR)name);
+    if (lib) {
+        *version = lib->lib_Version;
+        *revision = lib->lib_Revision;
+    }
+    Permit();
+    return lib != NULL;
+}
+
+static void append_library_version(char *text, size_t size,
+                                   const char *library, const char *label)
+{
+    UWORD version, revision;
+    char buffer[32];
+
+    if (!library_version(library, &version, &revision))
+        return;
+    snprintf(buffer, sizeof(buffer), " (%s %u.%u)", label, version, revision);
+    if (strlen(text) + strlen(buffer) < size)
+        append_text(text, size, buffer);
+}
+
+/*
+ * identify.library names the graphics system; the version comes from the
+ * system itself. PrismRTG and Picasso96 have release numbers; CyberGraphX
+ * only has its library versions, which are shown as such.
+ */
 static void detect_graphics_system(void)
 {
+    char *text = system_software.graphics_system;
+    size_t size = sizeof(system_software.graphics_system);
+    char release[16];
     const char *name;
 
     system_software.graphics_system_id = IdentifyBase ?
         IdHardwareNumTags(IDHW_GFXSYS, TAG_DONE) : IDGOS_AMIGAOS;
+
     switch (system_software.graphics_system_id) {
     case IDGOS_EGS:       name = "EGS"; break;
     case IDGOS_RETINA:    name = "Retina"; break;
     case IDGOS_GRAFFITI:  name = "Graffiti"; break;
     case IDGOS_TIGA:      name = "TIGA"; break;
     case IDGOS_PROBENCH:  name = "ProBench"; break;
-    case IDGOS_PICASSO:
+    case IDGOS_PICASSO:   name = "Picasso"; break;
     case IDGOS_PICASSO96: name = "Picasso96"; break;
     case IDGOS_CGX:       name = "CyberGraphX V2"; break;
     case IDGOS_CGX3:      name = "CyberGraphX V3"; break;
     case IDGOS_CGX4:      name = "CyberGraphX V4"; break;
+    case IDGOS_PRISMRTG:  name = "PrismRTG"; break;
     default:
         system_software.graphics_system_id = IDGOS_AMIGAOS;
         name = get_string(MSG_NATIVE_GRAPHICS);
         break;
     }
-    copy_string(system_software.graphics_system, name,
-                sizeof(system_software.graphics_system));
+    copy_string(text, name, size);
+
+    switch (system_software.graphics_system_id) {
+    case IDGOS_PRISMRTG:
+        prismrtg_version(text, size);
+        break;
+    case IDGOS_PICASSO96:
+        if (picasso96_release(release, sizeof(release))) {
+            append_text(text, size, " ");
+            append_text(text, size, release);
+        } else {
+            append_library_version(text, size, "rtg.library", "rtg");
+        }
+        break;
+    case IDGOS_CGX3:
+    case IDGOS_CGX4:
+        append_library_version(text, size, "cgxsystem.library", "cgx");
+        break;
+    case IDGOS_CGX:
+        append_library_version(text, size, "cybergraphics.library", "cgx");
+        break;
+    default:
+        break;
+    }
 }
 
 void detect_system_software(void)
