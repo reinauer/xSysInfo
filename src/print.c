@@ -510,11 +510,28 @@ static void export_hardware(ReportOutput *fh)
 /*
  * Export software lists
  */
+/* The overview rows of the System Software panel: OS, ROMs, Workbench,
+ * SetPatch, graphics system and PPC runtime. */
+static void export_software_overview(ReportOutput *out, BOOL colon)
+{
+    ULONG i;
+    char buffer[80], label[32];
+
+    for (i = 0; i < software_overview_count(); i++) {
+        snprintf(label, sizeof(label), "%s%s",
+                 get_string(software_overview_label(i)), colon ? ":" : "");
+        write_formatted(out, "%-16s %s", label,
+            format_software_overview_value(i, buffer, sizeof(buffer)));
+    }
+}
+
 static void export_software(ReportOutput *fh)
 {
     ULONG i;
 
     WRITE_LINE(fh, "=== SYSTEM SOFTWARE ===");
+    WRITE_LINE(fh, "");
+    export_software_overview(fh, TRUE);
     WRITE_LINE(fh, "");
 
     /* Libraries */
@@ -821,13 +838,10 @@ static void brief_hardware_row(const HardwareInfoRow *row, void *context)
 static void export_brief(ReportOutput *out)
 {
     ULONG i;
-    char buffer[80];
 
     visit_hardware_rows(HARDWARE_STD, brief_hardware_row, out);
     WRITE_LINE(out, "");
-    for (i = 0; i < software_overview_count(); i++)
-        write_formatted(out, "%-16s %s", get_string(software_overview_label(i)),
-            format_software_overview_value(i, buffer, sizeof(buffer)));
+    export_software_overview(out, FALSE);
     WRITE_LINE(out, "");
     export_benchmarks(out, FALSE);
     WRITE_LINE(out, "=== EXPANSION BOARDS ===");
