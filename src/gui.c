@@ -276,10 +276,138 @@ static WORD draw_tight_text(struct RastPort *rp, int x, int y,
     return finalX;
 }
 
+/* TightText() lets the ROM's Text() compose the line through a copy of the
+ * UI font whose advances are squeezed to the tight width. The copy shares
+ * the glyph data and kerning and only adds an advance table. Composing
+ * every glyph row in C costs several times as much on a 68000. One copy
+ * per space width covers the labels and the speed factors. */
+#define TIGHT_FONTS 2
+
+struct TightFont {
+    const struct TextFont *base;
+    WORD target;
+    WORD space;
+    UWORD entries;
+    WORD *advances;
+    struct TextFont font;
+};
+
+static struct TightFont tight_fonts[TIGHT_FONTS];
+/* Text() reads kerning for every proportional font. */
+static WORD *zero_kerning;
+static UWORD zero_kerning_entries;
+
+static struct TextFont *get_tight_font(struct RastPort *rp, int target,
+                                       int space)
+{
+    const struct TextFont *base = rp->Font;
+    const WORD *kerning = base->tf_CharKern;
+    BOOL proportional = (base->tf_Flags & FPF_PROPORTIONAL) &&
+                        base->tf_CharSpace;
+    struct TightFont *slot = NULL;
+    UWORD entries, i;
+    int n;
+
+    /* Only plain bitmap fonts have nothing beyond the TextFont header,
+     * and Text() would apply soft styles and spacing that TightText
+     * never did. */
+    if ((base->tf_Style & ~(FSF_UNDERLINED | FSF_BOLD | FSF_ITALIC |
+                            FSF_EXTENDED)) ||
+        rp->AlgoStyle || rp->TxSpacing)
+        return NULL;
+
+    for (n = 0; n < TIGHT_FONTS; n++) {
+        struct TightFont *tight = &tight_fonts[n];
+
+        if (tight->base == base && tight->target == target &&
+            tight->space == space)
+            return &tight->font;
+        if (!tight->base && !slot)
+            slot = tight;
+    }
+    if (!slot)
+        return NULL;
+
+    /* The last entry is the glyph for characters outside the font. */
+    entries = base->tf_HiChar - base->tf_LoChar + 2;
+    if (!kerning) {
+        if (!zero_kerning) {
+            zero_kerning = AllocMem(entries * sizeof(WORD),
+                                    MEMF_ANY | MEMF_CLEAR);
+            if (!zero_kerning)
+                return NULL;
+            zero_kerning_entries = entries;
+        }
+        if (zero_kerning_entries < entries)
+            return NULL;
+        kerning = zero_kerning;
+    }
+    slot->advances = AllocMem(entries * sizeof(WORD), MEMF_ANY);
+    if (!slot->advances)
+        return NULL;
+
+    for (i = 0; i < entries; i++) {
+        WORD advance = proportional ?
+                       kerning[i] + ((WORD *)base->tf_CharSpace)[i] :
+                       base->tf_XSize;
+
+        if (i + base->tf_LoChar == ' ')
+            advance = space;
+        else if (advance > target)
+            advance = target;
+        /* Text() moves by kerning plus space. */
+        slot->advances[i] = advance - kerning[i];
+    }
+
+    slot->font = *base;
+    slot->font.tf_Message.mn_ReplyPort = NULL;  /* no TextFontExtension */
+    slot->font.tf_Flags |= FPF_PROPORTIONAL;
+    slot->font.tf_CharSpace = slot->advances;
+    slot->font.tf_CharKern = (APTR)kerning;
+    slot->base = base;
+    slot->target = target;
+    slot->space = space;
+    slot->entries = entries;
+    return &slot->font;
+}
+
+static void free_tight_fonts(void)
+{
+    int n;
+
+    for (n = 0; n < TIGHT_FONTS; n++) {
+        if (tight_fonts[n].advances)
+            FreeMem(tight_fonts[n].advances,
+                    tight_fonts[n].entries * sizeof(WORD));
+    }
+    memset(tight_fonts, 0, sizeof(tight_fonts));
+    if (zero_kerning)
+        FreeMem(zero_kerning, zero_kerning_entries * sizeof(WORD));
+    zero_kerning = NULL;
+    zero_kerning_entries = 0;
+}
+
 void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str,
                int charGap, int spaceWidth)
 {
-    draw_tight_text(rp, x, y, str, charGap, spaceWidth, -1, FALSE);
+    struct TextFont *base = rp->Font;
+    struct TextFont *tight = NULL;
+    UBYTE mode = rp->DrawMode;
+    int space = TextLength(rp, (CONST_STRPTR)" ", 1);
+
+    if (spaceWidth > space)
+        spaceWidth = space;
+    if (charGap < 0 && !(mode & (COMPLEMENT | INVERSVID)))
+        tight = get_tight_font(rp, 8 + charGap, spaceWidth);
+    if (!tight) {
+        draw_tight_text(rp, x, y, str, charGap, spaceWidth, -1, FALSE);
+        return;
+    }
+
+    SetFont(rp, tight);
+    Move(rp, x, y);
+    Text(rp, str, strlen((const char *)str));
+    SetFont(rp, base);
 }
 
 /*
@@ -696,6 +824,7 @@ BOOL init_drawing(void)
 
 void cleanup_drawing(void)
 {
+    free_tight_fonts();
     if (drawing_template) {
         WaitBlit();
         FreeMem(drawing_template, DRAWING_TEMPLATE_SIZE);
