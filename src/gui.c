@@ -613,6 +613,24 @@ void update_button_states(void)
 }
 
 /*
+ * The main view's header and panels fill their own areas, so only the
+ * gaps between them need the background colour. Clearing the whole
+ * window first costs about 40 ms on a 68000 and flashes the panels.
+ */
+static void clear_main_view_gaps(void)
+{
+    struct RastPort *rp = app->rp;
+    WORD bottom = HARDWARE_PANEL_Y + HARDWARE_PANEL_H;
+
+    SetAPen(rp, COLOR_BACKGROUND);
+    RectFill(rp, 0, HEADER_HEIGHT, SCREEN_WIDTH - 1, SOFTWARE_PANEL_Y - 1);
+    RectFill(rp, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W, HARDWARE_PANEL_Y,
+             HARDWARE_PANEL_X - 1, bottom - 1);
+    if (app->screen_height > bottom)
+        RectFill(rp, 0, bottom, SCREEN_WIDTH - 1, app->screen_height - 1);
+}
+
+/*
  * Draw the current view
  */
 void redraw_current_view(void)
@@ -620,8 +638,12 @@ void redraw_current_view(void)
     struct RastPort *rp = app->rp;
 
     /* Clear background */
-    SetAPen(rp, COLOR_BACKGROUND);
-    RectFill(rp, 0, 0, SCREEN_WIDTH - 1, app->screen_height - 1);
+    if (app->current_view == VIEW_MAIN) {
+        clear_main_view_gaps();
+    } else {
+        SetAPen(rp, COLOR_BACKGROUND);
+        RectFill(rp, 0, 0, SCREEN_WIDTH - 1, app->screen_height - 1);
+    }
 
     update_button_states();
 
