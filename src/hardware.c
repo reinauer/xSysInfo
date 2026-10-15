@@ -572,6 +572,12 @@ struct Library *open_mmu_library(void)
 {
     BOOL patched;
 
+    /* A 68000 or 68010 has no MMU; skip loading about 50 KB of library. */
+    if (!(SysBase->AttnFlags & AFF_68020)) {
+        debug("    MMU: skipping mmu.library, no 68020 or later\n");
+        return NULL;
+    }
+
     Forbid();
     patched = FindSemaphore((CONST_STRPTR)"\253 SetPatch \273") != NULL;
     Permit();
