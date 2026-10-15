@@ -725,6 +725,52 @@ static BOOL is_rtg_mode(struct Screen *screen)
     return FALSE;
 }
 
+/* Check Workbench, or else the default public screen, without opening it.
+ * LockPubScreen() would open a closed Workbench, which takes about 44 KB of
+ * Chip RAM on a floppy boot. *found tells whether either screen was open. */
+static BOOL open_pub_screen_is_rtg(BOOL *found)
+{
+    UBYTE default_name[MAXPUBSCREENNAME + 1];
+    const char *names[2] = { "Workbench", (const char *)default_name };
+    struct List *list;
+    struct Node *node;
+    BOOL rtg = FALSE;
+    int i;
+
+    *found = FALSE;
+    GetDefaultPubScreen(default_name);
+    list = LockPubScreenList();
+    for (i = 0; i < 2; i++) {
+        for (node = list->lh_Head; node->ln_Succ; node = node->ln_Succ) {
+            struct PubScreenNode *pub = (struct PubScreenNode *)node;
+
+            if (node->ln_Name && !strcmp(node->ln_Name, names[i]) &&
+                pub->psn_Screen) {
+                rtg = is_rtg_mode(pub->psn_Screen);
+                *found = TRUE;
+                break;
+            }
+        }
+        if (node->ln_Succ)
+            break;
+    }
+    UnlockPubScreenList();
+    return rtg;
+}
+
+/* Picasso96 and CyberGraphX load these before Workbench opens. */
+static BOOL rtg_system_loaded(void)
+{
+    BOOL loaded;
+
+    Forbid();
+    loaded = FindName(&SysBase->LibList, (CONST_STRPTR)"rtg.library") ||
+             FindName(&SysBase->LibList,
+                      (CONST_STRPTR)"cybergraphics.library");
+    Permit();
+    return loaded;
+}
+
 /* Move away from the fullscreen close corner once the display is ready. */
 static void center_mouse_pointer(void)
 {
@@ -772,7 +818,6 @@ static BOOL open_display(void)
     struct NewScreen *newScreen;
     struct NewWindow *newWindow;
     struct TextAttr display_font;
-    struct Screen *wb_screen;
     BOOL use_window = FALSE;
     BOOL has_v36_intuition = (IntuitionBase->LibNode.lib_Version >= 36);
     BOOL loader_running;
@@ -800,14 +845,21 @@ static BOOL open_display(void)
     } else {
         /* AUTO mode - detect based on RTG */
         if (has_v36_intuition) {
-            wb_screen = LockPubScreen((CONST_STRPTR)"Workbench");
-            if (!wb_screen) {
-                wb_screen = LockPubScreen(NULL);  /* Default public screen */
-            }
+            BOOL found;
 
-            if (wb_screen) {
-                use_window = is_rtg_mode(wb_screen);
-                UnlockPubScreen(NULL, wb_screen);
+            use_window = open_pub_screen_is_rtg(&found);
+            /* A closed Workbench on an RTG system will open there, so open
+             * it to check, as before. Native systems keep the Chip RAM. */
+            if (!found && rtg_system_loaded()) {
+                struct Screen *wb_screen =
+                    LockPubScreen((CONST_STRPTR)"Workbench");
+
+                if (!wb_screen)
+                    wb_screen = LockPubScreen(NULL);
+                if (wb_screen) {
+                    use_window = is_rtg_mode(wb_screen);
+                    UnlockPubScreen(NULL, wb_screen);
+                }
             }
         } else if (wb_startup) {
             /* Get a copy of Workbench screen to check its mode */
