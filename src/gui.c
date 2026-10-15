@@ -4,10 +4,11 @@
 /*
  * xSysInfo - GUI rendering and event handling
  *
- * The TextLength() calls immediately before Move()/Text() are deliberate
- * workarounds for missing text on AmiKit/AfA_OS setups. Keep them even
- * when the width is unused or was measured earlier. Their necessity must
- * be checked on an affected setup before changing this call sequence.
+ * Text() takes a 16-bit count in d0, and ROM graphics.library ignores the
+ * upper half of the register. AfA_OS 4.8 (used by AmiKit) patches Text()
+ * and tests the whole register, skipping the call when it looks negative.
+ * Pass the count zero-extended in d0. The current NDK inlines do this; an
+ * older inline style that set only the low word made text vanish (#29).
  */
 
 #include <string.h>
@@ -949,7 +950,6 @@ void draw_button(Button *btn)
 
         SetAPen(rp, btn->enabled ? COLOR_TEXT : COLOR_PANEL_BG);
         SetBPen(rp, btn->enabled ? COLOR_PANEL_BG : COLOR_BUTTON_DARK);
-        TextLength(rp, (CONST_STRPTR)btn->label, text_len);
         Move(rp, text_x, text_y);
         Text(rp, (CONST_STRPTR)btn->label, text_len);
     }
@@ -982,11 +982,9 @@ void draw_cycle_button(Button *btn)
     text_y = btn->y + (btn->height - rp->TxHeight) / 2 + rp->TxBaseline;
 
     SetAPen(rp, shadow_text_color());
-    TextLength(rp, (CONST_STRPTR)">", 1);
     Move(rp, icon_x + 1, text_y + 1);
     Text(rp, (CONST_STRPTR)">", 1);
     SetAPen(rp, btn->enabled ? COLOR_HIGHLIGHT : COLOR_BACKGROUND);
-    TextLength(rp, (CONST_STRPTR)">", 1);
     Move(rp, icon_x, text_y);
     Text(rp, (CONST_STRPTR)">", 1);
 
@@ -996,11 +994,9 @@ void draw_cycle_button(Button *btn)
         text_x = btn->x + 14;  /* After icon */
 
         SetAPen(rp, shadow_text_color());
-        TextLength(rp, (CONST_STRPTR)btn->label, text_len);
         Move(rp, text_x + 1, text_y + 1);
         Text(rp, (CONST_STRPTR)btn->label, text_len);
         SetAPen(rp, btn->enabled ? COLOR_HIGHLIGHT : COLOR_BACKGROUND);
-        TextLength(rp, (CONST_STRPTR)btn->label, text_len);
         Move(rp, text_x, text_y);
         Text(rp, (CONST_STRPTR)btn->label, text_len);
     }
@@ -1122,7 +1118,6 @@ static void draw_text_span(WORD x, WORD y, const char *text, WORD len,
 
     SetAPen(rp, color);
     SetBPen(rp, COLOR_PANEL_BG);
-    TextLength(rp, (CONST_STRPTR)text, len);
     Move(rp, x, y);
     Text(rp, (CONST_STRPTR)text, len);
 }
@@ -2374,7 +2369,6 @@ static void show_status_overlay_centered(const char *message,
     /* Draw centered message */
     SetAPen(rp, COLOR_HIGHLIGHT);  /* White text in both palettes */
     SetBPen(rp, COLOR_BAR_YOU);
-    TextLength(rp, (CONST_STRPTR)message, text_len);
     Move(rp, dialog_x + (dialog_w - text_width) / 2, dialog_y + 16);
     Text(rp, (CONST_STRPTR)message, text_len);
 }
@@ -2451,7 +2445,6 @@ static void draw_requester_field(WORD field_x, WORD field_y, WORD field_w, WORD 
     if (filename[cursor_pos]) {
         SetAPen(rp, COLOR_BACKGROUND);
         SetBPen(rp, COLOR_TEXT);
-        TextLength(rp, (CONST_STRPTR)&filename[cursor_pos], 1);
         Move(rp, cursor_x, field_y + 10);
         Text(rp, (CONST_STRPTR)&filename[cursor_pos], 1);
     }
