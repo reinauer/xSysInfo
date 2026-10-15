@@ -787,7 +787,8 @@ static void draw_header(void)
     UWORD title_len;
     UWORD subtitle_len;
 
-    draw_panel(0, 0, 640, HEADER_HEIGHT, NULL);
+    /* The gradient or fill below covers everything inside the border. */
+    draw_3d_box(0, 0, SCREEN_WIDTH, HEADER_HEIGHT, FALSE);
 
     /* Title bar background with a dithered gradient, SysInfo-style */
     if (gradients_available()) {
@@ -846,9 +847,12 @@ void draw_panel(WORD x, WORD y, WORD w, WORD h, const char *title)
     struct RastPort *rp = app->rp;
     UWORD title_len;
 
-    /* Panel background */
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, x, y, x + w - 1, y + h - 1);
+    /* Panel background. A title strip fills its inside in its own colour
+     * below, and the border covers the outer edge. */
+    if (!title) {
+        SetAPen(rp, COLOR_PANEL_BG);
+        RectFill(rp, x, y, x + w - 1, y + h - 1);
+    }
 
     /* 3D border - top/left light */
     SetAPen(rp, COLOR_BUTTON_LIGHT);
