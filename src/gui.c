@@ -144,6 +144,7 @@ static void show_speed_status_overlay(const char *message);
 static const char *get_hardware_page_label(void);
 static void refresh_hardware_benchmark_rows(void);
 static void build_hardware_rows(void);
+static void invalidate_hardware_rows(void);
 static void add_hardware_buttons(void);
 
 /* Shared by gradients, the logo, and TightText's ink/coverage planes.
@@ -479,6 +480,7 @@ void main_view_handle_button(ButtonID id)
             Forbid();
             run_benchmarks();
             Permit();
+            invalidate_hardware_rows();
             hide_status_overlay();
             update_button_states();
             refresh_hardware_benchmark_rows();
@@ -1370,6 +1372,7 @@ static void update_hardware_text(void)
 {
     Button *hw_cycle_btn;
 
+    invalidate_hardware_rows();
     update_button_states();
     hw_cycle_btn = find_button(BTN_HARDWARE_CYCLE);
 
@@ -2053,11 +2056,28 @@ static void collect_hardware_row(const HardwareInfoRow *info, void *data)
     }
 }
 
+/* Formatting the rows takes about 35 ms on a 68000, so keep them across
+ * redraws. They change with the page, cache settings and benchmark
+ * results, which invalidate them; the clock page changes every second. */
+static BOOL hardware_rows_valid;
+static HardwareType hardware_rows_type;
+
+static void invalidate_hardware_rows(void)
+{
+    hardware_rows_valid = FALSE;
+}
+
 static void build_hardware_rows(void)
 {
+    if (hardware_rows_valid && hardware_rows_type == app->hardware_type &&
+        app->hardware_type != HARDWARE_CLOCK)
+        return;
+
     hardware_row_count = 0;
     visit_hardware_rows(app->hardware_type, collect_hardware_row, NULL);
     layout_hardware_rows();
+    hardware_rows_type = app->hardware_type;
+    hardware_rows_valid = TRUE;
 }
 
 /*
