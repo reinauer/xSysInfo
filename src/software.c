@@ -929,6 +929,134 @@ static BOOL installed_stack(char *text, size_t size)
     return found;
 }
 
+/* Whether start to end lies within one of Exec's memory regions, as every
+ * allocation does. Call it in Forbid(). */
+static BOOL within_ram(const UBYTE *start, const UBYTE *end)
+{
+    struct MemHeader *mh;
+
+    for (mh = (struct MemHeader *)SysBase->MemList.lh_Head;
+         (struct Node *)mh != (struct Node *)&SysBase->MemList.lh_Tail;
+         mh = (struct MemHeader *)mh->mh_Node.ln_Succ) {
+        /* mh_Upper is exclusive. */
+        if (start >= (const UBYTE *)mh->mh_Lower &&
+            end <= (const UBYTE *)mh->mh_Upper)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+/* LoadSeg() puts the allocation size in front of a segment's link, which
+ * BADDR(seg) points to; the hunk data follows the link. Only segments
+ * that lie in RAM are read, so a stray segment list cannot lead into
+ * ROM or unmapped space. */
+static BOOL segment_bounds(BPTR seg, const UBYTE **start, const UBYTE **end)
+{
+    const UBYTE *link = (const UBYTE *)BADDR(seg);
+    ULONG size;
+
+    if (!seg || !within_ram(link - 4, link + 4))
+        return FALSE;
+    size = ((const ULONG *)link)[-1];
+    if (size < 8 || size > 0x1000000 || !within_ram(link - 4, link - 4 + size))
+        return FALSE;
+    *start = link + 4;
+    *end = link - 4 + size;
+    return TRUE;
+}
+
+/* The program a process runs: the command of a CLI, or the segment list
+ * that Workbench or CreateNewProc() started the process with, which DOS
+ * keeps in the fourth entry of pr_SegList. The first entry is not a
+ * count to check against; it is 2 for most processes on OS 3.2. */
+static BPTR process_program(struct Task *task)
+{
+    struct Process *proc = (struct Process *)task;
+    BPTR *segs;
+
+    if (task->tc_Node.ln_Type != NT_PROCESS)
+        return 0;
+    if (proc->pr_CLI) {
+        struct CommandLineInterface *cli = BADDR(proc->pr_CLI);
+
+        if (cli->cli_Module)
+            return cli->cli_Module;
+    }
+    segs = BADDR(proc->pr_SegList);
+    return segs ? segs[3] : 0;
+}
+
+/* The program whose segments hold addr, among the processes that wait or
+ * are ready. Exec moves tasks between these lists from interrupts, so
+ * they are only copied with interrupts off; Forbid() keeps the programs
+ * loaded while their segments are compared. */
+static BPTR program_holding(const void *addr)
+{
+    enum { MAX_PROGRAMS = 128 };
+    struct List *lists[] = { &SysBase->TaskReady, &SysBase->TaskWait };
+    BPTR programs[MAX_PROGRAMS];
+    ULONG count = 0, i, n;
+
+    Disable();
+    for (i = 0; i < sizeof(lists) / sizeof(lists[0]); i++) {
+        struct Node *node;
+
+        for (node = lists[i]->lh_Head;
+             node->ln_Succ && count < MAX_PROGRAMS; node = node->ln_Succ) {
+            BPTR program = process_program((struct Task *)node);
+
+            if (program)
+                programs[count++] = program;
+        }
+    }
+    Enable();
+
+    for (i = 0; i < count; i++) {
+        const UBYTE *start, *end;
+        BPTR seg = programs[i];
+
+        for (n = 0; n < 64 && segment_bounds(seg, &start, &end); n++) {
+            if ((const UBYTE *)addr >= start && (const UBYTE *)addr < end)
+                return programs[i];
+            seg = *(BPTR *)BADDR(seg);
+        }
+    }
+    return 0;
+}
+
+/* The release in the $VER of the program whose segments hold addr, such
+ * as "3.2b" from "$VER: Miami 3.2b (09.11.98)". Call it in Forbid(), so
+ * the program cannot quit and unload while its segments are read. */
+static BOOL program_release(const void *addr, char *release, size_t size)
+{
+    BPTR seg = program_holding(addr);
+    const UBYTE *p, *end;
+    ULONG n;
+
+    for (n = 0; n < 64 && segment_bounds(seg, &p, &end);
+         n++, seg = *(BPTR *)BADDR(seg)) {
+        for (; p + 5 < end; p++) {
+            size_t len = 0;
+
+            if (p[0] != '$' || memcmp(p, "$VER:", 5))
+                continue;
+            /* Skip the program name to the release. */
+            for (p += 5; p < end && *p == ' '; p++) {}
+            for (; p < end && *p > ' '; p++) {}
+            for (; p < end && *p == ' '; p++) {}
+            if (p >= end || *p < '0' || *p > '9')
+                continue;
+            while (len < size - 1 && p + len < end && p[len] > ' ' &&
+                   p[len] != '(')
+                len++;
+            memcpy(release, p, len);
+            release[len] = '\0';
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 /*
  * Name the running TCP/IP stack from what it left in the library list.
  * Opening bsdsocket.library is avoided: it would start Roadshow, and
@@ -941,7 +1069,7 @@ static void detect_network_stack(void)
     struct Library *lib;
     UWORD version = 0, revision = 0, miami_version = 0, miami_revision = 0;
     BOOL found, miami, genesis;
-    char id[96] = "";
+    char id[96] = "", miami_release[16] = "";
 
     Forbid();
     lib = (struct Library *)FindName(&SysBase->LibList,
@@ -954,13 +1082,17 @@ static void detect_network_stack(void)
             copy_string(id, (const char *)lib->lib_IdString, sizeof(id));
     }
     /* Miami and MiamiDx create miami.library themselves; MiamiDx starts
-     * at version 21, Miami 3.2b is version 15. */
+     * at version 21, Miami 3.2b is version 15. Its ID string lies in the
+     * program, whose $VER has the release. */
     lib = (struct Library *)FindName(&SysBase->LibList,
                                      (CONST_STRPTR)"miami.library");
     miami = lib != NULL;
     if (lib) {
         miami_version = lib->lib_Version;
         miami_revision = lib->lib_Revision;
+        if (lib->lib_IdString)
+            program_release(lib->lib_IdString, miami_release,
+                            sizeof(miami_release));
     }
     /* Genesis runs an AmiTCP kernel; its program loads genesis.library. */
     genesis = FindName(&SysBase->LibList,
@@ -979,9 +1111,13 @@ static void detect_network_stack(void)
         copy_string(text, "Roadshow", size);
         append_release(text, size, id, "Roadshow ");
     } else if (miami) {
-        snprintf(text, size, "%s (miami %u.%u)",
-                 miami_version >= 21 ? "MiamiDx" : "Miami",
-                 miami_version, miami_revision);
+        const char *name = miami_version >= 21 ? "MiamiDx" : "Miami";
+
+        if (miami_release[0])
+            snprintf(text, size, "%s %s", name, miami_release);
+        else
+            snprintf(text, size, "%s (miami %u.%u)", name,
+                     miami_version, miami_revision);
     } else if (genesis) {
         snprintf(text, size, "Genesis (AmiTCP %u.%u)", version, revision);
     } else if (strstr(id, "AmiTCP")) {
