@@ -792,6 +792,210 @@ static void detect_graphics_system(void)
     }
 }
 
+/* Copy the version that follows prefix in id, such as "1.15" after
+ * "Roadshow ", into text after the product name. */
+static BOOL append_release(char *text, size_t size, const char *id,
+                           const char *prefix)
+{
+    const char *p = strstr(id, prefix);
+    char release[16];
+    size_t n = 0;
+
+    if (!p)
+        return FALSE;
+    p += strlen(prefix);
+    while (n < sizeof(release) - 1 &&
+           ((p[n] >= '0' && p[n] <= '9') || p[n] == '.'))
+        n++;
+    if (!n || p[0] == '.')
+        return FALSE;
+    memcpy(release, p, n);
+    release[n] = '\0';
+    append_text(text, size, " ");
+    append_text(text, size, release);
+    return TRUE;
+}
+
+/* A floppy's handler serves DF0: to DF3:. */
+static BOOL is_floppy_handler(struct MsgPort *port)
+{
+    static const char *const names[] = { "DF0", "DF1", "DF2", "DF3" };
+    struct DosList *dl;
+    BOOL floppy = FALSE;
+    ULONG i;
+
+    dl = LockDosList(LDF_DEVICES | LDF_READ);
+    for (i = 0; i < sizeof(names) / sizeof(names[0]) && !floppy; i++) {
+        struct DosList *entry = FindDosEntry(dl, (CONST_STRPTR)names[i],
+                                             LDF_DEVICES);
+        floppy = entry && entry->dol_Task == port;
+    }
+    UnLockDosList(LDF_DEVICES | LDF_READ);
+    return floppy;
+}
+
+/* Nobody runs a network stack from the floppy that boots xSysInfo, and
+ * reading LIBS: there would only cost time. */
+static BOOL libs_beyond_floppies(void)
+{
+    struct DevProc *dvp = NULL;
+    BOOL found = FALSE;
+
+    while (!found &&
+           (dvp = GetDeviceProc((CONST_STRPTR)"LIBS:", dvp)) != NULL)
+        found = !is_floppy_handler(dvp->dvp_Port);
+    if (dvp)
+        FreeDeviceProc(dvp);
+    return found;
+}
+
+/* TheWire13's library ID starts with this and goes on with the version of
+ * its bsdsocket.library, which TheWire13 releases number separately. */
+#define THEWIRE_ID "TheWire13 bsdsocket.library "
+
+static void thewire_name(char *text, size_t size, const char *id)
+{
+    copy_string(text, "TheWire13 (bsdsocket", size);
+    if (append_release(text, size, id, "bsdsocket.library "))
+        append_text(text, size, ")");
+    else
+        copy_string(text, "TheWire13", size);
+}
+
+/* Roadshow and TheWire13 keep bsdsocket.library in LIBS: and start when it
+ * is first opened. Read the file instead of opening it, which would start
+ * the stack. Other stacks create the library in memory when they start. */
+static BOOL installed_stack(char *text, size_t size)
+{
+    /* Room for one read after a string carried over from the last one. */
+    enum { CHUNK = 4096, BUFFER = 2 * CHUNK + 1 };
+    struct Process *proc = (struct Process *)FindTask(NULL);
+    APTR old_window = proc->pr_WindowPtr;
+    char *buffer;
+    LONG kept = 0, n;
+    BOOL found = FALSE;
+    BPTR fh = 0;
+
+    text[0] = '\0';
+    if (DOSBase->dl_lib.lib_Version < 36)
+        return FALSE;
+    buffer = AllocMem(BUFFER, MEMF_ANY);
+    if (!buffer)
+        return FALSE;
+    proc->pr_WindowPtr = (APTR)-1;
+    if (libs_beyond_floppies())
+        fh = Open((CONST_STRPTR)"LIBS:bsdsocket.library", MODE_OLDFILE);
+    while (fh && !found && (n = Read(fh, buffer + kept, CHUNK)) > 0) {
+        char *ver, *end;
+
+        n += kept;
+        buffer[n] = '\0';
+        /* Nul bytes end strstr(); search each string separately, and only
+         * strings that end within the data read so far. */
+        for (ver = buffer; ver < buffer + n; ver = end + 1) {
+            char *tag;
+
+            end = ver + strlen(ver);
+            if (end >= buffer + n)
+                break;
+            tag = strstr(ver, "$VER:");
+            if (tag && strstr(tag, "Roadshow ")) {
+                copy_string(text, "Roadshow", size);
+                found = append_release(text, size, tag, "Roadshow ");
+                if (found)
+                    break;
+            }
+            /* TheWire13 has no $VER; its library ID names the stack. The
+             * library's own version does not tell the release. */
+            if (strstr(ver, THEWIRE_ID)) {
+                copy_string(text, "TheWire13", size);
+                found = TRUE;
+                break;
+            }
+        }
+        /* Carry the string that goes on in the next read over from its
+         * start. A run longer than a read is no string; keep its end. */
+        kept = buffer + n - ver;
+        if (kept > CHUNK)
+            kept = CHUNK;
+        memmove(buffer, buffer + n - kept, kept);
+    }
+    if (fh)
+        Close(fh);
+    proc->pr_WindowPtr = old_window;
+    FreeMem(buffer, BUFFER);
+    if (!found)
+        text[0] = '\0';
+    return found;
+}
+
+/*
+ * Name the running TCP/IP stack from what it left in the library list.
+ * Opening bsdsocket.library is avoided: it would start Roadshow, and
+ * Miami can go online when an application opens it.
+ */
+static void detect_network_stack(void)
+{
+    char *text = system_software.network_stack;
+    size_t size = sizeof(system_software.network_stack);
+    struct Library *lib;
+    UWORD version = 0, revision = 0, miami_version = 0, miami_revision = 0;
+    BOOL found, miami, genesis;
+    char id[96] = "";
+
+    Forbid();
+    lib = (struct Library *)FindName(&SysBase->LibList,
+                                     (CONST_STRPTR)"bsdsocket.library");
+    found = lib != NULL;
+    if (lib) {
+        version = lib->lib_Version;
+        revision = lib->lib_Revision;
+        if (lib->lib_IdString)
+            copy_string(id, (const char *)lib->lib_IdString, sizeof(id));
+    }
+    /* Miami and MiamiDx create miami.library themselves; MiamiDx starts
+     * at version 21, Miami 3.2b is version 15. */
+    lib = (struct Library *)FindName(&SysBase->LibList,
+                                     (CONST_STRPTR)"miami.library");
+    miami = lib != NULL;
+    if (lib) {
+        miami_version = lib->lib_Version;
+        miami_revision = lib->lib_Revision;
+    }
+    /* Genesis runs an AmiTCP kernel; its program loads genesis.library. */
+    genesis = FindName(&SysBase->LibList,
+                       (CONST_STRPTR)"genesis.library") != NULL;
+    Permit();
+
+    text[0] = '\0';
+    system_software.network_not_running = FALSE;
+    if (!found) {
+        system_software.network_not_running = installed_stack(text, size);
+    } else if (!strncmp(id, "UAE ", 4)) {
+        snprintf(text, size, "UAE bsdsocket %u.%u", version, revision);
+    } else if (!strncmp(id, "TheWire13", 9)) {
+        thewire_name(text, size, id);
+    } else if (strstr(id, "Roadshow")) {
+        copy_string(text, "Roadshow", size);
+        append_release(text, size, id, "Roadshow ");
+    } else if (miami) {
+        snprintf(text, size, "%s (miami %u.%u)",
+                 miami_version >= 21 ? "MiamiDx" : "Miami",
+                 miami_version, miami_revision);
+    } else if (genesis) {
+        snprintf(text, size, "Genesis (AmiTCP %u.%u)", version, revision);
+    } else if (strstr(id, "AmiTCP")) {
+        copy_string(text, "AmiTCP", size);
+        append_release(text, size, id, "release ");
+        snprintf(text + strlen(text), size - strlen(text),
+                 " (bsdsocket %u.%u)", version, revision);
+    } else {
+        snprintf(text, size, "bsdsocket %u.%u", version, revision);
+    }
+    debug("  software: network stack '%s', bsdsocket id '%s'\n",
+          (ULONG)text, (ULONG)id);
+}
+
 void detect_system_software(void)
 {
     /* The version follows SignalSemaphore and the private patch MinList. */
@@ -858,6 +1062,7 @@ void detect_system_software(void)
           (ULONG)setpatch, (ULONG)system_software.setpatch_version,
           (ULONG)system_software.setpatch_revision);
     detect_graphics_system();
+    detect_network_stack();
 }
 
 /*

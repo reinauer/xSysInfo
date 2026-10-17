@@ -39,6 +39,8 @@ typedef struct {
     char os_name[48];
     ULONG graphics_system_id;  /* IDGOS_* */
     char graphics_system[32];
+    char network_stack[48];    /* empty when no stack was found */
+    BOOL network_not_running;  /* installed in LIBS:, but not loaded */
     BOOL has_workbench_version;
     UWORD workbench_version;
     UWORD workbench_revision;

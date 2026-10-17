@@ -1139,3 +1139,9 @@ Could not create report preview
 MSG_BTN_REPORT (//)
 REPORT
 ;
+MSG_NETWORK (//)
+Network
+;
+MSG_NOT_RUNNING (//)
+not running
+;
