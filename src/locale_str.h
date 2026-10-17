@@ -424,6 +424,10 @@ typedef enum {
     MSG_REPORT_FAILED,
     MSG_BTN_REPORT,
 
+    /* System software overview: network stack */
+    MSG_NETWORK,
+    MSG_NOT_RUNNING,
+
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

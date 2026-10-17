@@ -1032,3 +1032,9 @@ Não foi possível criar a pré-visualização
 MSG_BTN_REPORT
 RELAT.
 ;
+MSG_NETWORK
+Rede
+;
+MSG_NOT_RUNNING
+inativo
+;

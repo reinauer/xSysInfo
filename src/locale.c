@@ -429,7 +429,9 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_REPORT_FULL */ "Full",
     /* MSG_REPORT_SAVE_AS */ "Save as...",
     /* MSG_REPORT_FAILED */ "Could not create report preview",
-    /* MSG_BTN_REPORT */ "REPORT"
+    /* MSG_BTN_REPORT */ "REPORT",
+    /* MSG_NETWORK */ "Network",
+    /* MSG_NOT_RUNNING */ "not running"
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */
