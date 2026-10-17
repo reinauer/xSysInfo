@@ -1078,3 +1078,9 @@ Impossible de créer l'aperçu du rapport
 MSG_BTN_REPORT
 RAPPORT
 ;
+MSG_NETWORK
+Réseau
+;
+MSG_NOT_RUNNING
+inactif
+;

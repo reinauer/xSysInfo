@@ -112,9 +112,12 @@ Example output from `xSysInfo WHICH`:
 ### Graphical interface
 
 The System Software tile opens on an overview of the OS, physical
-ROM, active ROM, Workbench, SetPatch, and graphics system. Its cycle button
-opens the library, device, resource, and MMU lists. Total Chip and Fast RAM
-are shown in the hardware overview.
+ROM, Workbench, SetPatch, graphics system and network stack. The active ROM
+is listed when a ROM update replaced the Kickstart. The network stack row
+names a running Roadshow, AmiTCP, Genesis, Miami, MiamiDx, TheWire13 or
+UAE bsdsocket.library, and shows an installed Roadshow or TheWire13 as not
+running. Its cycle button opens the library, device, resource, and MMU
+lists. Total Chip and Fast RAM are shown in the hardware overview.
 
 Onboard NCR 53C710/53C770 controllers show their integrated DMA engine,
 SCSI ID, DMA burst length, sync period/offset, data width, and parity

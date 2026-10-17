@@ -261,46 +261,78 @@ static void format_gary_value(char *buffer, size_t size)
     }
 }
 
+enum {
+    ROW_OS, ROW_ROM, ROW_ACTIVE_ROM, ROW_WORKBENCH, ROW_SETPATCH,
+    ROW_GRAPHICS, ROW_NETWORK, ROW_PPC_RUNTIME
+};
+
 static const LocaleStringID software_labels[] = {
     MSG_OPERATING_SYSTEM, MSG_ROM, MSG_ACTIVE_ROM, MSG_WORKBENCH,
-    MSG_SETPATCH, MSG_GRAPHICS_SYSTEM, MSG_PPC_RUNTIME
+    MSG_SETPATCH, MSG_GRAPHICS_SYSTEM, MSG_NETWORK, MSG_PPC_RUNTIME
 };
+
+/* Active ROM only adds information when a ROM update replaced the
+ * Kickstart, and the PPC runtime only exists on PowerPC boards. */
+static ULONG software_overview_rows(UBYTE rows[SOFTWARE_OVERVIEW_MAX_ROWS])
+{
+    ULONG count = 0, kind;
+
+    for (kind = ROW_OS; kind <= ROW_PPC_RUNTIME; kind++) {
+        if (kind == ROW_ACTIVE_ROM &&
+            hw_info.kickstart_patch_version == hw_info.kickstart_version &&
+            hw_info.kickstart_patch_revision == hw_info.kickstart_revision)
+            continue;
+        if (kind == ROW_PPC_RUNTIME && !hw_info.ppc_runtime[0])
+            continue;
+        rows[count++] = (UBYTE)kind;
+    }
+    return count;
+}
+
+static ULONG software_overview_row(ULONG row)
+{
+    UBYTE rows[SOFTWARE_OVERVIEW_MAX_ROWS];
+
+    return row < software_overview_rows(rows) ? rows[row] : ROW_PPC_RUNTIME;
+}
 
 ULONG software_overview_count(void)
 {
-    return hw_info.ppc_runtime[0] ? 7 : 6;
+    UBYTE rows[SOFTWARE_OVERVIEW_MAX_ROWS];
+
+    return software_overview_rows(rows);
 }
 
 LocaleStringID software_overview_label(ULONG row)
 {
-    return row < 7 ? software_labels[row] : MSG_NA;
+    return software_labels[software_overview_row(row)];
 }
 
 const char *format_software_overview_value(ULONG row, char *buffer,
                                            size_t size)
 {
-    switch (row) {
-    case 0:
+    switch (software_overview_row(row)) {
+    case ROW_OS:
         return system_software.os_name[0] ? system_software.os_name :
                get_string(MSG_UNKNOWN_OS);
-    case 1:
+    case ROW_ROM:
         snprintf(buffer, size, "%u.%u (%lu KB)",
                  hw_info.kickstart_version, hw_info.kickstart_revision,
                  (unsigned long)hw_info.kickstart_size);
         return buffer;
-    case 2:
+    case ROW_ACTIVE_ROM:
         snprintf(buffer, size, "%u.%u",
                  hw_info.kickstart_patch_version,
                  hw_info.kickstart_patch_revision);
         return buffer;
-    case 3:
+    case ROW_WORKBENCH:
         if (!system_software.has_workbench_version)
             return get_string(MSG_NA);
         snprintf(buffer, size, "%u.%u",
                  system_software.workbench_version,
                  system_software.workbench_revision);
         return buffer;
-    case 4:
+    case ROW_SETPATCH:
         if (!system_software.has_setpatch_version)
             return get_string(MSG_NA);
         if (system_software.is_tinysetpatch)
@@ -314,8 +346,16 @@ const char *format_software_overview_value(ULONG row, char *buffer,
                      system_software.setpatch_version,
                      system_software.setpatch_revision);
         return buffer;
-    case 5:
+    case ROW_GRAPHICS:
         return localize_builtin(system_software.graphics_system);
+    case ROW_NETWORK:
+        if (!system_software.network_stack[0])
+            return get_string(MSG_NONE);
+        if (!system_software.network_not_running)
+            return system_software.network_stack;
+        snprintf(buffer, size, "%s (%s)", system_software.network_stack,
+                 get_string(MSG_NOT_RUNNING));
+        return buffer;
     default:
         return hw_info.ppc_runtime;
     }

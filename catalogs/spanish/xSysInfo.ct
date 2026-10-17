@@ -1079,3 +1079,9 @@ No se pudo crear la vista previa del informe
 MSG_BTN_REPORT
 INFORME
 ;
+MSG_NETWORK
+Red
+;
+MSG_NOT_RUNNING
+inactivo
+;
