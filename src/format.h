@@ -9,7 +9,7 @@
 #include "boards.h"
 
 #define MAX_HARDWARE_INFO_ROWS 64
-#define SOFTWARE_OVERVIEW_MAX_ROWS 7
+#define SOFTWARE_OVERVIEW_MAX_ROWS 8
 
 /* Values are valid only during the visitor call. Groups keep related rows
  * together; detail marks subordinate fields. Frontends choose the layout. */

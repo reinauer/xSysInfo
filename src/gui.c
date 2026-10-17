@@ -135,6 +135,8 @@ static void draw_bottom_buttons(void);
 static void draw_cache_buttons(void);
 static void clear_buttons(void);
 static void update_software_list(BOOL clear_content);
+static ULONG software_row_count(void);
+static BOOL software_panel_scrolls(void);
 static void update_hardware_text(void);
 static void refresh_all_cache_buttons(void);
 static void show_status_overlay_centered(const char *message,
@@ -424,15 +426,15 @@ void main_view_update_buttons(void)
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
                SOFTWARE_PANEL_Y + 15, 12, 10,
                NULL, BTN_SOFTWARE_UP,
-               app->software_type != SOFTWARE_OVERVIEW);
+               software_panel_scrolls());
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
                SOFTWARE_PANEL_Y + 15 + 10, 12, SOFTWARE_PANEL_H - 15 - 10 - 12,
                NULL, BTN_SOFTWARE_SCROLLBAR,
-               app->software_type != SOFTWARE_OVERVIEW);
+               software_panel_scrolls());
     add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
                SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 12, 12, 10,
                NULL, BTN_SOFTWARE_DOWN,
-               app->software_type != SOFTWARE_OVERVIEW);
+               software_panel_scrolls());
 
     /* Scale toggle button */
     add_button(SPEED_PANEL_X + SPEED_PANEL_W -
@@ -557,12 +559,10 @@ void main_view_handle_button(ButtonID id)
             break;
 
         case BTN_SOFTWARE_DOWN:
-            {
-                SoftwareList *list = get_software_list(app->software_type);
-                if (list && app->software_scroll < (LONG)list->count - SOFTWARE_LIST_LINES) {
-                    app->software_scroll++;
-                    update_software_list(FALSE);
-                }
+            if (app->software_scroll <
+                (LONG)software_row_count() - SOFTWARE_LIST_LINES) {
+                app->software_scroll++;
+                update_software_list(FALSE);
             }
             break;
 
@@ -1384,18 +1384,50 @@ static void update_hardware_text(void)
     draw_hardware_panel_contents();
 }
 
+/* Rows in the software panel: the selected list, or the overview. */
+static ULONG software_row_count(void)
+{
+    SoftwareList *list = get_software_list(app->software_type);
+
+    if (app->software_type == SOFTWARE_OVERVIEW)
+        return software_overview_count();
+    return list ? list->count : 0;
+}
+
+/* The overview fits the panel unless a ROM update and a PPC board add
+ * rows; only then does it scroll like the lists. */
+static BOOL software_panel_scrolls(void)
+{
+    if (app->software_type == SOFTWARE_OVERVIEW)
+        return software_overview_count() > SOFTWARE_LIST_LINES;
+    return get_software_list(app->software_type) != NULL;
+}
+
 static void draw_software_overview(void)
 {
+    struct RastPort *rp = app->rp;
     char buffer[80];
-    ULONG row;
+    ULONG row, last, count = software_overview_count();
     WORD y = SOFTWARE_PANEL_Y + 22;
+    WORD right = SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4;
 
-    for (row = 0; row < software_overview_count(); row++) {
+    row = 0;
+    if (count > SOFTWARE_LIST_LINES) {
+        /* Leave the scroll bar alone and erase rows that scrolled away. */
+        right = SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 16;
+        SetAPen(rp, COLOR_PANEL_BG);
+        RectFill(rp, SOFTWARE_PANEL_X + 2, y - 7, right,
+                 SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 2);
+        row = app->software_scroll;
+    }
+    /* As many rows as the scroll bar and arrows count with. */
+    last = row + SOFTWARE_LIST_LINES;
+    for (; row < count && row < last; row++) {
         const char *value = format_software_overview_value(row, buffer,
                                                           sizeof(buffer));
         draw_label_value_max(SOFTWARE_PANEL_X + 4, y,
                              get_string(software_overview_label(row)), value,
-                             100, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4);
+                             100, right);
         y += TEXT_LINE_HEIGHT;
     }
 }
@@ -1464,15 +1496,14 @@ static void update_software_list(BOOL clear_content)
         }
     }
 
-    set_button_enabled(BTN_SOFTWARE_UP, list != NULL);
-    set_button_enabled(BTN_SOFTWARE_DOWN, list != NULL);
-    set_button_enabled(BTN_SOFTWARE_SCROLLBAR, list != NULL);
-    if (app->software_type == SOFTWARE_OVERVIEW) {
-        draw_software_overview();
+    set_button_enabled(BTN_SOFTWARE_UP, software_panel_scrolls());
+    set_button_enabled(BTN_SOFTWARE_DOWN, software_panel_scrolls());
+    set_button_enabled(BTN_SOFTWARE_SCROLLBAR, software_panel_scrolls());
+    if (!software_panel_scrolls()) {
+        if (app->software_type == SOFTWARE_OVERVIEW)
+            draw_software_overview();
         return;
     }
-    if (!list)
-        return;
 
     /* Draw scroll arrows with triangles */
     Button *up_btn = find_button(BTN_SOFTWARE_UP);
@@ -1492,7 +1523,12 @@ static void update_software_list(BOOL clear_content)
     if (scrollbar_btn) {
         draw_scroll_bar(scrollbar_btn->x, scrollbar_btn->y,
                         scrollbar_btn->width, scrollbar_btn->height,
-                        app->software_scroll, list->count, SOFTWARE_LIST_LINES);
+                        app->software_scroll, software_row_count(),
+                        SOFTWARE_LIST_LINES);
+    }
+    if (app->software_type == SOFTWARE_OVERVIEW) {
+        draw_software_overview();
+        return;
     }
 
     /* Draw list entries */
@@ -2160,7 +2196,7 @@ void handle_button_press(ButtonID btn_id)
 void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
 {
     Button *scrollbar_btn = find_button(BTN_SOFTWARE_SCROLLBAR);
-    SoftwareList *list = get_software_list(app->software_type);
+    ULONG rows = software_row_count();
     WORD knob_y, knob_h, travel;
     LONG max_scroll, new_scroll;
 
@@ -2170,12 +2206,12 @@ void handle_scrollbar_click(WORD mx __attribute__((unused)), WORD my)
     }
 
     if (app->current_view != VIEW_MAIN || !scrollbar_btn ||
-        !scrollbar_btn->enabled || !list) return;
+        !scrollbar_btn->enabled || !rows) return;
 
-    max_scroll = (LONG)list->count - SOFTWARE_LIST_LINES;
+    max_scroll = (LONG)rows - SOFTWARE_LIST_LINES;
     if (max_scroll <= 0) return;
 
-    scrollbar_knob(scrollbar_btn->height, app->software_scroll, list->count,
+    scrollbar_knob(scrollbar_btn->height, app->software_scroll, rows,
                    SOFTWARE_LIST_LINES, &knob_y, &knob_h);
     travel = scrollbar_btn->height - 2 - knob_h;
     if (travel <= 0) return;
