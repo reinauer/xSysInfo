@@ -1125,8 +1125,17 @@ ULONG run_dhrystone(void)
               (ULONG)hw_info.iburst_enabled, (ULONG)hw_info.dburst_enabled);
     }
 
-    if (frequency_eclock_available())
-        return run_dhrystone_chunks();
+    if (frequency_eclock_available()) {
+        ULONG chunked = run_dhrystone_chunks();
+        if (chunked)
+            return chunked;
+        /* The strict chunked path rejects any E-clock hiccup (common with
+         * a display open: DMA and heavier interrupt activity perturb the
+         * interrupts-disabled chunks). Fall back to the tolerant loop below,
+         * the same timing the MFLOPS benchmark uses, so the CPU score is
+         * still reported instead of showing zero. */
+        debug("  bench: Dhrystone chunks failed, using tolerant fallback\n");
+    }
 
     for (attempt = 0; attempt < max_attempts; attempt++) {
         if (!Dhry_Initialize()) {
