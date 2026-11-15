@@ -135,6 +135,10 @@ typedef enum {
     AGNUS_ECS_B_PAL,
     AGNUS_ECS_NTSC,
     AGNUS_ECS_PAL,
+    AGNUS_ECS_1MB_NTSC,     /* 8372A: DMA wraps at 1 MB */
+    AGNUS_ECS_1MB_PAL,
+    AGNUS_ECS_8375_NTSC,    /* A600: only ever fitted with 8375 */
+    AGNUS_ECS_8375_PAL,
     AGNUS_ALICE_NTSC,
     AGNUS_ALICE_PAL,
     AGNUS_SAGA

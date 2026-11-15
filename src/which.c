@@ -263,10 +263,22 @@ static void build_animation_chip(char *buffer, ULONG size,
         copy_string(buffer, "OCS PAL Fat Agnus 8371 512K", size);
         break;
     case AGNUS_ECS_NTSC:
-        copy_string(buffer, "ECS NTSC Fatter Agnus 8372a 1M", size);
+        copy_string(buffer, "ECS NTSC Agnus 8372a/8372b/8375", size);
         break;
     case AGNUS_ECS_PAL:
+        copy_string(buffer, "ECS PAL Agnus 8372a/8372b/8375", size);
+        break;
+    case AGNUS_ECS_1MB_NTSC:
+        copy_string(buffer, "ECS NTSC Fatter Agnus 8372a 1M", size);
+        break;
+    case AGNUS_ECS_1MB_PAL:
         copy_string(buffer, "ECS PAL Fatter Agnus 8372a 1M", size);
+        break;
+    case AGNUS_ECS_8375_NTSC:
+        copy_string(buffer, "ECS NTSC Super Agnus 8375 2M", size);
+        break;
+    case AGNUS_ECS_8375_PAL:
+        copy_string(buffer, "ECS PAL Super Agnus 8375 2M", size);
         break;
     case AGNUS_ECS_2MB_NTSC:
         copy_string(buffer, "ECS NTSC Super Agnus 8372b/8375 2M", size);
@@ -275,10 +287,10 @@ static void build_animation_chip(char *buffer, ULONG size,
         copy_string(buffer, "ECS PAL Super Agnus 8372b/8375 2M", size);
         break;
     case AGNUS_ECS_B_NTSC:
-        copy_string(buffer, "ECS NTSC Super Agnus 8372b 2M", size);
+        copy_string(buffer, "ECS NTSC Super Agnus 8372b/8375 2M", size);
         break;
     case AGNUS_ECS_B_PAL:
-        copy_string(buffer, "ECS PAL Super Agnus 8372b 2M", size);
+        copy_string(buffer, "ECS PAL Super Agnus 8372b/8375 2M", size);
         break;
     case AGNUS_ALICE_NTSC:
         snprintf(buffer, size, "AGA NTSC Alice 8374, rev %s",

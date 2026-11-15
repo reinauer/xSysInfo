@@ -281,6 +281,22 @@ static void export_hardware(ReportOutput *fh)
         snprintf(buffer, sizeof(buffer), "%s",
                  get_string(MSG_AGNUS_ECS_B_PAL));
         break;
+    case AGNUS_ECS_1MB_NTSC:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_1MB_NTSC));
+        break;
+    case AGNUS_ECS_1MB_PAL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_1MB_PAL));
+        break;
+    case AGNUS_ECS_8375_NTSC:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_8375_NTSC));
+        break;
+    case AGNUS_ECS_8375_PAL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_8375_PAL));
+        break;
     case AGNUS_ALICE_NTSC:
         snprintf(buffer, sizeof(buffer), "%s",
                  get_string(MSG_AGNUS_ALICE_NTSC));
