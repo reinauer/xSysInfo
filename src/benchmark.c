@@ -282,6 +282,24 @@ typedef struct {
     struct EClockVal start, end;
 } FrequencyFailure;
 
+/* Validate a sampled E-clock interval shared by the CPU/FPU and Dhrystone
+ * probes: the clock must be present, keep a steady frequency across the two
+ * reads (and match an already-known rate), and not advance the high word by
+ * more than the low-word wrap. Returns a static reason, or NULL when usable. */
+static const char *eclock_interval_reason(const struct EClockVal *start,
+                                          const struct EClockVal *end,
+                                          ULONG first_rate, ULONG last_rate,
+                                          ULONG expected_rate)
+{
+    if (!first_rate)
+        return "zero EClock frequency";
+    if (first_rate != last_rate || (expected_rate && first_rate != expected_rate))
+        return "EClock frequency changed";
+    if (end->ev_hi != start->ev_hi + (end->ev_lo < start->ev_lo))
+        return "invalid EClock interval";
+    return NULL;
+}
+
 /* These delimit the actual timed instructions, including a page crossing. */
 extern const UBYTE frequency_cpu_loop[], frequency_cpu_loop_end[];
 
@@ -321,13 +339,8 @@ frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
     last_rate = read_probe_clock(&end);
     Enable();
 
-    if (!first_rate)
-        reason = "zero EClock frequency";
-    else if (first_rate != last_rate ||
-             (*frequency && first_rate != *frequency))
-        reason = "EClock frequency changed";
-    else if (end.ev_hi != start.ev_hi + (end.ev_lo < start.ev_lo))
-        reason = "invalid EClock interval";
+    reason = eclock_interval_reason(&start, &end, first_rate, last_rate,
+                                    *frequency);
     /* A short JIT loop can finish within one tick. Zero ticks is a valid
      * sample; calibration grows the loop until the clock advances. */
     if (reason) {
@@ -961,13 +974,8 @@ static ULONG dhrystone_sample(ULONG loops, BOOL disable_interrupts,
     last_rate = ReadEClock(&end);
     if (disable_interrupts) Enable();
 
-    if (!first_rate)
-        *failure = "zero EClock frequency";
-    else if (first_rate != last_rate ||
-             (*frequency && first_rate != *frequency))
-        *failure = "EClock frequency changed";
-    else if (end.ev_hi != start.ev_hi + (end.ev_lo < start.ev_lo))
-        *failure = "invalid EClock interval";
+    *failure = eclock_interval_reason(&start, &end, first_rate, last_rate,
+                                      *frequency);
     if (*failure)
         return 0;
 
