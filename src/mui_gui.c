@@ -98,12 +98,7 @@ enum {
     PAGE_SOFTWARE, PAGE_HARDWARE, PAGE_SPEED, PAGE_MEMORY, PAGE_DRIVES, PAGE_BOARDS, PAGE_COUNT
 };
 
-enum {
-    MEM_START, MEM_END, MEM_TOTAL, MEM_TYPE, MEM_PRIORITY, MEM_LOWER,
-    MEM_UPPER, MEM_FIRST, MEM_FREE, MEM_LARGEST, MEM_CHUNKS, MEM_NODE,
-    MEM_SPEED, MEM_COUNT
-};
-
+/* MemoryField (MEM_START..MEM_COUNT) is shared via memory.h. */
 static const LocaleStringID memory_rows[MEM_COUNT] = {
     MSG_START_ADDRESS, MSG_END_ADDRESS, MSG_TOTAL_SIZE,
     MSG_MEMORY_TYPE, MSG_PRIORITY, MSG_LOWER_BOUND,
@@ -1322,38 +1317,10 @@ static void update_memory_details(void)
     refresh_memory_region(index);
     region = &memory_regions.regions[index];
 
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->start_address);
-    set_text(memory_values[MEM_START], buffer);
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->end_address);
-    set_text(memory_values[MEM_END], buffer);
-    format_size(region->total_size, buffer, sizeof(buffer));
-    set_text(memory_values[MEM_TOTAL], buffer);
-    set_text(memory_values[MEM_TYPE], region->type_string);
-    snprintf(buffer, sizeof(buffer), "%d", region->priority);
-    set_text(memory_values[MEM_PRIORITY], buffer);
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->lower_bound);
-    set_text(memory_values[MEM_LOWER], buffer);
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->upper_bound);
-    set_text(memory_values[MEM_UPPER], buffer);
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->first_free);
-    set_text(memory_values[MEM_FIRST], buffer);
-    snprintf(buffer, sizeof(buffer), "%lu Bytes",
-             (unsigned long)region->amount_free);
-    set_text(memory_values[MEM_FREE], buffer);
-    snprintf(buffer, sizeof(buffer), "%lu Bytes",
-             (unsigned long)region->largest_block);
-    set_text(memory_values[MEM_LARGEST], buffer);
-    snprintf(buffer, sizeof(buffer), "%lu",
-             (unsigned long)region->num_chunks);
-    set_text(memory_values[MEM_CHUNKS], buffer);
-    set_text(memory_values[MEM_NODE], region->node_name);
-    format_memory_speed(region, buffer, sizeof(buffer));
-    set_text(memory_values[MEM_SPEED], buffer);
+    for (i = 0; i < MEM_COUNT; i++)
+        set_text(memory_values[i],
+                 format_memory_field(region, (MemoryField)i,
+                                     buffer, sizeof(buffer)));
 }
 
 static void update_drive_details(void)

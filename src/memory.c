@@ -413,71 +413,72 @@ static void draw_memory_value(WORD y, const char *value)
                       MEMORY_VALUE_MAX_X - MEMORY_VALUE_X);
 }
 
+/* Format one memory detail field into buffer (or return a region string
+ * directly). Shared by the custom and MUI frontends; keep the order in sync
+ * with the MemoryField enum. */
+const char *format_memory_field(const MemoryRegion *region, MemoryField field,
+                                char *buffer, size_t size)
+{
+    switch (field) {
+    case MEM_START:
+        snprintf(buffer, size, "$%08lX", (unsigned long)region->start_address);
+        break;
+    case MEM_END:
+        snprintf(buffer, size, "$%08lX", (unsigned long)region->end_address);
+        break;
+    case MEM_TOTAL:
+        format_size(region->total_size, buffer, size);
+        break;
+    case MEM_TYPE:
+        return region->type_string;
+    case MEM_PRIORITY:
+        snprintf(buffer, size, "%d", region->priority);
+        break;
+    case MEM_LOWER:
+        snprintf(buffer, size, "$%08lX", (unsigned long)region->lower_bound);
+        break;
+    case MEM_UPPER:
+        snprintf(buffer, size, "$%08lX", (unsigned long)region->upper_bound);
+        break;
+    case MEM_FIRST:
+        snprintf(buffer, size, "$%08lX", (unsigned long)region->first_free);
+        break;
+    case MEM_FREE:
+        snprintf(buffer, size, "%lu Bytes", (unsigned long)region->amount_free);
+        break;
+    case MEM_LARGEST:
+        snprintf(buffer, size, "%lu Bytes", (unsigned long)region->largest_block);
+        break;
+    case MEM_CHUNKS:
+        snprintf(buffer, size, "%lu", (unsigned long)region->num_chunks);
+        break;
+    case MEM_NODE:
+        return region->node_name;
+    case MEM_SPEED:
+        format_memory_speed(region, buffer, size);
+        break;
+    default:
+        buffer[0] = '\0';
+        break;
+    }
+    return buffer;
+}
+
 static void draw_memory_values(void)
 {
     char buffer[64];
     WORD y = 44;
     MemoryRegion *region;
+    MemoryField field;
 
     refresh_memory_region(app->memory_region_index);
     region = &memory_regions.regions[app->memory_region_index];
 
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->start_address);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->end_address);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    format_size(region->total_size, buffer, sizeof(buffer));
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    draw_memory_value(y, region->type_string);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "%d", region->priority);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->lower_bound);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->upper_bound);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "$%08lX",
-             (unsigned long)region->first_free);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "%lu Bytes",
-             (unsigned long)region->amount_free);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "%lu Bytes",
-             (unsigned long)region->largest_block);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    snprintf(buffer, sizeof(buffer), "%lu",
-             (unsigned long)region->num_chunks);
-    draw_memory_value(y, buffer);
-    y += 10;
-
-    draw_memory_value(y, region->node_name);
-    y += 10;
-
-    format_memory_speed(region, buffer, sizeof(buffer));
-    draw_memory_value(y, buffer);
+    for (field = MEM_START; field < MEM_COUNT; field++) {
+        draw_memory_value(y, format_memory_field(region, field,
+                                                 buffer, sizeof(buffer)));
+        y += 10;
+    }
 }
 
 static void draw_memory_buttons(void)

@@ -65,4 +65,15 @@ void draw_memory_view(void);
 
 void format_memory_speed(const MemoryRegion *region, char *buffer, size_t size);
 
+/* Memory detail fields in display order. Both graphical frontends format a
+ * region through format_memory_field() so the rows cannot drift apart. */
+typedef enum {
+    MEM_START, MEM_END, MEM_TOTAL, MEM_TYPE, MEM_PRIORITY, MEM_LOWER,
+    MEM_UPPER, MEM_FIRST, MEM_FREE, MEM_LARGEST, MEM_CHUNKS, MEM_NODE,
+    MEM_SPEED, MEM_COUNT
+} MemoryField;
+
+const char *format_memory_field(const MemoryRegion *region, MemoryField field,
+                                char *buffer, size_t size);
+
 #endif /* MEMORY_H */
