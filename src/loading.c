@@ -182,6 +182,9 @@ _Static_assert(PLASMA_ROW_WORDS * sizeof(UWORD) == 200 &&
                PLASMA_ROWS % 8 == 0,
                "VBlank WAIT copy requires 200-byte rows in groups of eight");
 
+/* For Version; the loader ships with each xSysInfo release. */
+static const char version_tag[] __attribute__((used)) =
+    "$VER: xSysInfoLoader " XSYSINFO_VERSION " (" XSYSINFO_DATE ")";
 static const char logo[] = "xSysInfo";
 static const char version[] = "v" XSYSINFO_VERSION;
 static const char message[] = "  Loading xSysInfo v" XSYSINFO_VERSION
