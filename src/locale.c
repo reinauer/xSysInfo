@@ -6,6 +6,8 @@
  * Default English strings with locale.library catalog support
  */
 
+#include <string.h>
+
 #include <proto/locale.h>
 #include <libraries/locale.h>
 

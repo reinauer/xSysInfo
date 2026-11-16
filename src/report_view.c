@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 xSysInfo contributors
 
 /* Classic report preview. Report ownership and saving are shared with MUI. */
+#include <string.h>
+
 #include <devices/inputevent.h>
 #include "report_view.h"
 #include "print.h"
