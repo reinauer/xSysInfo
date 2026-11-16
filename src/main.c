@@ -1491,11 +1491,3 @@ void format_size(ULONG bytes, char *buffer, ULONG bufsize)
         snprintf(buffer, bufsize, "%lu", (unsigned long)bytes);
     }
 }
-
-/*
- * Utility: Format hex value
- */
-void format_hex(ULONG value, char *buffer, ULONG bufsize)
-{
-    snprintf(buffer, bufsize, "$%08lX", (unsigned long)value);
-}
