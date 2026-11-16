@@ -354,6 +354,40 @@ static void bstr_to_device_name(BSTR bstr, char *name, ULONG maxlen)
     name[len] = '\0';
 }
 
+/* TRUE when both ends of [address, address + size) are listed RAM. */
+static BOOL in_ram(const void *address, ULONG size)
+{
+    ULONG start = (ULONG)address;
+
+    return start && size && start + size - 1 >= start &&
+           TypeOfMem((APTR)address) &&
+           TypeOfMem((APTR)(start + size - 1));
+}
+
+/* dn_Startup holds a FileSysStartupMsg only for disk devices; other
+ * handlers keep a number or a startup string there. Read as an FSSM, the
+ * string in #99 pointed outside memory and caused MuForce hits.
+ * MakeDosNode() and Mount allocate real startup messages, their device
+ * names and environments from RAM, so accept nothing else. */
+static BOOL startup_is_fssm(const struct FileSysStartupMsg *fssm)
+{
+    const UBYTE *device;
+    const struct DosEnvec *de;
+    ULONG used;
+
+    if (!in_ram(fssm, sizeof(*fssm)))
+        return FALSE;
+    device = BADDR(fssm->fssm_Device);
+    if (!in_ram(device, 1) || !in_ram(device, 1 + device[0]))
+        return FALSE;
+    de = BADDR(fssm->fssm_Environ);
+    if (!in_ram(de, sizeof(de->de_TableSize)))
+        return FALSE;
+    /* The scan reads no further than de_DosType. */
+    used = de->de_TableSize < DE_DOSTYPE ? de->de_TableSize : DE_DOSTYPE;
+    return in_ram(de, (used + 1) * sizeof(ULONG));
+}
+
 /* Helpers */
 static BOOL is_floppy_device(ULONG total_blocks);
 
@@ -453,8 +487,7 @@ static void scan_dos_list(void)
             struct FileSysStartupMsg *fssm;
             fssm = BADDR(dol->dol_misc.dol_handler.dol_Startup);
 
-            /* Check if it looks like a valid FSSM */
-            if (fssm && (ULONG)fssm > 0x100) {
+            if (startup_is_fssm(fssm)) {
                 struct DosEnvec *de;
 
                 /* Get handler name */
@@ -463,7 +496,7 @@ static void scan_dos_list(void)
                 drive->unit_number = fssm->fssm_Unit;
 
                 de = BADDR(fssm->fssm_Environ);
-                if (de && (ULONG)de > 0x100 && de->de_TableSize >= 11) {
+                if (de->de_TableSize >= 11) {
                     drive->surfaces = de->de_Surfaces;
                     drive->sectors_per_track = de->de_BlocksPerTrack;
                     drive->reserved_blocks = de->de_Reserved;
@@ -525,7 +558,7 @@ static void scan_dos_list(void)
                 } else {
                     debug("  drives: %s envec=$%08lx tablesize=%lu not usable\n",
                           (LONG)drive->device_name, (ULONG)de,
-                          (ULONG)(de && (ULONG)de > 0x100 ? de->de_TableSize : 0));
+                          de->de_TableSize);
                 }
             } else {
                 debug("  drives: %s startup is not a FSSM\n",
