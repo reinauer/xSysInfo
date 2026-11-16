@@ -31,9 +31,12 @@ MMU_LIBS = $(addprefix $(MMU_LIB_DIR)/,$(addsuffix .library,$(MMU_LIB_NAMES)))
 # The floppy carries MMULib's default MMU-Configuration plus GVPInit, which
 # keeps 040/060 GVP boards from bursting into Zorro II space. GVPInit only
 # acts on the GVP boards it finds through expansion.library.
+# P5Init sets up Phase 5 boards, but probes their registers on any 040/060
+# machine, so the configuration runs it only for Phase 5 product IDs.
 MMU_GVPINIT = $(DOWNLOAD_DIR)/MMULib/Install/GVPInit
+MMU_P5INIT = $(DOWNLOAD_DIR)/MMULib/Install/P5Init
 MMU_CONFIG = $(DOWNLOAD_DIR)/MMULib/EnvArc/MMU-Configuration
-MMU_FILES = $(MMU_LIBS) $(MMU_GVPINIT) $(MMU_CONFIG)
+MMU_FILES = $(MMU_LIBS) $(MMU_GVPINIT) $(MMU_P5INIT) $(MMU_CONFIG)
 FD2PRAGMA_TYPES = $(HOME)/.fd2pragma.types
 
 # Include paths for the downloaded developer files
@@ -564,7 +567,13 @@ disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
 	done
 	@{ cat $(MMU_CONFIG); \
 		printf '\n; Keep affected GVP 040/060 boards from bursting into Zorro II space.\n'; \
-		printf 'GVPInit\n'; } > $(DISK_FILES_DIR)/MMU-Configuration
+		printf 'GVPInit\n'; \
+		printf '\n; Set up Phase 5 boards: Blizzard 1230-IV/1240/1260, Blizzard\n'; \
+		printf '; 2040/2060, CyberStorm MK-II, CyberStorm PPC/MK-III, Blizzard PPC.\n'; \
+		printf '; P5Init probes on any 040/060, so run it only for these boards.\n'; \
+		for product in 17 24 25 100 110; do \
+			printf 'For 8512 %s P5Init\n' $$product; \
+		done; } > $(DISK_FILES_DIR)/MMU-Configuration
 	@echo "  DISK"
 	@xdftool $(DISK) format "$(DISK_TITLE)"
 	@xdftool $(DISK) write $(DISK_FILES_DIR)/$(TARGET) $(TARGET)
@@ -576,6 +585,7 @@ disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
 	done
 	@xdftool $(DISK) makedir Libs/mmu
 	@xdftool $(DISK) write $(MMU_GVPINIT) Libs/mmu/GVPInit
+	@xdftool $(DISK) write $(MMU_P5INIT) Libs/mmu/P5Init
 	@xdftool $(DISK) makedir Prefs
 	@xdftool $(DISK) makedir Prefs/Env-Archive
 	@xdftool $(DISK) write $(DISK_FILES_DIR)/MMU-Configuration Prefs/Env-Archive/MMU-Configuration
