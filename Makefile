@@ -288,7 +288,8 @@ $(STACK_OBJ): $(STACK_SRC)
 
 src/loading.o: src/loading.c src/loading.h Makefile
 	@echo "  CC    $@"
-	@$(CC) $(LOADING_CFLAGS) -DXSYSINFO_VERSION='"$(FULL_VERSION)"' -c -o $@ $<
+	@$(CC) $(LOADING_CFLAGS) -DXSYSINFO_VERSION='"$(FULL_VERSION)"' \
+		-DXSYSINFO_DATE='"$(ADATE)"' -c -o $@ $<
 
 $(LOADING_LOADER): src/loading.o
 	@echo "  LINK  $@"

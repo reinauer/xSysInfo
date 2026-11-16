@@ -12,6 +12,10 @@
 
 struct ExecBase *SysBase;
 
+/* For Version; the command ships with each xSysInfo release. */
+static const char version_tag[] __attribute__((used)) =
+    "$VER: Stack " XSYSINFO_VERSION " (" XSYSINFO_DATE ")";
+
 /*
  * DOS enters commands with A0 pointing at the argument line and D0 holding
  * its byte length.  Providing the entry wrapper here avoids libc startup.
