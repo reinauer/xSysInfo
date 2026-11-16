@@ -303,6 +303,20 @@ static const char *eclock_interval_reason(const struct EClockVal *start,
 /* These delimit the actual timed instructions, including a page crossing. */
 extern const UBYTE frequency_cpu_loop[], frequency_cpu_loop_end[];
 
+/* Bitplane and sprite DMA, whose share of the chip bus depends on the
+ * screen in front. Timings that depend on that bus switch them off. */
+#define DISPLAY_DMA (DMAF_RASTER | DMAF_SPRITE)
+
+/* A 68000/010 fetches the timing loop over the chip bus unless it runs in
+ * Zorro II Fast RAM: Chip RAM and $C00000 slow RAM share Agnus's slots. */
+static BOOL cpu_loop_on_chip_bus(void)
+{
+    ULONG address = (ULONG)frequency_cpu_loop;
+
+    return hw_info.cpu_type <= CPU_68010 &&
+           (address < 0x200000 || address >= 0xC00000);
+}
+
 static ULONG __attribute__((noinline, noclone, optimize("Os")))
 frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
                  FrequencyFailure *failure)
@@ -613,12 +627,18 @@ static ULONG frequency_loop_time(ULONG reference_loops, BOOL fpu)
 */
 static ULONG get_mhz_cpu(BOOL precise)
 {
-
+    volatile struct Custom *hw = (volatile struct Custom *)0xdff000;
     ULONG multiplier, loop, maxMultiplier, startMultiplier;
     uint64_t count = 0, tmp, mhz = 0;
     const ULONG min_measure = !precise && SysBase->LibNode.lib_Version < 36 ?
                               1000000UL : MIN_MHZ_MEASURE;
-    APTR test; //for testing the memtype we are running in
+    const BOOL chip_bus = cpu_loop_on_chip_bus();
+    /* Display DMA delays the loop by a share that depends on the screen
+     * in front; with it off the loop runs at its zero-wait-state speed.
+     * The bitmaps stay intact and the view returns afterwards. */
+    const BOOL blank = precise && chip_bus &&
+                       hw_info.agnus_type != AGNUS_UNKNOWN;
+    UWORD dma = 0;
 
     // correction factors for fast CPUs!
     switch (hw_info.cpu_type)
@@ -641,17 +661,27 @@ static ULONG get_mhz_cpu(BOOL precise)
         }
 
 
+    if (blank) {
+        dma = hw->dmaconr & DISPLAY_DMA;
+        hw->dmacon = DISPLAY_DMA;
+    }
     for (multiplier = startMultiplier; multiplier <= maxMultiplier && count < min_measure; multiplier *= 2)
     {
         loop = CPULOOPS * multiplier;
         count = precise ?
                 frequency_loop_time(loop, FALSE) : measure_loop_overhead(loop);
         /* A failed measurement must not masquerade as a nominal clock. */
-        if (!count && precise)
-            return 0;
-        if (multiplier >= maxMultiplier || count >= min_measure) {
+        if ((!count && precise) || multiplier >= maxMultiplier ||
+            count >= min_measure) {
             break;
         }
+    }
+    if (blank) {
+        hw->dmacon = DMAF_SETCLR | dma;
+        if (g_debug_enabled)
+            debug("    cpu_mhz: chip bus loop %lu us with display DMA $%04lx, "
+                  "%lu us with it off\n",
+                  frequency_loop_time(loop, FALSE), (ULONG)dma, (ULONG)count);
     }
 
     /* Do not report a one-tick result if the coarse fallback cannot reach
@@ -670,23 +700,16 @@ static ULONG get_mhz_cpu(BOOL precise)
         {
         case CPU_68000:
         case CPU_68010:
-            // check whether we run in fastram or chipram (huge difference in speed calc!)
-            test = __builtin_return_address(0); // this gets the return address, which tells me if we are running in fast ram
-            // check whether it is fast mem!
-            if ((long unsigned int)test >= 0x200000 && (long unsigned int)test < 0xC00000)
-            {
-                /* MC68000UM, sections 8.4/8.8 and 9.4/9.8:
-                 * zero-wait-state SUBQ.L (8 clocks) + taken Bcc (10).
-                 * Differencing cancels the final, non-taken branch. */
-                if (precise)
-                    tmp = (uint64_t)loop * 18 * 100;
-                else
-                    tmp *= 204;
-            }
+            /* MC68000UM, sections 8.4/8.8 and 9.4/9.8:
+             * zero-wait-state SUBQ.L (8 clocks) + taken Bcc (10).
+             * Differencing cancels the final, non-taken branch.
+             * On the chip bus, this holds with display DMA off. */
+            if (precise)
+                tmp = (uint64_t)loop * 18 * 100;
+            else if (chip_bus)
+                tmp *= 282; // chip or ranger mem
             else
-            { // chip or ranger mem
-                tmp *= 282;
-            }
+                tmp *= 204;
             break;
         case CPU_68020:
         case CPU_68EC020:
@@ -1451,8 +1474,6 @@ static ULONG measure_mem_read_speed_now(volatile ULONG *src,
  * the display on compares screens, not machines. Measure Chip RAM with
  * that DMA off; the bitmaps stay intact and the view returns afterwards.
  * Copper, audio and disk DMA keep running; their share is negligible. */
-#define DISPLAY_DMA (DMAF_RASTER | DMAF_SPRITE)
-
 static BOOL chip_memory(volatile ULONG *src)
 {
     return hw_info.agnus_type != AGNUS_UNKNOWN &&
