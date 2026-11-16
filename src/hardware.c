@@ -588,6 +588,35 @@ struct Library *open_mmu_library(void)
     return OpenLibrary((CONST_STRPTR)"mmu.library", 40L);
 }
 
+/* Boards and emulators can expose an MMU-less 030/040/060; record the EC
+ * variant of whatever CPU was detected. A 68040 that still reports an FPU is
+ * left untouched (emulators provide an 040 FPU without an MMU), and any CPU
+ * that is not EC-downgradable is left unchanged. */
+static void downgrade_cpu_to_ec_variant(void)
+{
+    switch (hw_info.cpu_type) {
+    case CPU_68030:
+        hw_info.cpu_type = CPU_68EC030;
+        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
+        break;
+    case CPU_68040:
+        if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_type != FPU_UNKNOWN)
+            break;
+        /* Fall through. */
+    case CPU_68LC040:
+        hw_info.cpu_type = CPU_68EC040;
+        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
+        break;
+    case CPU_68LC060:
+    case CPU_68060:
+        hw_info.cpu_type = CPU_68EC060;
+        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC060");
+        break;
+    default:
+        break;
+    }
+}
+
 /*
  * Detect MMU type
  */
@@ -652,23 +681,11 @@ void detect_mmu(void)
                 switch (hw_info.cpu_type) // correct cpu-type to ec for relevant cpus
                 {
                 case CPU_68030:
-                    hw_info.cpu_type = CPU_68EC030;
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
-                    break;
                 case CPU_68040:
-                    /* Emulators can provide a 040 FPU without an MMU. */
-                    if (hw_info.fpu_type != FPU_NONE &&
-                        hw_info.fpu_type != FPU_UNKNOWN)
-                        break;
-                    /* Fall through. */
                 case CPU_68LC040:
-                    hw_info.cpu_type = CPU_68EC040;
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
-                    break;
                 case CPU_68LC060:
                 case CPU_68060:
-                    hw_info.cpu_type = CPU_68EC060;
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC060");
+                    downgrade_cpu_to_ec_variant();
                     break;
                 case CPU_68080:
                     hw_info.mmu_type = MMU_68080;
@@ -767,30 +784,7 @@ void detect_mmu(void)
         }
         else
         {
-            switch (hw_info.cpu_type) // correct cpu-type to ec for relevant cpus
-            {
-            case CPU_68030:
-                hw_info.cpu_type = CPU_68EC030;
-                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
-                break;
-            case CPU_68040:
-                /* Emulators can provide a 040 FPU without an MMU. */
-                if (hw_info.fpu_type != FPU_NONE &&
-                    hw_info.fpu_type != FPU_UNKNOWN)
-                    break;
-                /* Fall through. */
-            case CPU_68LC040:
-                hw_info.cpu_type = CPU_68EC040;
-                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
-                break;
-            case CPU_68LC060:
-            case CPU_68060:
-                hw_info.cpu_type = CPU_68EC060;
-                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC060");
-                break;
-            default:
-                break;
-            }
+            downgrade_cpu_to_ec_variant();
         }
     }
 
