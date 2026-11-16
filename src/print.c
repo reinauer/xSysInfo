@@ -106,18 +106,6 @@ static void format_speed_display(ULONG speed, char *buffer, ULONG size)
     }
 }
 
-static void format_mmu_address(char *buffer, ULONG size, ULONG address)
-{
-    APTR phys = mmu_physical_address((APTR)address);
-
-    if (phys != (APTR)address) {
-        snprintf(buffer, size, "$%08lX ->%s", (unsigned long)address,
-                 get_location_string(determine_mem_location(phys)));
-    } else {
-        snprintf(buffer, size, "$%08lX", (unsigned long)address);
-    }
-}
-
 static void format_paula_string(char *buffer, ULONG size)
 {
     switch (hw_info.paula_type) {
@@ -153,29 +141,6 @@ static void format_fpu_string(char *buffer, ULONG size)
         snprintf(buffer, size, "%s", hw_info.fpu_string);
     } else {
         snprintf(buffer, size, "%s (Off)", hw_info.fpu_string);
-    }
-}
-
-static void format_gary_string(char *buffer, ULONG size)
-{
-    switch (hw_info.gary_type) {
-    case GARY_A1000:
-        snprintf(buffer, size, "%s", get_string(MSG_GARY_A1000));
-        break;
-    case GARY_A500:
-        snprintf(buffer, size, "%s", get_string(MSG_GARY_A500));
-        break;
-    case GAYLE:
-        snprintf(buffer, size, "%s %02X",
-                 get_string(MSG_GAYLE), hw_info.gary_rev);
-        break;
-    case FAT_GARY:
-        snprintf(buffer, size, "%s", get_string(MSG_FAT_GARY));
-        break;
-    case GARY_UNKNOWN:
-    default:
-        snprintf(buffer, size, "%s", get_string(MSG_GARY_UNKNOWN));
-        break;
     }
 }
 
@@ -302,30 +267,7 @@ static void export_hardware(ReportOutput *fh)
     write_formatted(fh, "%-16s %s", "DMA/Gfx:", buffer);
 
     /* Display */
-    switch (hw_info.denise_type)
-    {
-    case DENISE_OCS:
-        snprintf(buffer, sizeof(buffer), "%s",
-                 get_string(MSG_DENISE_OCS));
-        break;
-    case DENISE_ECS:
-        snprintf(buffer, sizeof(buffer), "%s",
-                 get_string(MSG_DENISE_ECS));
-        break;
-    case DENISE_LISA:
-        snprintf(buffer, sizeof(buffer), "%s",
-                 get_string(MSG_DENISE_LISA));
-        break;
-    case DENISE_ISABEL:
-        snprintf(buffer, sizeof(buffer), "%s",
-                 get_string(MSG_DENISE_SAGA));
-        break;
-    case DENISE_UNKNOWN:
-    default:
-        snprintf(buffer, sizeof(buffer), "%s %02X",
-                 get_string(MSG_DENISE_UNKNOWN), hw_info.denise_rev);
-        break;
-    }
+    format_denise_value(buffer, sizeof(buffer));
     write_formatted(fh, "%-16s %s", "Display:", buffer);
 
     format_paula_string(buffer, sizeof(buffer));
@@ -334,7 +276,7 @@ static void export_hardware(ReportOutput *fh)
     format_ramsey_rev_string(buffer, sizeof(buffer));
     write_formatted(fh, "%-16s %s", "RAM ctrl.:", buffer);
 
-    format_gary_string(buffer, sizeof(buffer));
+    format_gary_value(buffer, sizeof(buffer));
     write_formatted(fh, "%-16s %s", "Decoding:", buffer);
 
     {

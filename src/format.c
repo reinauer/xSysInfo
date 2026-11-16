@@ -107,7 +107,7 @@ static void format_mmu_value(char *buffer, size_t size)
     }
 }
 
-static void format_mmu_address(char *buffer, size_t size, ULONG address)
+void format_mmu_address(char *buffer, size_t size, ULONG address)
 {
     APTR phys = mmu_physical_address((APTR)address);
 
@@ -194,7 +194,7 @@ static void format_agnus_value(char *buffer, size_t size)
     }
 }
 
-static void format_denise_value(char *buffer, size_t size)
+void format_denise_value(char *buffer, size_t size)
 {
     switch (hw_info.denise_type) {
         case DENISE_OCS:
@@ -239,7 +239,7 @@ static void format_paula_value(char *buffer, size_t size)
     }
 }
 
-static void format_gary_value(char *buffer, size_t size)
+void format_gary_value(char *buffer, size_t size)
 {
     switch (hw_info.gary_type) {
         case GARY_A1000:

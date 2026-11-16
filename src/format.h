@@ -26,6 +26,12 @@ void visit_hardware_rows(HardwareType page, HardwareRowVisitor visit,
                          void *data);
 void format_clock_values(char values[2][24]);
 void format_frequency(ULONG hz, char *buffer, size_t size);
+/* Shared chip/value formatters whose report and GUI output coincide. The
+ * unit-bearing CPU/FPU/Agnus/Paula/MMU values deliberately differ between the
+ * compact GUI columns and the English report, so they are not shared. */
+void format_mmu_address(char *buffer, size_t size, ULONG address);
+void format_denise_value(char *buffer, size_t size);
+void format_gary_value(char *buffer, size_t size);
 ULONG software_overview_count(void);
 LocaleStringID software_overview_label(ULONG row);
 const char *format_software_overview_value(ULONG row, char *buffer, size_t size);
