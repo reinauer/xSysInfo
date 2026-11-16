@@ -1129,11 +1129,13 @@ ULONG run_dhrystone(void)
         ULONG chunked = run_dhrystone_chunks();
         if (chunked)
             return chunked;
-        /* The strict chunked path rejects any E-clock hiccup (common with
-         * a display open: DMA and heavier interrupt activity perturb the
-         * interrupts-disabled chunks). Fall back to the tolerant loop below,
-         * the same timing the MFLOPS benchmark uses, so the CPU score is
-         * still reported instead of showing zero. */
+        /* The chunked path rejects the run when the E-clock misbehaves
+         * while interrupts are disabled, for example when ReadEClock()
+         * misses a CIA timer overflow on emulated or FPGA systems. Fall
+         * back to the loop below, the same timing the MFLOPS benchmark
+         * uses. It keeps interrupts enabled so timer.device accounts for
+         * every overflow. Its time includes interrupt work, so the score
+         * is slightly lower than a chunked one, but not zero. */
         debug("  bench: Dhrystone chunks failed, using tolerant fallback\n");
     }
 
