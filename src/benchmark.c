@@ -275,12 +275,16 @@ static BOOL frequency_eclock_available(void)
            SysBase->LibNode.lib_Version >= 36;
 }
 
-/* Keep the sampling support small; the timed loops are explicit assembly. */
+/* A rejected E-clock sample, kept to print after interrupts are back on.
+ * The timed loops themselves are explicit assembly or Dhry_Run(). */
 typedef struct {
     const char *reason;
     ULONG expected_rate, first_rate, last_rate;
     struct EClockVal start, end;
-} FrequencyFailure;
+} EClockFailure;
+
+/* Returned by pointer so callers can tell this reason from the others. */
+static const char eclock_invalid_interval[] = "invalid EClock interval";
 
 /* Validate a sampled E-clock interval shared by the CPU/FPU and Dhrystone
  * probes: the clock must be present, keep a steady frequency across the two
@@ -296,8 +300,18 @@ static const char *eclock_interval_reason(const struct EClockVal *start,
     if (first_rate != last_rate || (expected_rate && first_rate != expected_rate))
         return "EClock frequency changed";
     if (end->ev_hi != start->ev_hi + (end->ev_lo < start->ev_lo))
-        return "invalid EClock interval";
+        return eclock_invalid_interval;
     return NULL;
+}
+
+static void debug_eclock_failure(const char *indent,
+                                 const EClockFailure *failure)
+{
+    debug("%sEClock Hz expected/start/end: %lu/%lu/%lu; "
+          "ticks %08lx:%08lx -> %08lx:%08lx\n",
+          (ULONG)indent, failure->expected_rate, failure->first_rate,
+          failure->last_rate, failure->start.ev_hi, failure->start.ev_lo,
+          failure->end.ev_hi, failure->end.ev_lo);
 }
 
 /* These delimit the actual timed instructions, including a page crossing. */
@@ -319,7 +333,7 @@ static BOOL cpu_loop_on_chip_bus(void)
 
 static ULONG __attribute__((noinline, noclone, optimize("Os")))
 frequency_sample(ULONG loops, BOOL fpu, ULONG *frequency,
-                 FrequencyFailure *failure)
+                 EClockFailure *failure)
 {
     struct EClockVal start, end;
     ULONG first_rate, last_rate;
@@ -448,7 +462,7 @@ frequency_loop_time_once(ULONG reference_loops, BOOL fpu, ULONG attempt)
     LONG bias_us = 0;
     ULONG loop_total = 0, sample_loops = 0;
     ULONG min_delta = 0, max_ticks = 0, next_loops;
-    FrequencyFailure failure = {0};
+    EClockFailure failure = {0};
     const char *reason = NULL;
     BOOL measuring = FALSE;
 
@@ -599,11 +613,7 @@ done:
         if (measuring)
             debug("      baseline loops/ticks: %lu/%lu\n", baseline_loops, baseline);
         if (failure.reason)
-            debug("      EClock Hz expected/start/end: %lu/%lu/%lu; "
-                  "ticks %08lx:%08lx -> %08lx:%08lx\n",
-                  failure.expected_rate, failure.first_rate, failure.last_rate,
-                  failure.start.ev_hi, failure.start.ev_lo,
-                  failure.end.ev_hi, failure.end.ev_lo);
+            debug_eclock_failure("      ", &failure);
     }
     return result;
 }
@@ -986,7 +996,7 @@ static void debug_dhrystone_location(const char *name, APTR address)
 /* Forbid() is held by the caller. Calibration keeps interrupts enabled so
  * an initially unknown iteration time cannot lose E-clock overflows. */
 static ULONG dhrystone_sample(ULONG loops, BOOL disable_interrupts,
-                             ULONG *frequency, const char **failure)
+                             ULONG *frequency, EClockFailure *failure)
 {
     struct EClockVal start, end;
     ULONG first_rate, last_rate;
@@ -997,10 +1007,16 @@ static ULONG dhrystone_sample(ULONG loops, BOOL disable_interrupts,
     last_rate = ReadEClock(&end);
     if (disable_interrupts) Enable();
 
-    *failure = eclock_interval_reason(&start, &end, first_rate, last_rate,
-                                      *frequency);
-    if (*failure)
+    failure->reason = eclock_interval_reason(&start, &end, first_rate,
+                                             last_rate, *frequency);
+    if (failure->reason) {
+        failure->expected_rate = *frequency;
+        failure->first_rate = first_rate;
+        failure->last_rate = last_rate;
+        failure->start = start;
+        failure->end = end;
         return 0;
+    }
 
     *frequency = first_rate;
     return end.ev_lo - start.ev_lo;
@@ -1010,20 +1026,25 @@ static ULONG run_dhrystone_chunks(void)
 {
     const ULONG max_loops = 5000000UL;
     const ULONG max_chunks = 128;
+    const ULONG max_discards = 8;
     ULONG loops = 1000, frequency = 0, ticks = 0;
     ULONG calibration_loops = 0, calibration_ticks = 0;
     ULONG target_ticks = 0, limit_ticks = 0, chunks = 0, total_loops = 0;
     ULONG shortest = ~0UL, longest = 0, attempt;
-    ULONG restarts = 0;
+    ULONG restarts = 0, discards = 0;
     uint64_t total_ticks = 0, next_loops, goal_ticks;
+    EClockFailure sample = {0}, discarded = {0};
     const char *failure = NULL;
 
     if (!Dhry_Initialize()) return 0;
 
     Forbid();
     for (attempt = 0; attempt < 6; attempt++) {
-        ticks = dhrystone_sample(loops, FALSE, &frequency, &failure);
-        if (failure) goto done;
+        ticks = dhrystone_sample(loops, FALSE, &frequency, &sample);
+        if (sample.reason) {
+            failure = sample.reason;
+            goto done;
+        }
         /* Aim for at least 10 ms of calibration on fast processors. */
         if ((ticks && (ticks >= frequency / 100 || attempt >= 2)) ||
             loops == max_loops)
@@ -1064,8 +1085,23 @@ static ULONG run_dhrystone_chunks(void)
            chunks < max_chunks) {
         if (loops > max_loops - total_loops)
             loops = max_loops - total_loops;
-        ticks = dhrystone_sample(loops, TRUE, &frequency, &failure);
-        if (failure) goto done;
+        ticks = dhrystone_sample(loops, TRUE, &frequency, &sample);
+        if (sample.reason == eclock_invalid_interval &&
+            discards < max_discards) {
+            /* ReadEClock() can miss a CIA timer overflow while interrupts
+             * are disabled; a BigMig 68060 saw its E-clock run backwards
+             * (#87). The chunk's real time is unknown, so drop it and run
+             * the same loop count again. Enable() has already let
+             * timer.device process the pending overflow. */
+            if (!discards)
+                discarded = sample;
+            discards++;
+            continue;
+        }
+        if (sample.reason) {
+            failure = sample.reason;
+            goto done;
+        }
         if (ticks >= limit_ticks) {
             /* JIT warm-up and host scheduling can invalidate calibration.
              * Discard the whole attempt, rather than selecting only its
@@ -1110,6 +1146,11 @@ done:
     if (restarts)
         debug("  bench: Dhrystone restarted %lu times after chunk overruns\n",
               restarts);
+    if (discards) {
+        debug("  bench: Dhrystone discarded %lu chunks with an invalid "
+              "EClock interval, first:\n", discards);
+        debug_eclock_failure("    ", &discarded);
+    }
     if (calibration_ticks)
         debug("  bench: Dhrystone calibration: %lu loops in %lu us\n",
               calibration_loops,
@@ -1118,6 +1159,8 @@ done:
         debug("  bench: Dhrystone timing rejected: %s\n", (ULONG)failure);
         debug("    chunk %lu, loops %lu, ticks %lu, EClock %lu Hz\n",
               chunks + 1, loops, ticks, frequency);
+        if (sample.reason)
+            debug_eclock_failure("    ", &sample);
         return 0;
     }
     debug("  bench: finished Dhrystone with %lu chunks and %lu loops in %lu us\n",
