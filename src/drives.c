@@ -924,25 +924,7 @@ BOOL check_disk_present(ULONG index)
         return FALSE;
     }
 
-    /* Create message port */
-    port = (struct MsgPort *)CreatePort(NULL, 0);
-    if (!port) {
-        return FALSE;
-    }
-
-    /* Create I/O request */
-    io = (struct IOStdReq *)CreateExtIO(port, sizeof(struct IOStdReq));
-    if (!io) {
-        DeletePort(port);
-        return FALSE;
-    }
-
-    /* Open the device */
-    error = OpenDevice((CONST_STRPTR)drive->handler_name, drive->unit_number,
-                       (struct IORequest *)io, 0);
-    if (error != 0) {
-        DeleteExtIO((struct IORequest *)io);
-        DeletePort(port);
+    if (!open_device_io(drive->handler_name, drive->unit_number, &port, &io)) {
         return FALSE;
     }
 

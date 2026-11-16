@@ -88,6 +88,13 @@ const char *get_scsi_ansi_string(ScsiAnsiVersion version);
 /* Calculate unit number for wide SCSI */
 ULONG calculate_unit_number(int target, int lun);
 
+/* Create a message port + IOStdReq and open `name` unit `unit`; everything is
+ * torn down again on failure. Shared with the trackdisk probes in drives.c. */
+struct MsgPort;
+struct IOStdReq;
+BOOL open_device_io(const char *name, ULONG unit,
+                    struct MsgPort **port_out, struct IOStdReq **io_out);
+
 void format_size_mb(ULONG size_mb, char *buffer, size_t size);
 
 #endif /* SCSI_H */

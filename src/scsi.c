@@ -86,6 +86,77 @@ ULONG calculate_unit_number(int target, int lun)
 }
 
 /*
+ * Create a message port and IOStdReq and open `name` unit `unit`. On success
+ * the caller owns the opened request and its port (close_device_io() releases
+ * both here); on any failure everything created here is torn down and FALSE
+ * is returned.
+ */
+BOOL open_device_io(const char *name, ULONG unit,
+                    struct MsgPort **port_out, struct IOStdReq **io_out)
+{
+    struct MsgPort *port;
+    struct IOStdReq *io;
+
+    *port_out = NULL;
+    *io_out = NULL;
+
+    if ((port = (struct MsgPort *)CreatePort(NULL, 0)) == NULL)
+        return FALSE;
+
+    if ((io = (struct IOStdReq *)CreateExtIO(port,
+                                             sizeof(struct IOStdReq))) == NULL) {
+        DeletePort(port);
+        return FALSE;
+    }
+
+    if (OpenDevice((CONST_STRPTR)name, unit, (struct IORequest *)io, 0) != 0) {
+        DeleteExtIO((struct IORequest *)io);
+        DeletePort(port);
+        return FALSE;
+    }
+
+    *port_out = port;
+    *io_out = io;
+    return TRUE;
+}
+
+static void close_device_io(struct MsgPort *port, struct IOStdReq *io)
+{
+    CloseDevice((struct IORequest *)io);
+    DeleteExtIO((struct IORequest *)io);
+    DeletePort(port);
+}
+
+/*
+ * Issue one SCSI command through HD_SCSICMD on an opened unit. The caller
+ * supplies the CDB and the read buffer; auto-sense is always requested.
+ * Returns TRUE only when the command completed with good status.
+ */
+static BOOL scsi_do_cmd(struct IOStdReq *io, UBYTE *cmd, UWORD cmd_len,
+                        APTR data, ULONG data_len)
+{
+    struct SCSICmd scsi_cmd;
+    UBYTE sense_data[20];
+
+    memset(&scsi_cmd, 0, sizeof(scsi_cmd));
+    memset(sense_data, 0, sizeof(sense_data));
+
+    scsi_cmd.scsi_Command = cmd;
+    scsi_cmd.scsi_CmdLength = cmd_len;
+    scsi_cmd.scsi_Data = data;
+    scsi_cmd.scsi_Length = data_len;
+    scsi_cmd.scsi_Flags = SCSIF_READ | SCSIF_AUTOSENSE;
+    scsi_cmd.scsi_SenseData = sense_data;
+    scsi_cmd.scsi_SenseLength = sizeof(sense_data);
+
+    io->io_Command = HD_SCSICMD;
+    io->io_Data = &scsi_cmd;
+    io->io_Length = sizeof(struct SCSICmd);
+
+    return DoIO((struct IORequest *)io) == 0 && scsi_cmd.scsi_Status == 0;
+}
+
+/*
  * Get SCSI device type string
  */
 const char *get_scsi_type_string(ScsiDeviceType type)
@@ -168,31 +239,11 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     UWORD inquiry_buf[INQUIRY_BUF_WORDS];
     UBYTE sense_data[20];
 
-    BYTE error;
-
     if (!handler_name || !handler_name[0]) {
         return FALSE;
     }
 
-    /* Create message port */
-    port = (struct MsgPort *)CreatePort(NULL, 0);
-    if (!port) {
-        return FALSE;
-    }
-
-    /* Create I/O request */
-    io = (struct IOStdReq *)CreateExtIO(port, sizeof(struct IOStdReq));
-    if (!io) {
-        DeletePort(port);
-        return FALSE;
-    }
-
-    /* Open the device */
-    error = OpenDevice((CONST_STRPTR)handler_name, unit_number,
-                       (struct IORequest *)io, 0);
-    if (error != 0) {
-        DeleteExtIO((struct IORequest *)io);
-        DeletePort(port);
+    if (!open_device_io(handler_name, unit_number, &port, &io)) {
         return FALSE;
     }
 
@@ -219,7 +270,7 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     io->io_Data = &scsi_cmd;
     io->io_Length = sizeof(struct SCSICmd);
 
-    error = DoIO((struct IORequest *)io);
+    DoIO((struct IORequest *)io);
 
     /* If not IOERR_NOCMD, device supports SCSI commands */
     if (io->io_Error != IOERR_NOCMD) {
@@ -230,16 +281,14 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
         io->io_Data = &scsi_cmd;
         io->io_Length = sizeof(struct SCSICmd);
 
-        error = DoIO((struct IORequest *)io);
+        DoIO((struct IORequest *)io);
 
         if (io->io_Error != IOERR_NOCMD) {
             supports_scsi = TRUE;
         }
     }
 
-    CloseDevice((struct IORequest *)io);
-    DeleteExtIO((struct IORequest *)io);
-    DeletePort(port);
+    close_device_io(port, io);
 
     return supports_scsi;
 }
@@ -252,70 +301,34 @@ static BOOL scsi_inquiry(int target, int lun,
 {
     struct IOStdReq *io;
     struct MsgPort *mp;
-    struct SCSICmd scsi_cmd;
     UBYTE cmd[6];
-    UBYTE sense_data[20];
     UWORD inquiry_buf[INQUIRY_BUF_WORDS];
-    BYTE error;
     ULONG unit;
+    BOOL ok;
 
-    memset(&scsi_cmd, 0, sizeof(scsi_cmd));
     memset(cmd, 0, sizeof(cmd));
-    memset(sense_data, 0, sizeof(sense_data));
     memset(inquiry_buf, 0, sizeof(inquiry_buf));
     memset(inquiry_data, 0, sizeof(struct SCSIInquiryData));
-
-
-    if ((mp = (struct MsgPort *)CreatePort(NULL, 0)) == NULL) return FALSE;
-
-    if ((io = (struct IOStdReq *)CreateExtIO(mp, sizeof(struct IOStdReq))) == NULL) {
-        DeletePort(mp);
-        return FALSE;
-    }
 
     /* Calculate unit number for this target/LUN */
     unit = calculate_unit_number(target, lun);
 
-    error = OpenDevice((CONST_STRPTR)scsi_device_list.device_name, unit,
-                       (struct IORequest *)io, 0);
-    if (error != 0) {
-        /* Try opening with unit 0 and addressing via command */
-        error = OpenDevice((CONST_STRPTR)scsi_device_list.device_name, 0,
-                           (struct IORequest *)io, 0);
-        if (error != 0) {
-            DeleteExtIO((struct IORequest *)io);
-            DeletePort(mp);
-            return FALSE;
-        }
+    /* Some controllers only accept unit 0 and address the target in the CDB. */
+    if (!open_device_io(scsi_device_list.device_name, unit, &mp, &io) &&
+        !open_device_io(scsi_device_list.device_name, 0, &mp, &io)) {
+        return FALSE;
     }
 
     /* SCSI INQUIRY command */
     cmd[0] = 0x12;              /* INQUIRY opcode */
     cmd[1] = (lun << 5);        /* LUN in command for older devices */
-    cmd[2] = 0;                 /* Page code */
-    cmd[3] = 0;                 /* Reserved */
     cmd[4] = INQUIRY_DATA_LENGTH;  /* Allocation length */
-    cmd[5] = 0;                 /* Control */
 
-    scsi_cmd.scsi_Data = inquiry_buf;
-    scsi_cmd.scsi_Length = INQUIRY_DATA_LENGTH;
-    scsi_cmd.scsi_Command = cmd;
-    scsi_cmd.scsi_CmdLength = 6;
-    scsi_cmd.scsi_Flags = SCSIF_READ | SCSIF_AUTOSENSE;
-    scsi_cmd.scsi_SenseData = sense_data;
-    scsi_cmd.scsi_SenseLength = sizeof(sense_data);
+    ok = scsi_do_cmd(io, cmd, 6, inquiry_buf, INQUIRY_DATA_LENGTH);
 
-    io->io_Command = HD_SCSICMD;
-    io->io_Data = &scsi_cmd;
-    io->io_Length = sizeof(struct SCSICmd);
+    close_device_io(mp, io);
 
-    error = DoIO((struct IORequest *)io);
-
-    CloseDevice((struct IORequest *)io);
-    DeleteExtIO((struct IORequest *)io);
-    DeletePort(mp);
-
-    if (error != 0 || scsi_cmd.scsi_Status != 0) {
+    if (!ok) {
         return FALSE;
     }
 
@@ -332,34 +345,18 @@ static BOOL scsi_read_capacity(int target, int lun,
 {
     struct IOStdReq *io;
     struct MsgPort *mp;
-    struct SCSICmd scsi_cmd;
     UBYTE cmd[10];
-    UBYTE sense_data[20];
     UBYTE data[8];
-    BYTE error;
     ULONG unit;
+    BOOL ok;
 
-    if ((mp = (struct MsgPort *)CreatePort(NULL, 0)) == NULL) return FALSE;
-
-    if ((io = (struct IOStdReq *)CreateExtIO(mp, sizeof(struct IOStdReq))) == NULL) {
-        DeletePort(mp);
-        return FALSE;
-    }
-
-    memset(&scsi_cmd, 0, sizeof(scsi_cmd));
     memset(cmd, 0, sizeof(cmd));
-    memset(sense_data, 0, sizeof(sense_data));
     memset(data, 0, sizeof(data));
 
     /* Calculate unit number for this target/LUN */
     unit = calculate_unit_number(target, lun);
 
-    error = OpenDevice((CONST_STRPTR)scsi_device_list.device_name, unit,
-                       (struct IORequest *)io, 0);
-
-    if (error != 0) {
-        DeleteExtIO((struct IORequest *)io);
-        DeletePort(mp);
+    if (!open_device_io(scsi_device_list.device_name, unit, &mp, &io)) {
         return FALSE;
     }
 
@@ -368,25 +365,11 @@ static BOOL scsi_read_capacity(int target, int lun,
     cmd[1] = (lun << 5);        /* LUN */
     /* Rest are zeros */
 
-    scsi_cmd.scsi_Data = (UWORD *)data;
-    scsi_cmd.scsi_Length = 8;
-    scsi_cmd.scsi_Command = cmd;
-    scsi_cmd.scsi_CmdLength = 10;
-    scsi_cmd.scsi_Flags = SCSIF_READ | SCSIF_AUTOSENSE;
-    scsi_cmd.scsi_SenseData = sense_data;
-    scsi_cmd.scsi_SenseLength = sizeof(sense_data);
+    ok = scsi_do_cmd(io, cmd, 10, data, 8);
 
-    io->io_Command = HD_SCSICMD;
-    io->io_Data = &scsi_cmd;
-    io->io_Length = sizeof(struct SCSICmd);
+    close_device_io(mp, io);
 
-    error = DoIO((struct IORequest *)io);
-
-    CloseDevice((struct IORequest *)io);
-    DeleteExtIO((struct IORequest *)io);
-    DeletePort(mp);
-
-    if (error != 0 || scsi_cmd.scsi_Status != 0) {
+    if (!ok) {
         return FALSE;
     }
 
