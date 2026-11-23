@@ -227,16 +227,6 @@ void enumerate_memory_regions(void)
         region->amount_free = mh->mh_Free;
         region->memListNode = mh; //to find me in the list
 
-        /* Detect 2MB Chip RAM variant of ECS Agnus */
-        if (region->mem_type & MEMF_CHIP) {
-            if (hw_info.agnus_type == AGNUS_ECS_PAL && mh->mh_Upper > (APTR)0x100000) {
-                hw_info.agnus_type = AGNUS_ECS_2MB_PAL;
-            }
-            if (hw_info.agnus_type == AGNUS_ECS_NTSC && mh->mh_Upper > (APTR)0x100000) {
-                hw_info.agnus_type = AGNUS_ECS_2MB_NTSC;
-            }
-        }
-
         analyze_memory_region(mh, &region->num_chunks, &region->largest_block);
 
         if (mh->mh_Node.ln_Name) {
