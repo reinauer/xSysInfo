@@ -384,7 +384,7 @@ PCI_DB = $(PCI_BUILD_DIR)/pci.db
 
 # MD5 checksums for verification
 OPENPCI_MD5 = 2d0487dc2d9779d9ff7a17df898981f0
-MMULIB_MD5 = 1e63e42c9d2895d22f896b6d90c26353
+MMULIB_MD5 = 26bea62b0004a984a911c73ea2051d1a
 MU_MANUAL_MD5 = 98ce060266ec1ac2dece921f431253b1
 
 .PHONY: identify-all disk download-libs pci-db
