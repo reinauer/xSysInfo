@@ -582,7 +582,8 @@ static void export_benchmarks(ReportOutput *fh, BOOL references)
         ULONG i;
         for (i = 0; i < NUM_REFERENCE_SYSTEMS; i++) {
             char ref_label[32];
-            format_reference_label(ref_label, sizeof(ref_label), &reference_systems[i]);
+            format_reference_label(ref_label, sizeof(ref_label),
+                                   &reference_systems[i], TRUE);
             write_formatted(fh, "  %s:  %lu Dhrystones",
                             ref_label, (unsigned long)reference_systems[i].dhrystones);
         }

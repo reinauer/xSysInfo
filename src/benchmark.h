@@ -15,24 +15,24 @@
 
 /* Reference system data */
 typedef struct {
-    const char *name;       /* System name (e.g., "A600") */
+    const char *name;       /* System name (e.g., "A500") */
     const char *cpu;        /* CPU description */
-    ULONG mhz;              /* Clock speed */
+    ULONG mhz_x100;         /* Nominal CPU MHz * 100 */
     ULONG dhrystones;       /* Dhrystone score */
-    ULONG mips;             /* MIPS rating * 100 */
-    ULONG mflops;           /* MFLOPS rating * 100 (0 if no FPU) */
+    ULONG mips;             /* Unused legacy reference, scaled by 100 */
+    ULONG mflops;           /* Unused legacy reference, scaled by 100 */
 } ReferenceSystem;
 
 /* Number of reference systems */
 #define NUM_REFERENCE_SYSTEMS   6
 
 /* Reference system indices */
-#define REF_A600    0
+#define REF_A500    0
 #define REF_B2000   1
 #define REF_A1200   2
-#define REF_A2500   3
-#define REF_A3000   4
-#define REF_A4000   5
+#define REF_A3000   3
+#define REF_A4000_040 4
+#define REF_A4000_060 5
 #define MAX_MULTIPLY 1024
 #define MIN_MHZ_MEASURE 2000
 #define CPULOOPS 14680
@@ -60,8 +60,9 @@ extern BenchmarkResults bench_results;
 /* Global reference data */
 extern const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS];
 
-/* Format reference system label ("A600  68000  7MHz") */
-void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSystem *ref);
+/* Compact GUI clocks, or hundredths of MHz for full-precision reports. */
+void format_reference_label(char *buffer, size_t buffer_size,
+                            const ReferenceSystem *ref, BOOL full_precision);
 
 /* Function prototypes */
 

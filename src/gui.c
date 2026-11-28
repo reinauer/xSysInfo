@@ -1808,7 +1808,7 @@ static void draw_speed_ruler(ULONG max_value)
     if (app->bar_scale == SCALE_EXPAND) {
         lab_max = max_value;
     } else {
-        lab_max = reference_systems[REF_A3000].dhrystones;
+        lab_max = reference_systems[REF_A4000_040].dhrystones;
     }
     if (lab_max == 0) return;
 
@@ -2011,7 +2011,8 @@ static void draw_speed_panel_contents(BOOL redraw_scale_button)
     y += 8;
     for (i = 0; i < NUM_REFERENCE_SYSTEMS; i++) {
         char ref_label[24];
-        format_reference_label(ref_label, sizeof(ref_label), &reference_systems[i]);
+        format_reference_label(ref_label, sizeof(ref_label),
+                               &reference_systems[i], FALSE);
 
         SetAPen(rp, COLOR_TEXT);
         TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)ref_label, -1, 4);

@@ -730,7 +730,7 @@ static Object *make_speed_page(void)
         } else {
             format_reference_label(speed_labels[i - 1],
                                    sizeof(speed_labels[i - 1]),
-                                   &reference_systems[i - 1]);
+                                   &reference_systems[i - 1], FALSE);
             text = speed_labels[i - 1];
         }
 

@@ -35,21 +35,25 @@ extern struct ExecBase *SysBase;
 /* Global benchmark results */
 BenchmarkResults bench_results;
 
-/* Reference system data (placeholder values - to be calibrated); scaled by 100 */
-    /* name,  cpu,     mhz,   dhry, mips, mfls */
+/* CPU MHz, MIPS and MFLOPS are scaled by 100; Dhrystones are per second.
+ * A3000 scores were measured on hardware with GCC 16.2 rc26.
+ * Other scores remain legacy placeholders pending hardware calibration.
+ * The MIPS and MFLOPS reference columns are unused.
+ * See docs/benchmark-references.txt for configuration and measurements. */
+    /* name,  cpu,   mhz_x100, dhry, mips, mfls */
 const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
-    /* A500:  68000 @ 7.09 MHz, no FPU */
-    {"A600",  "68000",   7,   1001,   56,    0},
-    /* B2000: 68000 @ 7.09 MHz, no FPU, FastRam*/
-    {"B2000", "68000",   7,   1408,   81,    0},
-    /* A1200: 68EC020 @ 14 MHz, no FPU */
-    {"A1200", "EC020",  14,   2550,  145,    0},
-    /* A3000: 68030 / 68882 @ 25 MHz */
-    {"A3000", "68030",  25,   8300,  475,  285},
+    /* A500 PAL: 68000 @ 7.09 MHz, no FPU; hardware test pending. */
+    {"A500",  "68000",  709,   1001,   56,    0},
+    /* B2000 PAL: 68000 @ 7.09 MHz, no FPU, Fast RAM. */
+    {"B2000", "68000",  709,   1408,   81,    0},
+    /* A1200 PAL: 68EC020 @ 14.19 MHz, no FPU. */
+    {"A1200", "EC020", 1419,   2550,  145,    0},
+    /* A3000: 68030 @ 25 MHz, 68882; FPU clock unconfirmed. */
+    {"A3000", "68030", 2500,   8578,  488,   70},
     /* A4000: 68040 @ 25 MHz, internal FPU */
-    {"A4000", "68040",  25,  32809, 1867,  504},
-    /* A4000: 68040 @ 25 MHz, internal FPU */
-    {"A4000", "68060",  50,  91000, 5200,  685},
+    {"A4000", "68040", 2500,  32809, 1867,  504},
+    /* A4000: 68060 @ 50 MHz, internal FPU. */
+    {"A4000", "68060", 5000,  91000, 5200,  685},
 };
 
 /*
@@ -60,12 +64,26 @@ const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
 #define MEM_SPEED_TARGET_US 200000UL
 #define MEM_SPEED_MAX_ITERATIONS 32768UL
 
-void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSystem *ref)
+void format_reference_label(char *buffer, size_t buffer_size,
+                            const ReferenceSystem *ref, BOOL full_precision)
 {
+    char clock[16];
+    ULONG mhz, fraction;
+
     if (!buffer || buffer_size == 0 || !ref) return;
 
-    snprintf(buffer, buffer_size, "%-5s %-5s %luMHz",
-             ref->name, ref->cpu, (unsigned long)ref->mhz);
+    mhz = ref->mhz_x100 / 100;
+    fraction = ref->mhz_x100 % 100;
+
+    if (full_precision && fraction) {
+        snprintf(clock, sizeof(clock), "%lu.%02lu",
+                 (unsigned long)mhz, (unsigned long)fraction);
+    } else {
+        if (!full_precision && fraction >= 50) mhz++;
+        snprintf(clock, sizeof(clock), "%lu", (unsigned long)mhz);
+    }
+    snprintf(buffer, buffer_size, "%-5s %-5s %sMHz",
+             ref->name, ref->cpu, clock);
 }
 
 /* Timer resources */
