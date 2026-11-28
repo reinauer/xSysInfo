@@ -27,6 +27,9 @@ jobs:
     - name: Building all targets
       run: make all identify-release
 
+    - name: Check Aminet download failures
+      run: python3 tests/aminet_downloads.py
+
     - name: Check incremental frontend selection
       run: |
         make MUI=0 xSysInfo
