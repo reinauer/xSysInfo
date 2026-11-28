@@ -1,0 +1,71 @@
+xSysInfo benchmark references
+============================
+
+The reference bars and comparison factors use Dhrystones per second.
+Reference CPU clocks are labels; they do not normalize benchmark scores.
+The reference MIPS and MFLOPS fields are unused by the current display.
+They are scaled by 100 (70 means 0.70 MFLOPS). Apart from the A3000 row,
+they remain legacy placeholders pending calibration.
+The displayed MIPS and MFLOPS come from the current machine's benchmark.
+
+CPU clocks are stored in hundredths of MHz. Classic and MUI labels keep
+whole MHz to fit the existing layout; text reports include hundredths
+when needed. The PAL A500/B2000 clock is rounded to 7.09 MHz, and the PAL
+A1200 clock to 14.19 MHz. NTSC models have different clocks; an NTSC A500
+is approximately 7.16 MHz. These are nominal clocks, not measurements.
+Clock source: Commodore A500/A2000 Technical Reference Manual,
+https://amiga.net.au/files/Tech_Amiga/Commodore_A500-A2000_Technical_Reference_Manual.pdf
+
+Calibration status (host date 2026-11-28)
+---------------------------------------
+
+Only the A3000 reference has been calibrated with this compiler.
+All other reference scores remain legacy placeholders. In particular,
+renaming A600 to A500 does not validate its old score: physical A500
+testing is pending. The 68060 row describes an A4000 with a 50 MHz 68060.
+
+A3000 hardware:
+  68030, nominal 25 MHz; 68882 present, FPU clock unconfirmed
+  2 MB Chip RAM, 16 MB Fast RAM
+  AmigaOS 3.2.3, Kickstart 47.115, exec.library 47.13
+  SetPatch 47.10, identify.library 45.1, MMU in use
+  I-cache and D-cache enabled; instruction burst enabled, data burst off
+  Benchmark code in Fast RAM, initial Dhry_Run address aligned to 16 bytes
+  Roadshow and A4092 networking remained active during measurements
+
+Compiler: /opt/amiga-16.2, GCC 16.2 rc26
+Source: 0c05c1c128408578f8db917cc36c57058b33ac16
+Version: 0.12.0-53-g0c05c1c
+Executable SHA256:
+  2c4264c00ba3e03873560babe867cf2016f3865a61d45f687050d503af328d4b
+Build: standard Makefile settings, including -O2 -m68000 and -fno-lto
+       for Dhrystone; libnix13 runtime from the pinned compiler
+Run: xSysInfo BRIEF DEBUG, five consecutive runs
+
+  Run   Dhrystones/s   Completed loops   Timed microseconds
+    1          8578             17345              2021969
+    2          8579             17346              2021867
+    3          8577             17343              2021927
+    4          8578             17345              2022023
+    5          8578             17345              2021909
+
+The reference uses the median, 8578 Dhrystones/s. Each run used 27 timed
+chunks, with no timing rejections, restarts or fallbacks. This is the
+optimized/adapted Dhrystone 2.1 workload shipped by xSysInfo, not a claim
+of strict compliance with the original no-procedure-merging rules.
+
+Measured MIPS was 4.88 in every run. Measured MFLOPS was 0.71, 0.70, 0.70,
+0.70, 0.70. MFLOPS uses xSysInfo's existing DoFlops assembly workload;
+it is not the Al Aburto flops.c benchmark. The A3000 row uses the measured
+4.88 MIPS and median 0.70 MFLOPS. Its FPU clock remains unconfirmed;
+the MFLOPS result must not be described as a verified 25 MHz FPU baseline.
+
+A follow-up run with the table and label changes also returned 8578
+Dhrystones/s, 4.88 MIPS and 0.70 MFLOPS (17346 loops in 2021926 us).
+This loaded Dhry_Run at offset 8 within a 16-byte line, still in Fast RAM.
+The tested executable SHA256 was:
+  5b1b2c62e74b79167309edcc05e58103c8f33db9dbd45a575faa653c58cf2ed0
+
+Future calibration should record the actual CPU/FPU clocks, memory and
+cache configuration, compiler tag, executable hash and repeated results.
+Emulator scores are not substitutes for these physical reference runs.

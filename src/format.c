@@ -374,8 +374,8 @@ ULONG scale_speed_value(ULONG value, ULONG max_value, ULONG extent,
         /* Linear scale */
         return (ULONG)(((unsigned long long)value * extent) / max_value);
     } else {
-        /* Shrink mode: A3000 at 100% */
-        ULONG a4000_value = reference_systems[REF_A3000].dhrystones;
+        /* Shrink mode: keep the A4000/040 reference at 100%. */
+        ULONG a4000_value = reference_systems[REF_A4000_040].dhrystones;
         ULONG ref_width = extent;
         if (value <= a4000_value) {
             return (ULONG)(((unsigned long long)value * ref_width) / a4000_value);
@@ -388,7 +388,7 @@ ULONG scale_speed_value(ULONG value, ULONG max_value, ULONG extent,
 
 ULONG speed_scale_max(BarScale scale)
 {
-    ULONG reference = reference_systems[REF_A4000].dhrystones;
+    ULONG reference = reference_systems[REF_A4000_060].dhrystones;
     return scale == SCALE_EXPAND ? get_max_dhrystones() :
                                   (reference ? reference * 2 : 1);
 }

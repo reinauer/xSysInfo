@@ -10,7 +10,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    container: stefanreinauer/amiga-gcc:gcc-v13.4
+    container: stefanreinauer/amiga-gcc:16.2-rc26
 
     steps:
     - uses: actions/checkout@v4
