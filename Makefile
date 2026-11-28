@@ -375,6 +375,7 @@ DISK_TITLE = $(shell printf '%s' "xSysInfo-$(FULL_VERSION)" | \
 
 # Downloads directory and files
 OPENPCI_LHA = $(DOWNLOAD_DIR)/openpci68k.lha
+AMINET_MIRRORS ?= https://aminet.net https://ftp.fau.de/aminet
 
 # Build the floppy's smaller PCI database without modifying the submodule.
 PCI_BUILD_DIR = build/pci
@@ -426,6 +427,29 @@ echo "Expected MD5: $(2)"; \
 echo "Got MD5: $$actual"
 endef
 
+# Reject HTTP errors and try another mirror without accepting unchecked data.
+# Publish the archive only after verification, so failed downloads cannot
+# leave an error page or partial archive that make considers up to date.
+define download_aminet
+@set -e; \
+if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(2)); then \
+	echo "$@ already downloaded and verified"; exit 0; \
+fi; \
+for mirror in $(AMINET_MIRRORS); do \
+	echo "Downloading $(1) from $$mirror..."; \
+	if curl -fLsS --connect-timeout 10 --max-time 60 \
+		--retry 2 --retry-delay 1 "$$mirror/$(1)" -o "$@.tmp"; then \
+		if $(call verify_md5_cmd,$@.tmp,$(2)); then \
+			mv "$@.tmp" "$@"; echo "$@: OK"; exit 0; \
+		fi; \
+		$(call md5_fail_msg,$@.tmp,$(2)); \
+	fi; \
+	rm -f "$@.tmp"; \
+done; \
+echo "Failed to download a verified $(1) from any Aminet mirror"; \
+exit 1
+endef
+
 # Build the missing PowerPC assembler from a pinned source archive.
 $(VASM_PPC_ARCHIVE): | $(DOWNLOAD_DIR)
 	@echo "  DOWNLOAD $@"
@@ -443,45 +467,15 @@ $(abspath $(VASM_PPC_DIR)/vasmppc_std): $(VASM_PPC_ARCHIVE)
 
 # Download and verify openpci68k.lha
 $(OPENPCI_LHA): | $(DOWNLOAD_DIR)
-	@if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(OPENPCI_MD5)); then \
-		echo "$@ already downloaded and verified"; \
-	else \
-		echo "Downloading openpci68k.lha..."; \
-		curl -sL http://aminet.net/driver/other/openpci68k.lha -o $@; \
-		if $(call verify_md5_cmd,$@,$(OPENPCI_MD5)); then \
-			echo "$@: OK"; \
-		else \
-			$(call md5_fail_msg,$@,$(OPENPCI_MD5)); rm -f $@; exit 1; \
-		fi \
-	fi
+	$(call download_aminet,driver/other/openpci68k.lha,$(OPENPCI_MD5))
 
 # Download and verify MMULib.lha
 $(MMULIB_LHA): | $(DOWNLOAD_DIR)
-	@if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(MMULIB_MD5)); then \
-		echo "$@ already downloaded and verified"; \
-	else \
-		echo "Downloading MMULib.lha..."; \
-		curl -sL http://aminet.net/util/libs/MMULib.lha -o $@; \
-		if $(call verify_md5_cmd,$@,$(MMULIB_MD5)); then \
-			echo "$@: OK"; \
-		else \
-			$(call md5_fail_msg,$@,$(MMULIB_MD5)); rm -f $@; exit 1; \
-		fi \
-	fi
+	$(call download_aminet,util/libs/MMULib.lha,$(MMULIB_MD5))
 
 # Download and verify MuManual.lha
 $(MU_MANUAL_LHA): | $(DOWNLOAD_DIR)
-	@if [ -f "$@" ] && $(call verify_md5_cmd,$@,$(MU_MANUAL_MD5)); then \
-		echo "$@ already downloaded and verified"; \
-	else \
-		echo "Downloading MuManual.lha..."; \
-		curl -sL http://aminet.net/docs/misc/MuManual.lha -o $@; \
-		if $(call verify_md5_cmd,$@,$(MU_MANUAL_MD5)); then \
-			echo "$@: OK"; \
-		else \
-			$(call md5_fail_msg,$@,$(MU_MANUAL_MD5)); rm -f $@; exit 1; \
-		fi \
-	fi
+	$(call download_aminet,docs/misc/MuManual.lha,$(MU_MANUAL_MD5))
 # Extract individual MMU files once, retaining the archives' directory layout.
 # Refresh timestamps because archive members predate the downloaded archive.
 $(MMU_FILES): $(MMULIB_LHA)
